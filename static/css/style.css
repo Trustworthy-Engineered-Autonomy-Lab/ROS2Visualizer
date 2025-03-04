@@ -19,6 +19,12 @@ html, body {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
+.sidebar .container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
 /* Main content area */
 .content-area {
   height: 100%;
@@ -46,6 +52,14 @@ html, body {
   background-color: var(--bs-gray-900);
   border-radius: 0.25rem;
   overflow: hidden;
+}
+
+/* TEA Lab styling */
+.tea-lab-logo {
+  transition: transform 0.3s ease;
+}
+.tea-lab-logo:hover {
+  transform: scale(1.05);
 }
 
 /* Control panel styling */
@@ -102,6 +116,11 @@ html, body {
 
 .view-controls:hover {
   opacity: 1;
+}
+
+/* Footer styling */
+.text-muted {
+  color: var(--bs-gray-600) !important;
 }
 
 /* Responsive adjustments */
