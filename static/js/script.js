@@ -162,48 +162,62 @@ function handleFileUpload() {
   let processedCount = 0;
   const colors = [0x0088ff, 0xff8800, 0x88ff00, 0xff0088, 0x00ff88, 0x8800ff];
   
+  // Use server-side processing for large files and to handle Unix timestamps
   Array.from(files).forEach((file, index) => {
     statusText.textContent = `Processing file: ${file.name}`;
     progressBar.style.width = `${(index / files.length) * 100}%`;
     
-    // Use PapaParse for client-side CSV parsing
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: function(results) {
-        processedCount++;
-        progressBar.style.width = `${(processedCount / files.length) * 100}%`;
-        
-        if (results.errors.length > 0) {
-          console.error("Parsing errors:", results.errors);
-          statusText.textContent = `Error processing ${file.name}: ${results.errors[0].message}`;
-          return;
-        }
-        
-        // Process the parsed data
-        const processedData = processData(results.data);
-        
-        // Add trajectory to scene
-        addTrajectory(processedData, file.name, colors[index % colors.length]);
-        
-        // Update status
-        statusText.textContent = `Processed ${processedCount} of ${files.length} files`;
-        
-        // If all files are processed, close modal and update UI
-        if (processedCount === files.length) {
-          setTimeout(() => {
-            uploadModal.hide();
-            updateTrajectoryList();
-            updateTimeSlider();
-            showMessage(`Successfully loaded ${files.length} trajectories`, "success");
-          }, 500);
-        }
-      },
-      error: function(error) {
-        console.error("Error parsing file:", error);
-        statusText.textContent = `Error processing ${file.name}: ${error}`;
-        processedCount++;
+    // Create form data for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Send file to server for processing
+    fetch('/process_csv', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(err => { throw new Error(err.error || 'Server error') });
       }
+      return response.json();
+    })
+    .then(data => {
+      processedCount++;
+      progressBar.style.width = `${(processedCount / files.length) * 100}%`;
+      
+      // Check if we have data points
+      if (!data.data || data.data.length === 0) {
+        throw new Error('No valid data points found in file');
+      }
+      
+      // Log metadata
+      console.log(`File ${file.name} metadata:`, data.metadata);
+      
+      // Add trajectory to scene
+      addTrajectory(data.data, file.name, colors[index % colors.length]);
+      
+      // Update status
+      statusText.textContent = `Processed ${processedCount} of ${files.length} files`;
+      statusText.textContent += ` (${data.metadata.points_count} points from ${data.metadata.original_count} total)`;
+      
+      // If all files are processed, close modal and update UI
+      if (processedCount === files.length) {
+        setTimeout(() => {
+          uploadModal.hide();
+          updateTrajectoryList();
+          updateTimeSlider();
+          showMessage(`Successfully loaded ${files.length} trajectories`, "success");
+        }, 500);
+      }
+    })
+    .catch(error => {
+      console.error("Error processing file:", error);
+      statusText.textContent = `Error processing ${file.name}: ${error.message}`;
+      processedCount++;
+      
+      // Update progress even if there's an error
+      progressBar.style.width = `${(processedCount / files.length) * 100}%`;
     });
   });
 }
