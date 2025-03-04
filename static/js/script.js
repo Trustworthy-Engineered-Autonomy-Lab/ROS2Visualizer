@@ -355,39 +355,102 @@ function addTrajectory(data, name, color) {
 
 // Create aircraft model
 function createAircraftModel(color) {
-  // Missile-like aircraft representation with elongated body and fins
+  // High-detail missile/UAV representation with sleek design
   const group = new THREE.Group();
   
-  // Main body - elongated cylindrical shape
-  const bodyGeometry = new THREE.CylinderGeometry(5, 5, 40, 16);
+  // Create a more vibrant color with metallic appearance
+  const mainColor = new THREE.Color(color);
+  const accentColor = new THREE.Color(color).offsetHSL(0, 0, 0.2); // Slightly lighter for accents
+  
+  // Materials
+  const bodyMaterial = new THREE.MeshPhongMaterial({ 
+    color: mainColor,
+    shininess: 100, // More metallic look
+    specular: 0x333333 // Add specular highlights
+  });
+  
+  const accentMaterial = new THREE.MeshPhongMaterial({ 
+    color: accentColor,
+    shininess: 120,
+    specular: 0x666666
+  });
+  
+  // Main body - tapered cylindrical shape for aerodynamic look
+  const bodyGeometry = new THREE.CylinderGeometry(5, 7, 50, 16);
   bodyGeometry.rotateX(Math.PI / 2);
-  const bodyMaterial = new THREE.MeshPhongMaterial({ color: color });
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
   group.add(body);
   
-  // Nose cone
-  const noseGeometry = new THREE.ConeGeometry(5, 15, 16);
-  noseGeometry.rotateX(-Math.PI / 2);
-  const noseMaterial = new THREE.MeshPhongMaterial({ color: color });
-  const nose = new THREE.Mesh(noseGeometry, noseMaterial);
-  nose.position.set(0, 0, 27.5); // Position at front of body
+  // Nose cone - properly oriented and more streamlined
+  const noseGeometry = new THREE.ConeGeometry(5, 20, 16);
+  noseGeometry.rotateX(Math.PI / 2); // Ensure correct orientation
+  const nose = new THREE.Mesh(noseGeometry, accentMaterial);
+  nose.position.set(0, 0, 35); // Position at front of body
   group.add(nose);
   
-  // Add fins (4 of them around the back)
-  const finGeometry = new THREE.BoxGeometry(1, 10, 12);
-  const finMaterial = new THREE.MeshPhongMaterial({ color: color });
+  // Tail section - slightly wider for stability
+  const tailGeometry = new THREE.CylinderGeometry(7, 8, 10, 16);
+  tailGeometry.rotateX(Math.PI / 2);
+  const tail = new THREE.Mesh(tailGeometry, accentMaterial);
+  tail.position.set(0, 0, -25); // Position at rear
+  group.add(tail);
   
+  // Add swept-back fins for better aerodynamics (4 of them around the back)
+  const finShape = new THREE.Shape();
+  finShape.moveTo(0, 0);
+  finShape.lineTo(15, -7); // Swept back design
+  finShape.lineTo(15, 3);
+  finShape.lineTo(7, 10);
+  finShape.lineTo(0, 10);
+  finShape.lineTo(0, 0);
+  
+  const finExtrudeSettings = {
+    steps: 1,
+    depth: 0.8,
+    bevelEnabled: true,
+    bevelThickness: 0.3,
+    bevelSize: 0.3,
+    bevelSegments: 3
+  };
+  
+  const finGeometry = new THREE.ExtrudeGeometry(finShape, finExtrudeSettings);
+  const finMaterial = new THREE.MeshPhongMaterial({ 
+    color: accentColor,
+    shininess: 80,
+    specular: 0x444444
+  });
+  
+  // Add 4 aerodynamic fins
   for (let i = 0; i < 4; i++) {
     const fin = new THREE.Mesh(finGeometry, finMaterial);
-    fin.position.set(0, 0, -15); // Position near back
+    fin.position.set(0, 0, -25); // Position near back
     fin.rotation.z = (Math.PI / 2) * i; // Rotate around body
-    if (i % 2 === 0) {
-      fin.position.y = 7; // Position perpendicular fins outward
+    
+    // Position fins outward based on their rotation
+    if (i === 0) {
+      fin.position.y = 7; // Top fin
+    } else if (i === 1) {
+      fin.position.x = 7; // Right fin
+    } else if (i === 2) {
+      fin.position.y = -7; // Bottom fin
     } else {
-      fin.position.x = 7;
+      fin.position.x = -7; // Left fin
     }
+    
     group.add(fin);
   }
+  
+  // Add guidance rings for detail
+  for (let i = 0; i < 3; i++) {
+    const ringGeometry = new THREE.TorusGeometry(7.5, 0.5, 8, 24);
+    const ring = new THREE.Mesh(ringGeometry, accentMaterial);
+    ring.position.z = -15 + (i * 10); // Space them along the body
+    ring.rotation.y = Math.PI / 2; // Orient correctly
+    group.add(ring);
+  }
+  
+  // Scale the entire model for better visibility
+  group.scale.set(1.2, 1.2, 1.2);
   
   return group;
 }
