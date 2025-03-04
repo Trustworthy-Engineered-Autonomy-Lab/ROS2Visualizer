@@ -150,15 +150,17 @@ def process_csv_data(csv_content):
         # Create result dictionary in the format expected by the frontend
         # Frontend expects 'data' field with direct trajectory points
         # and specific metadata format
+        
+        # Convert numpy values to native Python types to ensure JSON serialization works
         result = {
             'data': trajectory_points,
             'metadata': {
                 'points_count': len(trajectory_points),
-                'original_count': metadata['total_points'],
-                'altitude_range': metadata['altitude_range'],
-                'distance': metadata['distance'],
-                'duration': metadata['duration'],
-                'sampling_factor': metadata['sampling_factor']
+                'original_count': int(metadata['total_points']),
+                'altitude_range': [float(metadata['altitude_range'][0]), float(metadata['altitude_range'][1])],
+                'distance': float(metadata['distance']),
+                'duration': float(metadata['duration']),
+                'sampling_factor': int(metadata['sampling_factor'])
             }
         }
         
