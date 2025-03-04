@@ -449,8 +449,8 @@ function createAircraftModel(color) {
     group.add(ring);
   }
   
-  // Scale the entire model for better visibility
-  group.scale.set(1.2, 1.2, 1.2);
+  // Scale the entire model - reduced size per user request
+  group.scale.set(0.8, 0.8, 0.8);
   
   return group;
 }
