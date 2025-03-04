@@ -123,13 +123,24 @@ def process_csv_data(csv_content):
                 if vel in df.columns:
                     velocity[vel] = float(row[vel])
             
-            # Combine all data for this point
+            # Create point data in the flat format expected by the frontend
+            # The visualization expects position_n, position_e, position_d directly
             point_data = {
-                'position': position,
-                'time': float(row['normalized_time']),
-                'orientation': orientation,
-                'velocity': velocity
+                'position_n': float(row['position_n']),
+                'position_e': float(row['position_e']),
+                'position_d': float(row['position_d']),
+                'time': float(row['normalized_time'])
             }
+            
+            # Add orientation angles if available
+            if orientation:
+                for angle, value in orientation.items():
+                    point_data[angle] = value
+            
+            # Add velocity components if available
+            if velocity:
+                for vel, value in velocity.items():
+                    point_data[vel] = value
             
             # Add additional data columns if available
             for col in df.columns:
