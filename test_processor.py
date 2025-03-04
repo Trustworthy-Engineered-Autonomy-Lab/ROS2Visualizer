@@ -14,11 +14,11 @@ def test_process_csv():
     result = process_csv_data(csv_content)
     
     # Print the result structure (not all data)
-    print("Result keys:", result.keys())
+    print("Result keys:", result.keys() if isinstance(result, dict) else "Not a dictionary")
     
-    if 'data' in result:
+    if isinstance(result, dict) and 'data' in result:
         print(f"Number of data points: {len(result['data'])}")
-        if len(result['data']) > 0:
+        if len(result['data']) > 0 and isinstance(result['data'][0], dict):
             print("First data point structure:", result['data'][0].keys())
             print("First data point sample:", {k: v for k, v in list(result['data'][0].items())[:5]})
     
