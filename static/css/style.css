@@ -1,0 +1,121 @@
+/* General app layout */
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.app-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar styling */
+.sidebar {
+  background-color: var(--bs-gray-900);
+  height: 100%;
+  overflow-y: auto;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Main content area */
+.content-area {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 3D visualization container */
+#visualization-container {
+  flex: 1; 
+  position: relative;
+  background-color: var(--bs-gray-800);
+  overflow: hidden;
+}
+
+/* 2D charts container */
+#charts-container {
+  height: 250px;
+  background-color: var(--bs-gray-800);
+  overflow: hidden;
+}
+
+.chart {
+  height: 100%;
+  background-color: var(--bs-gray-900);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+/* Control panel styling */
+.control-panel {
+  background-color: var(--bs-gray-800);
+  border-radius: 0.25rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.control-panel h5 {
+  margin-top: 0;
+  color: var(--bs-info);
+}
+
+/* Time display */
+.time-display {
+  font-family: monospace;
+  font-weight: bold;
+}
+
+/* Trajectory list styling */
+.trajectory-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  background-color: var(--bs-gray-800);
+  border-radius: 0.25rem;
+}
+
+.color-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  margin: 0 0.5rem;
+}
+
+/* Data table styling */
+#data-table {
+  font-size: 0.9rem;
+}
+
+#data-table td:first-child {
+  font-weight: bold;
+  color: var(--bs-light);
+}
+
+/* View controls */
+.view-controls {
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+
+.view-controls:hover {
+  opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    height: auto;
+    max-height: 40vh;
+  }
+  
+  .content-area {
+    height: 60vh;
+  }
+  
+  #charts-container {
+    height: 150px;
+  }
+}
