@@ -147,10 +147,19 @@ def process_csv_data(csv_content):
         
         metadata['processed_points'] = len(trajectory_points)
         
-        # Create result dictionary
+        # Create result dictionary in the format expected by the frontend
+        # Frontend expects 'data' field with direct trajectory points
+        # and specific metadata format
         result = {
-            'trajectory': trajectory_points,
-            'metadata': metadata
+            'data': trajectory_points,
+            'metadata': {
+                'points_count': len(trajectory_points),
+                'original_count': metadata['total_points'],
+                'altitude_range': metadata['altitude_range'],
+                'distance': metadata['distance'],
+                'duration': metadata['duration'],
+                'sampling_factor': metadata['sampling_factor']
+            }
         }
         
         return result
