@@ -1,0 +1,63 @@
+[2025-03-04 23:33:15 +0000] [3453] [INFO] Handling signal: winch
+[2025-03-04 23:33:15 +0000] [3453] [INFO] Handling signal: winch
+[2025-03-04 23:33:15 +0000] [3453] [INFO] Handling signal: winch
+[2025-03-04 23:33:15 +0000] [3453] [INFO] Handling signal: winch
+[2025-03-04 23:33:15 +0000] [3453] [INFO] Handling signal: winch
+INFO:root:Processing CSV file with headers: ['sec', 'nanosec', 'frame_id', 'position_n', 'position_e', 'position_d', 'va', 'alpha', 'beta', 'phi', 'theta', 'psi', 'chi', 'u', 'v', 'w', 'p', 'q', 'r', 'vg', 'wn', 'we', 'chi_deg', 'psi_deg', 'initial_lat', 'initial_long', 'initial_alt', 'altitude']
+[2025-03-04 23:33:50 +0000] [3453] [INFO] Handling signal: winch
+INFO:root:Successfully processed file test 20.csv with 1016 points
+[2025-03-04 23:33:50 +0000] [3453] [INFO] Handling signal: winch
+[2025-03-04 23:33:50 +0000] [3453] [INFO] Handling signal: winch
+[2025-03-04 23:33:51 +0000] [3453] [INFO] Handling signal: winch
+[2025-03-04 23:33:51 +0000] [3453] [INFO] Handling signal: winch
+INFO:root:CSV file 'test 20.csv' loaded with headers: ['sec', 'nanosec', 'frame_id', 'position_n', 'position_e', 'position_d', 'va', 'alpha', 'beta', 'phi', 'theta', 'psi', 'chi', 'u', 'v', 'w', 'p', 'q', 'r', 'vg', 'wn', 'we', 'chi_deg', 'psi_deg', 'initial_lat', 'initial_long', 'initial_alt', 'altitude']
+[2025-03-04 23:34:46 +0000] [3453] [INFO] Handling signal: winch
+[2025-03-04 23:35:06 +0000] [3453] [CRITICAL] WORKER TIMEOUT (pid:3464)
+[2025-03-04 23:35:06 +0000] [3464] [ERROR] Error handling request /analyze_csv
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/workers/sync.py", line 134, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/workers/sync.py", line 177, in handle_request
+    respiter = self.wsgi(environ, resp.start_response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1536, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/app.py", line 44, in analyze_csv
+    file_stats = analyze_csv_file(file_content, file.filename)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/utils/data_cleaner.py", line 124, in analyze_csv_file
+    if 'position_n' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_n']):
+                                                        ~~~~~~~~~~~~~^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/pandas/core/indexing.py", line 1191, in __getitem__
+    return self._getitem_axis(maybe_callable, axis=axis)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/pandas/core/indexing.py", line 1754, in _getitem_axis
+    return self.obj._ixs(key, axis=axis)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/pandas/core/frame.py", line 4000, in _ixs
+    result = self._constructor_sliced_from_mgr(new_mgr, axes=new_mgr.axes)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/pandas/core/frame.py", line 680, in _constructor_sliced_from_mgr
+    ser._name = None  # caller is responsible for setting real name
+    ^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/pandas/core/generic.py", line 6320, in __setattr__
+    object.__setattr__(self, name, value)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/workers/base.py", line 204, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2025-03-04 23:35:06 +0000] [3464] [INFO] Worker exiting (pid: 3464)
+[2025-03-04 23:35:06 +0000] [3453] [INFO] Handling signal: winch
+[2025-03-04 23:35:06 +0000] [3453] [ERROR] Worker (pid:3464) was sent SIGKILL! Perhaps out of memory?
+[2025-03-04 23:35:06 +0000] [3626] [INFO] Booting worker with pid: 3626
+[2025-03-04 23:35:06 +0000] [3453] [INFO] Handling signal: winch
+INFO:root:CSV file 'test 20.csv' loaded with headers: ['sec', 'nanosec', 'frame_id', 'position_n', 'position_e', 'position_d', 'va', 'alpha', 'beta', 'phi', 'theta', 'psi', 'chi', 'u', 'v', 'w', 'p', 'q', 'r', 'vg', 'wn', 'we', 'chi_deg', 'psi_deg', 'initial_lat', 'initial_long', 'initial_alt', 'altitude']

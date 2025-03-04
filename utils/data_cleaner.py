@@ -110,42 +110,58 @@ def analyze_csv_file(file_content, filename):
             
             if len(df_clean) > 1:
                 try:
+                    # For large files, sample the data to prevent timeouts
+                    sample_rate = max(1, len(df_clean) // 500)  # Sample at most 500 points for analysis
+                    logging.info(f"Analyzing trajectory with sampling rate: {sample_rate} for {len(df_clean)} points")
+                    
+                    # Initialize arrays for coordinates
                     distances = []
-                    for i in range(1, len(df_clean)):
+                    
+                    # Process samples instead of every point to improve performance
+                    for i in range(1, len(df_clean), sample_rate):
+                        if i >= len(df_clean):
+                            break
+                            
+                        prev_i = max(0, i - sample_rate)
                         try:
-                            # Safely get values with fallbacks in case of missing data
-                            if i-1 < 0 or i-1 >= len(df_clean) or i >= len(df_clean):
-                                continue
-                                
-                            # Check if keys exist and convert safely
+                            # Initialize with defaults
                             pos_n1 = pos_e1 = pos_d1 = pos_n2 = pos_e2 = pos_d2 = 0.0
                             
-                            # First point coordinates
-                            if 'position_n' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_n']):
-                                pos_n1 = float(df_clean.iloc[i-1]['position_n'])
-                            if 'position_e' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_e']):
-                                pos_e1 = float(df_clean.iloc[i-1]['position_e'])
-                            if 'position_d' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_d']):
-                                pos_d1 = float(df_clean.iloc[i-1]['position_d'])
+                            # Extract position data using loc instead of iloc for better performance
+                            # and use try/except for safer access
+                            try:
+                                # First point coordinates - using loc for column access is faster 
+                                if 'position_n' in df_clean.columns:
+                                    pos_n1 = float(df_clean['position_n'].iloc[prev_i])
+                                if 'position_e' in df_clean.columns:
+                                    pos_e1 = float(df_clean['position_e'].iloc[prev_i])
+                                if 'position_d' in df_clean.columns:
+                                    pos_d1 = float(df_clean['position_d'].iloc[prev_i])
+                                    
+                                # Second point coordinates
+                                if 'position_n' in df_clean.columns:
+                                    pos_n2 = float(df_clean['position_n'].iloc[i])
+                                if 'position_e' in df_clean.columns:
+                                    pos_e2 = float(df_clean['position_e'].iloc[i])
+                                if 'position_d' in df_clean.columns:
+                                    pos_d2 = float(df_clean['position_d'].iloc[i])
                                 
-                            # Second point coordinates
-                            if 'position_n' in df_clean.columns and not pd.isna(df_clean.iloc[i]['position_n']):
-                                pos_n2 = float(df_clean.iloc[i]['position_n'])
-                            if 'position_e' in df_clean.columns and not pd.isna(df_clean.iloc[i]['position_e']):
-                                pos_e2 = float(df_clean.iloc[i]['position_e'])
-                            if 'position_d' in df_clean.columns and not pd.isna(df_clean.iloc[i]['position_d']):
-                                pos_d2 = float(df_clean.iloc[i]['position_d'])
-                            
-                            p1 = (pos_n1, pos_e1, pos_d1)
-                            p2 = (pos_n2, pos_e2, pos_d2)
-                            
-                            distance = math.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2 + (p2[2]-p1[2])**2)
-                            distances.append(distance)
+                                # Calculate distance
+                                p1 = (pos_n1, pos_e1, pos_d1)
+                                p2 = (pos_n2, pos_e2, pos_d2)
+                                distance = math.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2 + (p2[2]-p1[2])**2)
+                                
+                                # Scale distance based on sample rate
+                                distances.append(distance)
+                            except (ValueError, TypeError) as e:
+                                logging.debug(f"Skipping point due to conversion error: {str(e)}")
+                                continue
                         except Exception as e:
-                            logging.warning(f"Error calculating distance for row {i}: {str(e)}")
+                            logging.warning(f"Error calculating distance: {str(e)}")
                             continue
                     
-                    total_distance = sum(distances) if distances else 0
+                    # Scale up distances based on sample rate to estimate total
+                    total_distance = sum(distances) * (sample_rate if sample_rate > 1 else 1) if distances else 0
                     static_samples = sum(1 for d in distances if d < 0.01)
                     static_percentage = (static_samples / len(distances)) * 100 if distances else 0
                     
@@ -344,19 +360,54 @@ def apply_cleaning_operations(file_info, config):
             if all(col in df.columns for col in ['position_n', 'position_e', 'position_d']):
                 start_index = 0
                 
-                # Calculate position changes in sliding windows
-                for i in range(len(df) - window_size):
-                    window = df.iloc[i:i+window_size]
+                # Optimize calculation for large files
+                if len(df) > 5000:  # Only use sampling for large files
+                    # Use sampling to speed up analysis for large files
+                    sample_rate = max(1, len(df) // 200)  # Analyze at most 200 windows
+                    logging.info(f"Analyzing static start with sampling rate: {sample_rate} for {len(df)} points")
                     
-                    # Calculate max position change in window
-                    max_change_n = window['position_n'].max() - window['position_n'].min()
-                    max_change_e = window['position_e'].max() - window['position_e'].min()
-                    max_change_d = window['position_d'].max() - window['position_d'].min()
-                    max_change = math.sqrt(max_change_n**2 + max_change_e**2 + max_change_d**2)
-                    
-                    if max_change > position_threshold:
-                        start_index = i
-                        break
+                    for i in range(0, len(df) - window_size, sample_rate):
+                        # Extract window data directly as numpy arrays for faster calculation
+                        window_n = df['position_n'].iloc[i:i+window_size].to_numpy()
+                        window_e = df['position_e'].iloc[i:i+window_size].to_numpy()
+                        window_d = df['position_d'].iloc[i:i+window_size].to_numpy()
+                        
+                        # Calculate max position change in window using vectorized operations
+                        max_change_n = np.max(window_n) - np.min(window_n)
+                        max_change_e = np.max(window_e) - np.min(window_e)
+                        max_change_d = np.max(window_d) - np.min(window_d)
+                        max_change = math.sqrt(max_change_n**2 + max_change_e**2 + max_change_d**2)
+                        
+                        if max_change > position_threshold:
+                            # Fine-tune the start index by checking each point in the sample range
+                            for j in range(i, min(i + sample_rate, len(df) - window_size)):
+                                sub_window_n = df['position_n'].iloc[j:j+window_size].to_numpy()
+                                sub_window_e = df['position_e'].iloc[j:j+window_size].to_numpy()
+                                sub_window_d = df['position_d'].iloc[j:j+window_size].to_numpy()
+                                
+                                sub_max_change_n = np.max(sub_window_n) - np.min(sub_window_n)
+                                sub_max_change_e = np.max(sub_window_e) - np.min(sub_window_e)
+                                sub_max_change_d = np.max(sub_window_d) - np.min(sub_window_d)
+                                sub_max_change = math.sqrt(sub_max_change_n**2 + sub_max_change_e**2 + sub_max_change_d**2)
+                                
+                                if sub_max_change > position_threshold:
+                                    start_index = j
+                                    break
+                            break
+                else:
+                    # For smaller files, use the original approach
+                    for i in range(len(df) - window_size):
+                        window = df.iloc[i:i+window_size]
+                        
+                        # Calculate max position change in window
+                        max_change_n = window['position_n'].max() - window['position_n'].min()
+                        max_change_e = window['position_e'].max() - window['position_e'].min()
+                        max_change_d = window['position_d'].max() - window['position_d'].min()
+                        max_change = math.sqrt(max_change_n**2 + max_change_e**2 + max_change_d**2)
+                        
+                        if max_change > position_threshold:
+                            start_index = i
+                            break
                 
                 if start_index > 0:
                     rows_before = len(df)
@@ -389,20 +440,39 @@ def apply_cleaning_operations(file_info, config):
             else:
                 # If velocity isn't available, calculate it from position changes
                 if all(col in df.columns for col in ['position_n', 'position_e', 'position_d']):
-                    # Calculate velocities
+                    # For large files, sample to prevent timeout
+                    sample_rate = max(1, len(df) // 1000)  # Process at most 1000 points
+                    logging.info(f"Calculating velocities with sampling rate: {sample_rate} for {len(df)} points")
+                    
+                    # Create separate arrays for better performance
+                    pos_n = df['position_n'].to_numpy()
+                    pos_e = df['position_e'].to_numpy()
+                    pos_d = df['position_d'].to_numpy()
+                    
+                    # Initialize velocity column
                     df['calculated_velocity'] = 0.0
-                    for i in range(1, len(df)):
+                    
+                    # Create a mask of points to process
+                    indices_to_process = list(range(0, len(df), sample_rate))
+                    if indices_to_process[-1] != len(df) - 1:
+                        indices_to_process.append(len(df) - 1)
+                    
+                    # Batch calculate velocities for sampled points
+                    for i in range(1, len(indices_to_process)):
+                        idx = indices_to_process[i]
+                        prev_idx = indices_to_process[i-1]
                         try:
-                            p1 = np.array([float(df.iloc[i-1]['position_n']), 
-                                        float(df.iloc[i-1]['position_e']), 
-                                        float(df.iloc[i-1]['position_d'])])
-                            p2 = np.array([float(df.iloc[i]['position_n']), 
-                                        float(df.iloc[i]['position_e']), 
-                                        float(df.iloc[i]['position_d'])])
+                            # Calculate velocity between sampled points
+                            p1 = np.array([float(pos_n[prev_idx]), float(pos_e[prev_idx]), float(pos_d[prev_idx])])
+                            p2 = np.array([float(pos_n[idx]), float(pos_e[idx]), float(pos_d[idx])])
                             distance = np.linalg.norm(p2 - p1)
-                            df.loc[i, 'calculated_velocity'] = distance
-                        except (ValueError, KeyError, IndexError, TypeError):
-                            df.loc[i, 'calculated_velocity'] = 0.0
+                            
+                            # Assign velocity to all points in this segment
+                            segment_velocity = distance / (idx - prev_idx) if idx != prev_idx else 0.0
+                            df.loc[prev_idx:idx, 'calculated_velocity'] = segment_velocity
+                        except (ValueError, IndexError, TypeError) as e:
+                            logging.debug(f"Error calculating velocity at index {idx}: {str(e)}")
+                            df.loc[prev_idx:idx, 'calculated_velocity'] = 0.0
                     
                     rows_before = len(df)
                     df = df[df['calculated_velocity'] > speed_threshold].reset_index(drop=True)
