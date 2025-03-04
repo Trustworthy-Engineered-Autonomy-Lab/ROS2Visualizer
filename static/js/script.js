@@ -355,12 +355,41 @@ function addTrajectory(data, name, color) {
 
 // Create aircraft model
 function createAircraftModel(color) {
-  // Simple aircraft representation using a cone - much larger size for better visibility in the expanded grid
-  const geometry = new THREE.ConeGeometry(8, 20, 4);
-  geometry.rotateX(Math.PI / 2);
-  const material = new THREE.MeshPhongMaterial({ color: color });
+  // Missile-like aircraft representation with elongated body and fins
+  const group = new THREE.Group();
   
-  return new THREE.Mesh(geometry, material);
+  // Main body - elongated cylindrical shape
+  const bodyGeometry = new THREE.CylinderGeometry(5, 5, 40, 16);
+  bodyGeometry.rotateX(Math.PI / 2);
+  const bodyMaterial = new THREE.MeshPhongMaterial({ color: color });
+  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  group.add(body);
+  
+  // Nose cone
+  const noseGeometry = new THREE.ConeGeometry(5, 15, 16);
+  noseGeometry.rotateX(-Math.PI / 2);
+  const noseMaterial = new THREE.MeshPhongMaterial({ color: color });
+  const nose = new THREE.Mesh(noseGeometry, noseMaterial);
+  nose.position.set(0, 0, 27.5); // Position at front of body
+  group.add(nose);
+  
+  // Add fins (4 of them around the back)
+  const finGeometry = new THREE.BoxGeometry(1, 10, 12);
+  const finMaterial = new THREE.MeshPhongMaterial({ color: color });
+  
+  for (let i = 0; i < 4; i++) {
+    const fin = new THREE.Mesh(finGeometry, finMaterial);
+    fin.position.set(0, 0, -15); // Position near back
+    fin.rotation.z = (Math.PI / 2) * i; // Rotate around body
+    if (i % 2 === 0) {
+      fin.position.y = 7; // Position perpendicular fins outward
+    } else {
+      fin.position.x = 7;
+    }
+    group.add(fin);
+  }
+  
+  return group;
 }
 
 // Update trajectory list in UI
