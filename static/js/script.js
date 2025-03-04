@@ -46,8 +46,8 @@ function initScene() {
   // Create camera
   const container = document.getElementById('visualization-container');
   const aspect = container.clientWidth / container.clientHeight;
-  camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 2000);
-  camera.position.set(50, 50, 50);
+  camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 10000);
+  camera.position.set(200, 200, 200);
   
   // Create renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -59,12 +59,12 @@ function initScene() {
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
   
-  // Add grid helper - much larger grid to accommodate flight data
-  const gridHelper = new THREE.GridHelper(1000, 100, 0x555555, 0x333333);
+  // Add grid helper - super large grid to accommodate flight data
+  const gridHelper = new THREE.GridHelper(5000, 100, 0x555555, 0x333333);
   scene.add(gridHelper);
   
-  // Add axes helper (red = x, green = y, blue = z) - much larger
-  const axesHelper = new THREE.AxesHelper(50);
+  // Add axes helper (red = x, green = y, blue = z) - super large
+  const axesHelper = new THREE.AxesHelper(200);
   scene.add(axesHelper);
   
   // Add lighting
@@ -355,8 +355,8 @@ function addTrajectory(data, name, color) {
 
 // Create aircraft model
 function createAircraftModel(color) {
-  // Simple aircraft representation using a cone - larger size for better visibility
-  const geometry = new THREE.ConeGeometry(2, 5, 4);
+  // Simple aircraft representation using a cone - much larger size for better visibility in the expanded grid
+  const geometry = new THREE.ConeGeometry(8, 20, 4);
   geometry.rotateX(Math.PI / 2);
   const material = new THREE.MeshPhongMaterial({ color: color });
   
@@ -655,12 +655,12 @@ function handleViewModeChange() {
   switch(viewMode) {
     case 'top-down':
       // North-East view (looking down)
-      camera.position.set(0, 200, 0);
+      camera.position.set(0, 1000, 0);
       camera.lookAt(0, 0, 0);
       break;
     case 'side':
       // East-Altitude view
-      camera.position.set(200, 0, 0);
+      camera.position.set(1000, 0, 0);
       camera.lookAt(0, 0, 0);
       break;
     case 'trailing':
@@ -669,7 +669,7 @@ function handleViewModeChange() {
         const timeIndex = Math.floor(animationState.currentTimeIndex);
         if (timeIndex < trajectories[0].points.length) {
           const point = trajectories[0].points[timeIndex];
-          const offset = new THREE.Vector3(0, 10, -30); // Behind and above, larger offset
+          const offset = new THREE.Vector3(0, 40, -120); // Behind and above, much larger offset for bigger grid
           camera.position.copy(point).add(offset);
           camera.lookAt(point);
         }
@@ -738,7 +738,7 @@ function clearTrajectories() {
 
 // Reset camera view
 function resetView() {
-  camera.position.set(50, 50, 50);
+  camera.position.set(200, 200, 200);
   camera.lookAt(0, 0, 0);
   controls.update();
 }
