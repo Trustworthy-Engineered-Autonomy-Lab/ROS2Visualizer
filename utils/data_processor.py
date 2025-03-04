@@ -1,8 +1,16 @@
-import csv
+"""
+Data processing module for Flight Trajectory visualization application.
+Implements processing and conversion functions for flight data.
+"""
+
 import io
+import csv
 import json
+import math
 import logging
 from datetime import datetime
+import pandas as pd
+import numpy as np
 
 def process_csv_data(csv_content):
     """
@@ -14,121 +22,190 @@ def process_csv_data(csv_content):
     Returns:
         dict: Processed data ready for visualization
     """
-    # Parse CSV data
-    csv_reader = csv.reader(io.StringIO(csv_content))
-    headers = next(csv_reader)  # Get the headers
-    
-    # Convert headers to lowercase for consistent access
-    headers = [h.lower() for h in headers]
-    
-    # Create a mapping for expected column names
-    column_map = {
-        'position_n': ['position_n', 'north', 'n'],
-        'position_e': ['position_e', 'east', 'e'],
-        'position_d': ['position_d', 'down', 'd', 'altitude', 'alt'],
-        'phi': ['phi', 'roll'],
-        'theta': ['theta', 'pitch'],
-        'psi': ['psi', 'yaw', 'heading'],
-        'sec': ['sec', 'seconds', 'time'],
-        'nanosec': ['nanosec', 'nanoseconds'],
-        'velocity': ['velocity', 'va', 'vel', 'speed']
-    }
-    
-    # Identify column indices
-    column_indices = {}
-    for key, possible_names in column_map.items():
-        for i, header in enumerate(headers):
-            if header in possible_names:
-                column_indices[key] = i
-                break
-    
-    # Check if we have the minimum required columns
-    required_columns = ['position_n', 'position_e', 'position_d']
-    missing_columns = [col for col in required_columns if col not in column_indices]
-    
-    if missing_columns:
-        raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
-    
-    # Parse the data rows
-    data_points = []
-    row_count = 0
-    start_time = None  # Initialize start_time variable
-    
-    # Get all rows first to determine total count
-    rows = list(csv_reader)
-    total_rows = len(rows)
-    logging.info(f"Total rows in CSV: {total_rows}")
-    
-    # Calculate downsampling factor - taking every 50th point as requested
-    downsample_factor = 50
-    
-    # Process the downsampled rows
-    for i, row in enumerate(rows):
-        # Only process every N-th row to reduce data size
-        if i % downsample_factor != 0:
-            continue
-            
-        point = {}
+    try:
+        # Parse CSV to pandas DataFrame
+        df = pd.read_csv(io.StringIO(csv_content))
         
-        # Extract values for each identified column
-        for key, index in column_indices.items():
-            try:
-                if index < len(row):
-                    point[key] = float(row[index])
-            except (ValueError, IndexError):
-                # Skip malformed data for this column
-                continue
+        # Check if required position columns exist
+        required_columns = ['position_n', 'position_e', 'position_d']
+        if not all(col in df.columns for col in required_columns):
+            # Try to detect alternative position column names
+            alt_columns = detect_position_columns(df)
+            if alt_columns:
+                # Rename columns to expected format
+                df = df.rename(columns=alt_columns)
+            else:
+                return {
+                    'error': 'Missing required position columns',
+                    'message': 'Could not find position_n, position_e, position_d columns or alternatives'
+                }
         
-        # Skip row if we couldn't parse essential values
-        if not all(k in point for k in required_columns):
-            continue
-            
-        # Add additional calculated values if needed
-        if 'sec' in point and 'nanosec' in point:
-            # Store raw unix time
-            point['unix_time'] = point['sec'] + point['nanosec'] / 1e9
-            
-            try:
-                # Try to convert Unix time to human-readable format for display
-                dt = datetime.fromtimestamp(point['sec'])
-                point['formatted_time'] = dt.strftime('%H:%M:%S')
-                
-                # Use time since start for plotting and animation
-                if start_time is None:
-                    # Store first timestamp to calculate relative time
-                    start_time = point['unix_time']
-                    point['time'] = 0
-                else:
-                    point['time'] = point['unix_time'] - start_time
-            except Exception as e:
-                logging.warning(f"Error processing timestamp: {e}")
-                point['time'] = row_count * 0.1  # Fallback: assume 10Hz sampling
-        else:
-            # If no time data available, use row index
-            point['time'] = row_count * 0.1  # Assume 10Hz sampling
+        # Check if data has timestamps
+        has_timestamps = 'sec' in df.columns and 'nanosec' in df.columns
         
-        # Add velocity if available directly or calculate if needed
-        if 'velocity' not in point and row_count > 0 and point['time'] > 0:
-            # Try to calculate velocity from position change
-            prev_point = data_points[-1]
-            dt = point['time'] - prev_point['time']
-            if dt > 0:
-                dx = point['position_e'] - prev_point['position_e']
-                dy = point['position_d'] - prev_point['position_d']
-                dz = point['position_n'] - prev_point['position_n']
-                point['velocity'] = (dx**2 + dy**2 + dz**2)**0.5 / dt
-        
-        data_points.append(point)
-        row_count += 1
-    
-    logging.info(f"Processed {row_count} points after downsampling")
-    
-    return {
-        'data': data_points,
-        'metadata': {
-            'columns': list(column_indices.keys()),
-            'points_count': len(data_points),
-            'original_count': total_rows,
-            'downsample_factor': downsample_factor
+        # Process the data depending on available columns
+        trajectory = []
+        metadata = {
+            'total_points': len(df),
+            'processed_points': 0,
+            'altitude_range': [0, 0],
+            'distance': 0,
+            'duration': 0,
+            'sampling_rate': 0,
+            'min_time': 0,
+            'max_time': 0
         }
+        
+        # Calculate time if available
+        if has_timestamps:
+            df['time'] = df['sec'] + df['nanosec'] / 1e9
+            min_time = df['time'].min()
+            metadata['min_time'] = min_time
+            metadata['max_time'] = df['time'].max()
+            metadata['duration'] = metadata['max_time'] - min_time
+            if len(df) > 1:
+                metadata['sampling_rate'] = len(df) / metadata['duration']
+            
+            # Normalize time to start at 0
+            df['normalized_time'] = df['time'] - min_time
+        else:
+            # If no timestamps, use index as time
+            df['normalized_time'] = df.index / 10.0  # Assume 10Hz
+        
+        # Calculate altitude range (negative of position_d)
+        if 'position_d' in df.columns:
+            # In NED frame, altitude is negative of 'down'
+            min_alt = -df['position_d'].max()
+            max_alt = -df['position_d'].min()
+            metadata['altitude_range'] = [min_alt, max_alt]
+        
+        # Apply altitude scaling factor (1.8x) for better visualization
+        altitude_scale = 1.8
+        
+        # Extract trajectory data
+        # For efficiency, we'll sample data points for large datasets
+        sampling_factor = max(1, len(df) // 1000)  # Sample at most 1000 points
+        metadata['sampling_factor'] = sampling_factor
+        
+        trajectory_points = []
+        previous_position = None
+        
+        for i in range(0, len(df), sampling_factor):
+            row = df.iloc[i]
+            
+            # Position data (using NED to XYZ conversion for THREE.js)
+            # In NED frame: North=X, East=Y, Down=-Z
+            position = {
+                'x': float(row['position_n']),
+                'y': float(row['position_e']),
+                'z': -float(row['position_d']) * altitude_scale  # Negate Down to get Up, apply scaling
+            }
+            
+            # Calculate distance from previous point
+            if previous_position:
+                dx = position['x'] - previous_position['x']
+                dy = position['y'] - previous_position['y']
+                dz = position['z'] - previous_position['z'] / altitude_scale  # Remove scale for true distance
+                segment_distance = math.sqrt(dx*dx + dy*dy + dz*dz)
+                metadata['distance'] += segment_distance
+            
+            previous_position = position
+            
+            # Orientation data (if available)
+            orientation = {}
+            for angle in ['phi', 'theta', 'psi']:
+                if angle in df.columns:
+                    orientation[angle] = float(row[angle])
+            
+            # Velocity data (if available)
+            velocity = {}
+            for vel in ['u', 'v', 'w']:
+                if vel in df.columns:
+                    velocity[vel] = float(row[vel])
+            
+            # Combine all data for this point
+            point_data = {
+                'position': position,
+                'time': float(row['normalized_time']),
+                'orientation': orientation,
+                'velocity': velocity
+            }
+            
+            # Add additional data columns if available
+            for col in df.columns:
+                if col not in ['position_n', 'position_e', 'position_d', 
+                              'sec', 'nanosec', 'time', 'normalized_time', 
+                              'phi', 'theta', 'psi', 'u', 'v', 'w']:
+                    try:
+                        value = float(row[col])
+                        point_data[col] = value
+                    except (ValueError, TypeError):
+                        # Skip non-numeric values
+                        pass
+            
+            trajectory_points.append(point_data)
+        
+        metadata['processed_points'] = len(trajectory_points)
+        
+        # Create result dictionary
+        result = {
+            'trajectory': trajectory_points,
+            'metadata': metadata
+        }
+        
+        return result
+        
+    except Exception as e:
+        logging.error(f"Error processing CSV data: {str(e)}")
+        return {
+            'error': 'Processing error',
+            'message': str(e)
+        }
+
+def detect_position_columns(df):
+    """
+    Attempt to detect position columns with alternative names.
+    
+    Args:
+        df (pandas.DataFrame): The data frame to search
+    
+    Returns:
+        dict: Mapping of detected columns to standard names, or None if not found
+    """
+    # Potential column name patterns
+    position_patterns = {
+        'position_n': ['n', 'north', 'x', 'pos_n', 'position_north', 'pos_north', 'position_x', 'pos_x'],
+        'position_e': ['e', 'east', 'y', 'pos_e', 'position_east', 'pos_east', 'position_y', 'pos_y'],
+        'position_d': ['d', 'down', 'z', 'alt', 'altitude', 'pos_d', 'position_down', 'pos_down', 'position_z', 'pos_z']
     }
+    
+    result = {}
+    
+    # Check for each standard position column
+    for std_col, patterns in position_patterns.items():
+        # First check if the standard column already exists
+        if std_col in df.columns:
+            continue
+            
+        # Try to find alternative column
+        found = False
+        for pattern in patterns:
+            # Look for exact matches
+            matches = [col for col in df.columns if col.lower() == pattern.lower()]
+            if matches:
+                result[matches[0]] = std_col
+                found = True
+                break
+                
+            # Look for partial matches
+            if not found:
+                partial_matches = [col for col in df.columns if pattern.lower() in col.lower()]
+                if partial_matches:
+                    result[partial_matches[0]] = std_col
+                    found = True
+                    break
+    
+    # Only return a result if we found all three position components
+    if len(result) == 3:
+        return result
+    return None

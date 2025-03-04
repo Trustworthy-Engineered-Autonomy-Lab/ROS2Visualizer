@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Trajectory Data Cleaning | TEA Labs</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Plotly.js for visualizations -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <style>
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .step {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            position: relative;
+        }
+        
+        .step:not(:last-child):after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -10px;
+            width: 20px;
+            height: 2px;
+            background-color: var(--bs-secondary);
+        }
+        
+        .step.active {
+            font-weight: bold;
+            color: var(--bs-primary);
+        }
+        
+        .step.completed {
+            color: var(--bs-success);
+        }
+        
+        .cleaning-section {
+            display: none;
+        }
+        
+        .cleaning-section.active {
+            display: block;
+        }
+        
+        .file-item {
+            border-left: 3px solid transparent;
+            transition: border-color 0.3s ease;
+        }
+        
+        .file-item:hover {
+            border-left-color: var(--bs-primary);
+        }
+        
+        .file-preview {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .color-box {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 8px;
+        }
+        
+        .param-group {
+            border-left: 3px solid var(--bs-border-color);
+            padding-left: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .results-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            font-size: 0.7rem;
+        }
+        
+        .hover-tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        
+        .hover-tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--bs-dark);
+            color: var(--bs-light);
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .hover-tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <header class="bg-dark text-light py-3 mb-4">
+        <div class="container">
+            <div class="d-flex align-items-center">
+                <a href="/" class="text-decoration-none">
+                    <h1 class="display-5 mb-0 text-light">
+                        <span class="text-primary">TEA</span> Labs
+                    </h1>
+                </a>
+                <span class="ms-3 text-light">Flight Trajectory Data Cleaning</span>
+                <div class="ms-auto">
+                    <a href="/" class="btn btn-outline-light btn-sm me-2">
+                        <i class="fas fa-chart-line me-1"></i> Visualizer
+                    </a>
+                    <a href="#" class="btn btn-primary btn-sm" disabled>
+                        <i class="fas fa-broom me-1"></i> Data Cleaning
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-dark mb-4">
+                    <div class="card-header bg-primary bg-opacity-75 text-white">
+                        <i class="fas fa-tasks me-2"></i> Workflow Steps
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="workflow-steps">
+                            <a href="#" class="list-group-item list-group-item-action active" data-step="upload">
+                                <i class="fas fa-upload me-2"></i> Upload Files
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action" data-step="analyze">
+                                <i class="fas fa-analytics me-2"></i> Analyze Data
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action" data-step="configure">
+                                <i class="fas fa-sliders-h me-2"></i> Configure Cleaning
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action" data-step="preview">
+                                <i class="fas fa-eye me-2"></i> Preview Results
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action" data-step="process">
+                                <i class="fas fa-play me-2"></i> Process Files
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action" data-step="visualize">
+                                <i class="fas fa-chart-area me-2"></i> Visualize
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-dark">
+                    <div class="card-header bg-primary bg-opacity-75 text-white">
+                        <i class="fas fa-file-alt me-2"></i> Files
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="file-list" class="list-group list-group-flush">
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-upload mb-2 d-block" style="font-size: 24px;"></i>
+                                No files uploaded yet
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <!-- Step 1: Upload Files -->
+                <div class="cleaning-section active" id="upload-section">
+                    <div class="card bg-dark mb-4">
+                        <div class="card-header bg-primary bg-opacity-75 text-white">
+                            <i class="fas fa-upload me-2"></i> Upload Flight Data Files
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                Upload one or more CSV files containing flight trajectory data. The files will be analyzed and prepared for cleaning operations.
+                            </p>
+                            
+                            <form id="upload-form" class="mb-4">
+                                <div class="mb-3">
+                                    <label for="file-input" class="form-label">Select CSV Files</label>
+                                    <input class="form-control" type="file" id="file-input" accept=".csv,.txt" multiple>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-secondary" disabled>
+                                        <i class="fas fa-arrow-left me-1"></i> Back
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-upload me-1"></i> Upload Files
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            <div class="alert alert-info d-flex align-items-center" role="alert">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <div>
+                                    Supported formats: CSV files with comma-separated values. Files should contain flight trajectory data with position columns.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Analyze Data -->
+                <div class="cleaning-section" id="analyze-section">
+                    <div class="card bg-dark mb-4">
+                        <div class="card-header bg-primary bg-opacity-75 text-white">
+                            <i class="fas fa-analytics me-2"></i> Data Analysis
+                        </div>
+                        <div class="card-body">
+                            <div id="analysis-loader" class="text-center mb-4 d-none">
+                                <div class="spinner-border text-primary mb-3" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p>Analyzing flight data files...</p>
+                            </div>
+                            
+                            <div id="analysis-results">
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card bg-dark h-100">
+                                            <div class="card-header bg-secondary bg-opacity-50">
+                                                <i class="fas fa-chart-pie me-2"></i> Summary Statistics
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="summary-stats">
+                                                    <div class="text-center text-muted py-3">
+                                                        <i class="fas fa-chart-bar mb-2 d-block" style="font-size: 24px;"></i>
+                                                        No data to display yet
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-dark h-100">
+                                            <div class="card-header bg-secondary bg-opacity-50">
+                                                <i class="fas fa-exclamation-triangle me-2"></i> Potential Issues
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="data-issues">
+                                                    <div class="text-center text-muted py-3">
+                                                        <i class="fas fa-search mb-2 d-block" style="font-size: 24px;"></i>
+                                                        No issues detected yet
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card bg-dark mb-4">
+                                    <div class="card-header bg-secondary bg-opacity-50">
+                                        <i class="fas fa-chart-bar me-2"></i> Metric Distribution
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div id="distance-chart" style="height: 250px;"></div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div id="altitude-chart" style="height: 250px;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between mt-4">
+                                    <button type="button" class="btn btn-secondary" id="analyze-back-btn">
+                                        <i class="fas fa-arrow-left me-1"></i> Back
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="analyze-next-btn">
+                                        <i class="fas fa-sliders-h me-1"></i> Configure Cleaning
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Configure Cleaning Operations -->
+                <div class="cleaning-section" id="configure-section">
+                    <div class="card bg-dark mb-4">
+                        <div class="card-header bg-primary bg-opacity-75 text-white">
+                            <i class="fas fa-sliders-h me-2"></i> Configure Cleaning Operations
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text mb-4">
+                                Select and configure the cleaning operations to be applied to your flight data. Each operation can be enabled or disabled, and parameters can be adjusted as needed.
+                            </p>
+                            
+                            <form id="cleaning-config-form">
+                                <div class="accordion" id="cleaningAccordion">
+                                    <!-- 2.1 File Size Filtering -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#fileSizeCollapse">
+                                                <div class="form-check form-switch mb-0 me-2">
+                                                    <input class="form-check-input" type="checkbox" id="enable-file-size-filtering" name="file_size_filtering.enabled">
+                                                </div>
+                                                File Size Filtering
+                                            </button>
+                                        </h2>
+                                        <div id="fileSizeCollapse" class="accordion-collapse collapse" data-bs-parent="#cleaningAccordion">
+                                            <div class="accordion-body">
+                                                <p class="text-muted mb-3">
+                                                    Filter out CSV files smaller than a threshold, which might indicate incomplete or invalid data.
+                                                </p>
+                                                <div class="mb-3">
+                                                    <label for="min-size-threshold" class="form-label">Minimum Size Threshold (MB)</label>
+                                                    <input type="number" class="form-control" id="min-size-threshold" name="file_size_filtering.min_size_mb" value="10" min="0" step="0.1">
+                                                    <div class="form-text">Files smaller than this size will be filtered out.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2.2 Header Management -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#headerCollapse">
+                                                <div class="form-check form-switch mb-0 me-2">
+                                                    <input class="form-check-input" type="checkbox" id="enable-header-management" name="header_management.enabled">
+                                                </div>
+                                                Header Management
+                                            </button>
+                                        </h2>
+                                        <div id="headerCollapse" class="accordion-collapse collapse" data-bs-parent="#cleaningAccordion">
+                                            <div class="accordion-body">
+                                                <p class="text-muted mb-3">
+                                                    Standardize column headers across all files to ensure consistent data structure.
+                                                </p>
+                                                <div class="mb-3">
+                                                    <label for="standard-headers" class="form-label">Standard Header List</label>
+                                                    <textarea class="form-control" id="standard-headers" name="header_management.standard_headers" rows="4">sec,nanosec,frame_id,position_n,position_e,position_d,va,alpha,beta,phi,theta,psi,chi,u,v,w,p,q,r,vg,wn,we,chi_deg,psi_deg,initial_lat,initial_long,initial_alt</textarea>
+                                                    <div class="form-text">Comma-separated list of standard column headers.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2.3 Static Flight Detection & Removal -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#staticFlightCollapse">
+                                                <div class="form-check form-switch mb-0 me-2">
+                                                    <input class="form-check-input" type="checkbox" id="enable-static-flight" name="static_flight_detection.enabled">
+                                                </div>
+                                                Static Flight Detection & Removal
+                                            </button>
+                                        </h2>
+                                        <div id="staticFlightCollapse" class="accordion-collapse collapse" data-bs-parent="#cleaningAccordion">
+                                            <div class="accordion-body">
+                                                <p class="text-muted mb-3">
+                                                    Identify and remove files that represent static (non-moving) flights.
+                                                </p>
+                                                <div class="mb-3">
+                                                    <label for="distance-threshold" class="form-label">Distance Threshold (meters)</label>
+                                                    <input type="number" class="form-control" id="distance-threshold" name="static_flight_detection.distance_threshold" value="10" min="0">
+                                                    <div class="form-text">Flights with total distance below this threshold will be considered static.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2.4 Trim Static Start -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#trimStartCollapse">
+                                                <div class="form-check form-switch mb-0 me-2">
+                                                    <input class="form-check-input" type="checkbox" id="enable-trim-start" name="trim_static_start.enabled">
+                                                </div>
+                                                Trim Static Start
+                                            </button>
+                                        </h2>
+                                        <div id="trimStartCollapse" class="accordion-collapse collapse" data-bs-parent="#cleaningAccordion">
+                                            <div class="accordion-body">
+                                                <p class="text-muted mb-3">
+                                                    Remove initial calibration data where the aircraft is stationary.
+                                                </p>
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label for="window-size" class="form-label">Window Size</label>
+                                                            <input type="number" class="form-control" id="window-size" name="trim_static_start.window_size" value="50" min="1">
+                                                            <div class="form-text">Number of samples to examine</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label for="speed-threshold" class="form-label">Speed Threshold</label>
+                                                            <input type="number" class="form-control" id="speed-threshold" name="trim_static_start.speed_threshold" value="0.5" min="0" step="0.1">
+                                                            <div class="form-text">Minimum speed (m/s)</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label for="position-threshold" class="form-label">Position Change (m)</label>
+                                                            <input type="number" class="form-control" id="position-threshold" name="trim_static_start.position_threshold" value="0.5" min="0" step="0.1">
+                                                            <div class="form-text">Minimum position change</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2.5 Remove Static Samples -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#staticSamplesCollapse">
+                                                <div class="form-check form-switch mb-0 me-2">
+                                                    <input class="form-check-input" type="checkbox" id="enable-static-samples" name="remove_static_samples.enabled">
+                                                </div>
+                                                Remove Static Samples
+                                            </button>
+                                        </h2>
+                                        <div id="staticSamplesCollapse" class="accordion-collapse collapse" data-bs-parent="#cleaningAccordion">
+                                            <div class="accordion-body">
+                                                <p class="text-muted mb-3">
+                                                    Remove individual data points where speed is below threshold.
+                                                </p>
+                                                <div class="mb-3">
+                                                    <label for="static-speed-threshold" class="form-label">Speed Threshold (m/s)</label>
+                                                    <input type="number" class="form-control" id="static-speed-threshold" name="remove_static_samples.speed_threshold" value="0.0" min="0" step="0.1">
+                                                    <div class="form-text">Samples with speed below this threshold will be removed.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2.6 Remove Quaternion Columns -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#quaternionCollapse">
+                                                <div class="form-check form-switch mb-0 me-2">
+                                                    <input class="form-check-input" type="checkbox" id="enable-quaternion" name="remove_quaternion_columns.enabled">
+                                                </div>
+                                                Remove Quaternion Columns
+                                            </button>
+                                        </h2>
+                                        <div id="quaternionCollapse" class="accordion-collapse collapse" data-bs-parent="#cleaningAccordion">
+                                            <div class="accordion-body">
+                                                <p class="text-muted mb-3">
+                                                    Remove specified quaternion-related columns to reduce data size.
+                                                </p>
+                                                <div class="mb-3">
+                                                    <label for="quaternion-columns" class="form-label">Columns to Remove</label>
+                                                    <input type="text" class="form-control" id="quaternion-columns" name="remove_quaternion_columns.columns" value="Quat_1,Quat_2,Quat_3,Quat_4,quat_valid">
+                                                    <div class="form-text">Comma-separated list of column names to remove.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2.7 Anomaly Detection & Removal -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#anomalyCollapse">
+                                                <div class="form-check form-switch mb-0 me-2">
+                                                    <input class="form-check-input" type="checkbox" id="enable-anomaly" name="anomaly_detection.enabled">
+                                                </div>
+                                                Anomaly Detection & Removal
+                                            </button>
+                                        </h2>
+                                        <div id="anomalyCollapse" class="accordion-collapse collapse" data-bs-parent="#cleaningAccordion">
+                                            <div class="accordion-body">
+                                                <p class="text-muted mb-3">
+                                                    Identify and remove files with anomalous metrics.
+                                                </p>
+                                                <div class="mb-3">
+                                                    <label for="std-threshold" class="form-label">Standard Deviation Threshold</label>
+                                                    <input type="number" class="form-control" id="std-threshold" name="anomaly_detection.std_threshold" value="2.0" min="0" step="0.1">
+                                                    <div class="form-text">Values beyond this many standard deviations will be flagged as anomalies.</div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Metrics to Check</label>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="check-speed" name="anomaly_detection.metrics" value="average_speed" checked>
+                                                        <label class="form-check-label" for="check-speed">Average Speed</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="check-distance" name="anomaly_detection.metrics" value="total_distance" checked>
+                                                        <label class="form-check-label" for="check-distance">Total Distance</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="check-altitude" name="anomaly_detection.metrics" value="altitude_change" checked>
+                                                        <label class="form-check-label" for="check-altitude">Altitude Change</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check mb-3">
+                                                    <input class="form-check-input" type="checkbox" id="flag-only" name="anomaly_detection.flag_only" checked>
+                                                    <label class="form-check-label" for="flag-only">Flag anomalies only (don't remove)</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2.8 File Resequencing -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#resequencingCollapse">
+                                                <div class="form-check form-switch mb-0 me-2">
+                                                    <input class="form-check-input" type="checkbox" id="enable-resequencing" name="file_resequencing.enabled">
+                                                </div>
+                                                File Resequencing
+                                            </button>
+                                        </h2>
+                                        <div id="resequencingCollapse" class="accordion-collapse collapse" data-bs-parent="#cleaningAccordion">
+                                            <div class="accordion-body">
+                                                <p class="text-muted mb-3">
+                                                    Rename processed files in sequential order for better organization.
+                                                </p>
+                                                <div class="mb-3">
+                                                    <label for="base-filename" class="form-label">Base Filename Template</label>
+                                                    <input type="text" class="form-control" id="base-filename" name="file_resequencing.base_filename" value="test {number}.csv">
+                                                    <div class="form-text">Use {number} as a placeholder for the sequence number.</div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="start-number" class="form-label">Starting Sequence Number</label>
+                                                    <input type="number" class="form-control" id="start-number" name="file_resequencing.start_number" value="1" min="0">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between mt-4">
+                                    <button type="button" class="btn btn-secondary" id="configure-back-btn">
+                                        <i class="fas fa-arrow-left me-1"></i> Back
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-eye me-1"></i> Preview Results
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Preview Results -->
+                <div class="cleaning-section" id="preview-section">
+                    <div class="card bg-dark mb-4">
+                        <div class="card-header bg-primary bg-opacity-75 text-white">
+                            <i class="fas fa-eye me-2"></i> Preview Cleaning Results
+                        </div>
+                        <div class="card-body">
+                            <div id="preview-loader" class="text-center mb-4 d-none">
+                                <div class="spinner-border text-primary mb-3" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p>Generating preview of cleaning results...</p>
+                            </div>
+                            
+                            <div id="preview-results">
+                                <div class="alert alert-info mb-4" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    This is a preview of the first file after applying your selected cleaning operations. Review the changes and adjust configuration if needed.
+                                </div>
+                                
+                                <div class="card bg-dark mb-4">
+                                    <div class="card-header bg-secondary bg-opacity-50">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <i class="fas fa-file-alt me-2"></i> <span id="preview-filename">File Preview</span>
+                                            </div>
+                                            <span class="badge bg-info" id="preview-operations-count">0 operations</span>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <h6 class="border-bottom pb-2 mb-3">Before Cleaning</h6>
+                                                <div class="file-preview" id="before-preview">
+                                                    <div class="text-center text-muted py-3">
+                                                        <i class="fas fa-file-csv mb-2 d-block" style="font-size: 24px;"></i>
+                                                        No preview available
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6 class="border-bottom pb-2 mb-3">After Cleaning</h6>
+                                                <div class="file-preview" id="after-preview">
+                                                    <div class="text-center text-muted py-3">
+                                                        <i class="fas fa-file-csv mb-2 d-block" style="font-size: 24px;"></i>
+                                                        No preview available
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <h6 class="border-bottom pb-2 mb-3">Operations Applied</h6>
+                                        <div id="operations-summary">
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-tasks mb-2 d-block" style="font-size: 24px;"></i>
+                                                No operations configured
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card bg-dark mb-4">
+                                    <div class="card-header bg-secondary bg-opacity-50">
+                                        <i class="fas fa-chart-bar me-2"></i> Data Reduction Summary
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-4">
+                                                <h6 class="mb-3">Row Count</h6>
+                                                <div class="progress mb-2" style="height: 30px;">
+                                                    <div class="progress-bar bg-primary" id="rows-progress" role="progressbar" style="width: 100%;">100%</div>
+                                                </div>
+                                                <div class="d-flex justify-content-between small">
+                                                    <span>Before: <span id="rows-before">N/A</span></span>
+                                                    <span>After: <span id="rows-after">N/A</span></span>
+                                                    <span>Reduction: <span id="rows-reduction">0%</span></span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-4">
+                                                <h6 class="mb-3">File Size</h6>
+                                                <div class="progress mb-2" style="height: 30px;">
+                                                    <div class="progress-bar bg-success" id="size-progress" role="progressbar" style="width: 100%;">100%</div>
+                                                </div>
+                                                <div class="d-flex justify-content-between small">
+                                                    <span>Before: <span id="size-before">N/A</span></span>
+                                                    <span>After: <span id="size-after">N/A</span></span>
+                                                    <span>Reduction: <span id="size-reduction">0%</span></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-secondary" id="preview-back-btn">
+                                        <i class="fas fa-arrow-left me-1"></i> Back to Configuration
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="preview-next-btn">
+                                        <i class="fas fa-play me-1"></i> Process All Files
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Process Files -->
+                <div class="cleaning-section" id="process-section">
+                    <div class="card bg-dark mb-4">
+                        <div class="card-header bg-primary bg-opacity-75 text-white">
+                            <i class="fas fa-play me-2"></i> Process Files
+                        </div>
+                        <div class="card-body">
+                            <div id="process-loader" class="text-center mb-4">
+                                <div class="spinner-border text-primary mb-3" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p>Processing files with selected cleaning operations...</p>
+                                <div class="progress mb-3">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="process-progress-bar" role="progressbar" style="width: 0%">0%</div>
+                                </div>
+                                <p id="processing-status">Initializing...</p>
+                            </div>
+                            
+                            <div id="process-results" class="d-none">
+                                <div class="alert alert-success mb-4" role="alert">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <span id="process-complete-msg">Processing complete! All files have been cleaned according to your configuration.</span>
+                                </div>
+                                
+                                <div class="card bg-dark mb-4">
+                                    <div class="card-header bg-secondary bg-opacity-50">
+                                        <i class="fas fa-list-alt me-2"></i> Processing Summary
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-4">
+                                            <div class="col-md-4 text-center mb-3 mb-md-0">
+                                                <div class="card bg-dark h-100">
+                                                    <div class="card-body">
+                                                        <i class="fas fa-file-import mb-3" style="font-size: 24px;"></i>
+                                                        <h2 class="mb-0" id="total-files-processed">0</h2>
+                                                        <p class="text-muted mb-0">Files Processed</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 text-center mb-3 mb-md-0">
+                                                <div class="card bg-dark h-100">
+                                                    <div class="card-body">
+                                                        <i class="fas fa-trash-alt mb-3 text-danger" style="font-size: 24px;"></i>
+                                                        <h2 class="mb-0" id="total-rows-removed">0</h2>
+                                                        <p class="text-muted mb-0">Rows Removed</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 text-center">
+                                                <div class="card bg-dark h-100">
+                                                    <div class="card-body">
+                                                        <i class="fas fa-compress-alt mb-3 text-success" style="font-size: 24px;"></i>
+                                                        <h2 class="mb-0" id="avg-size-reduction">0%</h2>
+                                                        <p class="text-muted mb-0">Avg. Size Reduction</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <h6 class="border-bottom pb-2 mb-3">Files Processed</h6>
+                                        <div id="processed-files-list">
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-file-alt mb-2 d-block" style="font-size: 24px;"></i>
+                                                No files processed yet
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-secondary" id="process-back-btn">
+                                        <i class="fas fa-arrow-left me-1"></i> Back
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="process-next-btn">
+                                        <i class="fas fa-chart-area me-1"></i> Visualize Data
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6: Visualize -->
+                <div class="cleaning-section" id="visualize-section">
+                    <div class="card bg-dark mb-4">
+                        <div class="card-header bg-primary bg-opacity-75 text-white">
+                            <i class="fas fa-chart-area me-2"></i> Visualize Cleaned Data
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-success mb-4" role="alert">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Your flight data has been successfully cleaned and is ready for visualization.
+                            </div>
+                            
+                            <div class="text-center py-4">
+                                <i class="fas fa-chart-line mb-3" style="font-size: 64px; color: var(--bs-primary);"></i>
+                                <h4 class="mb-4">Visualize Your Cleaned Flight Trajectories</h4>
+                                <p class="mb-4">Proceed to the visualization page to explore your cleaned flight trajectory data in 3D space.</p>
+                                <a href="/" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-chart-line me-2"></i> Go to Visualizer
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="mb-3">TEA Labs Flight Trajectory Tools</h5>
+                    <p class="text-muted">
+                        Advanced data processing and visualization tools for flight trajectory analysis.
+                    </p>
+                </div>
+                <div class="col-md-3">
+                    <h5 class="mb-3">Tools</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/" class="text-decoration-none">Visualizer</a></li>
+                        <li><a href="/data_cleaning" class="text-decoration-none">Data Cleaning</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h5 class="mb-3">Support</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-decoration-none">Documentation</a></li>
+                        <li><a href="#" class="text-decoration-none">GitHub Repo</a></li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="mt-4 mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <p class="text-muted mb-0">© 2025 Trustworthy Engineered Autonomy Labs. All rights reserved.</p>
+                <div>
+                    <a href="#" class="text-decoration-none me-2"><i class="fab fa-github"></i></a>
+                    <a href="#" class="text-decoration-none"><i class="fab fa-twitter"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/data_cleaning.js') }}"></script>
+</body>
+</html>
