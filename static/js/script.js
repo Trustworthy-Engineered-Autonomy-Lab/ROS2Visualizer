@@ -292,11 +292,14 @@ function processData(rawData) {
 
 // Add trajectory to scene
 function addTrajectory(data, name, color) {
-  // Extract position points for trajectory line
+  // Enhanced altitude scaling to make flights appear at proper depths
+  const altitudeScaleFactor = 1.8; // Amplify vertical movements
+  
+  // Extract position points for trajectory line with enhanced altitude
   const points = data.map(point => new THREE.Vector3(
-    point.position_e || 0,       // X axis (East)
-    -point.position_d || 0,      // Y axis (Up - note the negative since 'd' is down)
-    point.position_n || 0        // Z axis (North)
+    point.position_e || 0,                     // X axis (East)
+    (-point.position_d || 0) * altitudeScaleFactor,  // Y axis (Up) with enhanced scaling
+    point.position_n || 0                      // Z axis (North)
   ));
   
   // Create line geometry
@@ -557,7 +560,7 @@ function updateAircraftPosition(trajectory, timeIndex) {
   const point = trajectory.points[timeIndex];
   const data = trajectory.data[timeIndex];
   
-  // Update position
+  // Update position - use point coordinates which already have the altitude scaling applied
   trajectory.objects.aircraft.position.copy(point);
   
   // Update orientation if available
@@ -629,6 +632,7 @@ function updateDataDisplay() {
   // Update data fields
   document.getElementById('data-n').textContent = formatValue(data.position_n, 'm');
   document.getElementById('data-e').textContent = formatValue(data.position_e, 'm');
+  // Note: we're showing the true altitude in the data display (not scaled)
   document.getElementById('data-alt').textContent = formatValue(-data.position_d, 'm');
   document.getElementById('data-vel').textContent = formatValue(data.velocity, 'm/s');
   document.getElementById('data-hdg').textContent = formatValue(data.psi * (180/Math.PI), '°');
@@ -662,10 +666,14 @@ function updateTimeDisplay(time) {
 function updateCharts() {
   if (trajectories.length === 0) return;
   
-  // Prepare data for altitude chart
+  // Use same altitude scale factor as in the 3D view for consistency
+  const altitudeScaleFactor = 1.8;
+  
+  // Prepare data for altitude chart with enhanced altitude scaling
   const altitudeTraces = trajectories.filter(t => t.visible).map(traj => {
     const times = traj.data.map(d => d.time);
-    const altitudes = traj.data.map(d => -d.position_d); // Negative of down is up
+    // Apply the same scaling factor to chart data for consistency
+    const altitudes = traj.data.map(d => -d.position_d * altitudeScaleFactor); // Scale altitude for better visualization
     
     return {
       x: times,
@@ -696,10 +704,10 @@ function updateCharts() {
   
   // Update charts
   Plotly.react('position-chart', altitudeTraces, {
-    title: 'Altitude Profile',
+    title: 'Altitude Profile (Enhanced)',
     margin: { t: 30, l: 50, r: 20, b: 40 },
     xaxis: { title: 'Time (s)' },
-    yaxis: { title: 'Altitude (m)' },
+    yaxis: { title: 'Altitude (m, scaled)' },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
     font: { color: '#fff' }
@@ -808,10 +816,10 @@ function clearTrajectories() {
   
   // Clear charts
   Plotly.react('position-chart', [], {
-    title: 'Altitude Profile',
+    title: 'Altitude Profile (Enhanced)',
     margin: { t: 30, l: 50, r: 20, b: 40 },
     xaxis: { title: 'Time (s)' },
-    yaxis: { title: 'Altitude (m)' },
+    yaxis: { title: 'Altitude (m, scaled)' },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
     font: { color: '#fff' }
