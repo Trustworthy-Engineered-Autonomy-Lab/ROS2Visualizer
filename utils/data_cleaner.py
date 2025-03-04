@@ -31,8 +31,22 @@ def analyze_csv_file(file_content, filename):
         dict: Statistics about the file
     """
     try:
-        # Convert string content to DataFrame
-        df = pd.read_csv(io.StringIO(file_content))
+        # Try to detect if the file has headers
+        with io.StringIO(file_content) as f:
+            first_line = f.readline().strip()
+            # Check if first line looks like headers (contains non-numeric values)
+            has_headers = not all(col.replace('-', '').replace('.', '').isdigit() for col in first_line.split(',') if col.strip())
+        
+        # Convert string content to DataFrame, inferring headers
+        if has_headers:
+            df = pd.read_csv(io.StringIO(file_content))
+            logging.info(f"CSV file '{filename}' loaded with headers: {list(df.columns)}")
+        else:
+            # If no headers detected, create default column names
+            logging.info(f"CSV file '{filename}' loaded without headers, creating default column names")
+            df = pd.read_csv(io.StringIO(file_content), header=None)
+            # Create default column names (col0, col1, etc.)
+            df.columns = [f'col{i}' for i in range(len(df.columns))]
         
         # Calculate basic statistics
         row_count = len(df)
@@ -226,8 +240,23 @@ def apply_cleaning_operations(file_info, config):
         return result
     
     try:
-        # Convert to DataFrame for processing
-        df = pd.read_csv(io.StringIO(file_content))
+        # Try to detect if the file has headers
+        with io.StringIO(file_content) as f:
+            first_line = f.readline().strip()
+            # Check if first line looks like headers (contains non-numeric values)
+            has_headers = not all(col.replace('-', '').replace('.', '').isdigit() 
+                               for col in first_line.split(',') if col.strip())
+        
+        # Convert to DataFrame for processing, handling headers appropriately
+        if has_headers:
+            df = pd.read_csv(io.StringIO(file_content))
+            logging.info(f"Cleaning CSV file with detected headers: {list(df.columns)}")
+        else:
+            # If no headers detected, create default column names
+            logging.info(f"Cleaning CSV file without headers, creating default column names")
+            df = pd.read_csv(io.StringIO(file_content), header=None)
+            # Create default column names (col0, col1, etc.)
+            df.columns = [f'col{i}' for i in range(len(df.columns))]
         original_df = df.copy()
         
         # Track changes for each operation

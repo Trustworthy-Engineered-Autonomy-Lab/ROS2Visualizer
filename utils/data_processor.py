@@ -23,8 +23,22 @@ def process_csv_data(csv_content):
         dict: Processed data ready for visualization
     """
     try:
-        # Parse CSV to pandas DataFrame
-        df = pd.read_csv(io.StringIO(csv_content))
+        # Try to detect if the file has headers
+        with io.StringIO(csv_content) as f:
+            first_line = f.readline().strip()
+            # Check if first line looks like headers (contains non-numeric values)
+            has_headers = not all(col.replace('-', '').replace('.', '').isdigit() for col in first_line.split(',') if col.strip())
+        
+        # Parse CSV to pandas DataFrame with appropriate header handling
+        if has_headers:
+            df = pd.read_csv(io.StringIO(csv_content))
+            logging.info(f"Processing CSV file with headers: {list(df.columns)}")
+        else:
+            # If no headers detected, create default column names
+            logging.info(f"Processing CSV file without headers, creating default column names")
+            df = pd.read_csv(io.StringIO(csv_content), header=None)
+            # Create default column names (col0, col1, etc.)
+            df.columns = [f'col{i}' for i in range(len(df.columns))]
         
         # Check if required position columns exist
         required_columns = ['position_n', 'position_e', 'position_d']
@@ -194,16 +208,27 @@ def detect_position_columns(df):
     Returns:
         dict: Mapping of detected columns to standard names, or None if not found
     """
-    # Potential column name patterns
+    # Potential column name patterns - more comprehensive patterns for better matching
     position_patterns = {
-        'position_n': ['n', 'north', 'x', 'pos_n', 'position_north', 'pos_north', 'position_x', 'pos_x'],
-        'position_e': ['e', 'east', 'y', 'pos_e', 'position_east', 'pos_east', 'position_y', 'pos_y'],
-        'position_d': ['d', 'down', 'z', 'alt', 'altitude', 'pos_d', 'position_down', 'pos_down', 'position_z', 'pos_z']
+        'position_n': ['n', 'north', 'x', 'pos_n', 'position_north', 'pos_north', 'position_x', 'pos_x', 
+                     'posx', 'nx', 'northx', 'latitude', 'lat', 'posn', 'position n'],
+        'position_e': ['e', 'east', 'y', 'pos_e', 'position_east', 'pos_east', 'position_y', 'pos_y',
+                     'posy', 'ey', 'easty', 'longitude', 'lon', 'long', 'pose', 'position e'],
+        'position_d': ['d', 'down', 'z', 'alt', 'altitude', 'pos_d', 'position_down', 'pos_down', 'position_z', 'pos_z',
+                     'posz', 'dz', 'downz', 'height', 'elev', 'elevation', 'depth', 'posd', 'position d']
     }
     
+    # Also try to infer from numeric columns if the data appears to be X/Y/Z coordinate data
+    numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
+    
+    # If we have at least 3 numeric columns, try to infer position data
+    infer_from_numeric = False
+    if len(numeric_columns) >= 3:
+        infer_from_numeric = True
+        
     result = {}
     
-    # Check for each standard position column
+    # First try to match by column name patterns
     for std_col, patterns in position_patterns.items():
         # First check if the standard column already exists
         if std_col in df.columns:
@@ -212,22 +237,68 @@ def detect_position_columns(df):
         # Try to find alternative column
         found = False
         for pattern in patterns:
-            # Look for exact matches
+            # Look for exact matches with case insensitivity
             matches = [col for col in df.columns if col.lower() == pattern.lower()]
             if matches:
                 result[matches[0]] = std_col
                 found = True
                 break
                 
-            # Look for partial matches
+            # Look for partial matches with case insensitivity
             if not found:
-                partial_matches = [col for col in df.columns if pattern.lower() in col.lower()]
+                partial_matches = [col for col in df.columns if pattern.lower() in col.lower() or col.lower() in pattern.lower()]
                 if partial_matches:
                     result[partial_matches[0]] = std_col
                     found = True
                     break
+                    
+    # If we found all three position components, return the mapping
+    if len(result) == 3:
+        logging.info(f"Detected position columns by name pattern matching: {result}")
+        return result
     
+    # If pattern matching didn't find all required columns, try to infer from numeric column positions
+    if infer_from_numeric and len(numeric_columns) >= 3:
+        logging.info("Pattern matching didn't find all position columns. Trying to infer from numeric columns.")
+        # If we have exactly 3 numeric columns, assume they are position_n, position_e, position_d in order
+        if len(numeric_columns) == 3:
+            result = {
+                numeric_columns[0]: 'position_n',
+                numeric_columns[1]: 'position_e',
+                numeric_columns[2]: 'position_d'
+            }
+            logging.info(f"Inferred position columns from 3 numeric columns: {result}")
+            return result
+            
+        # If we have more than 3 columns but the first 3 are numeric, use those
+        if len(df.columns) >= 3 and all(col in numeric_columns for col in df.columns[:3]):
+            result = {
+                df.columns[0]: 'position_n',
+                df.columns[1]: 'position_e',
+                df.columns[2]: 'position_d'
+            }
+            logging.info(f"Inferred position columns from first 3 columns: {result}")
+            return result
+            
+    # If we still don't have a mapping, try one more approach: look for X/Y/Z coordinate patterns
+    # in column names or infer from common position indexes (0, 1, 2)
+    if len(result) < 3:
+        # Try to find columns that might be X/Y/Z coordinates
+        x_cols = [col for col in df.columns if col.lower() in ['x', 'col0', '0']]
+        y_cols = [col for col in df.columns if col.lower() in ['y', 'col1', '1']]
+        z_cols = [col for col in df.columns if col.lower() in ['z', 'col2', '2']]
+        
+        if x_cols and 'position_n' not in result.values():
+            result[x_cols[0]] = 'position_n'
+        if y_cols and 'position_e' not in result.values():
+            result[y_cols[0]] = 'position_e'
+        if z_cols and 'position_d' not in result.values():
+            result[z_cols[0]] = 'position_d'
+            
     # Only return a result if we found all three position components
     if len(result) == 3:
+        logging.info(f"Final position column mapping: {result}")
         return result
+        
+    logging.warning(f"Could not detect all position columns. Found only: {result}")
     return None
