@@ -99,15 +99,35 @@ def analyze_csv_file(file_content, filename):
                     distances = []
                     for i in range(1, len(df_clean)):
                         try:
-                            p1 = (float(df_clean.iloc[i-1]['position_n']), 
-                                  float(df_clean.iloc[i-1]['position_e']), 
-                                  float(df_clean.iloc[i-1]['position_d']))
-                            p2 = (float(df_clean.iloc[i]['position_n']), 
-                                  float(df_clean.iloc[i]['position_e']), 
-                                  float(df_clean.iloc[i]['position_d']))
+                            # Safely get values with fallbacks in case of missing data
+                            if i-1 < 0 or i-1 >= len(df_clean) or i >= len(df_clean):
+                                continue
+                                
+                            # Check if keys exist and convert safely
+                            pos_n1 = pos_e1 = pos_d1 = pos_n2 = pos_e2 = pos_d2 = 0.0
+                            
+                            # First point coordinates
+                            if 'position_n' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_n']):
+                                pos_n1 = float(df_clean.iloc[i-1]['position_n'])
+                            if 'position_e' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_e']):
+                                pos_e1 = float(df_clean.iloc[i-1]['position_e'])
+                            if 'position_d' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_d']):
+                                pos_d1 = float(df_clean.iloc[i-1]['position_d'])
+                                
+                            # Second point coordinates
+                            if 'position_n' in df_clean.columns and not pd.isna(df_clean.iloc[i]['position_n']):
+                                pos_n2 = float(df_clean.iloc[i]['position_n'])
+                            if 'position_e' in df_clean.columns and not pd.isna(df_clean.iloc[i]['position_e']):
+                                pos_e2 = float(df_clean.iloc[i]['position_e'])
+                            if 'position_d' in df_clean.columns and not pd.isna(df_clean.iloc[i]['position_d']):
+                                pos_d2 = float(df_clean.iloc[i]['position_d'])
+                            
+                            p1 = (pos_n1, pos_e1, pos_d1)
+                            p2 = (pos_n2, pos_e2, pos_d2)
+                            
                             distance = math.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2 + (p2[2]-p1[2])**2)
                             distances.append(distance)
-                        except (ValueError, KeyError, IndexError) as e:
+                        except Exception as e:
                             logging.warning(f"Error calculating distance for row {i}: {str(e)}")
                             continue
                     
@@ -117,10 +137,16 @@ def analyze_csv_file(file_content, filename):
                     
                     # Altitude change
                     try:
-                        min_alt = -float(df_clean['position_d'].max())  # Negative of max 'down' is min altitude
-                        max_alt = -float(df_clean['position_d'].min())  # Negative of min 'down' is max altitude
-                        alt_change = max_alt - min_alt
-                    except:
+                        if 'position_d' in df_clean.columns and not df_clean['position_d'].empty:
+                            min_alt = -float(df_clean['position_d'].max())  # Negative of max 'down' is min altitude
+                            max_alt = -float(df_clean['position_d'].min())  # Negative of min 'down' is max altitude
+                            alt_change = max_alt - min_alt
+                        else:
+                            min_alt = 0
+                            max_alt = 0
+                            alt_change = 0
+                    except Exception as e:
+                        logging.warning(f"Error calculating altitude metrics: {str(e)}")
                         min_alt = 0
                         max_alt = 0
                         alt_change = 0
