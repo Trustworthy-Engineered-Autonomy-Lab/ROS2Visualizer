@@ -1,5 +1,6 @@
 import os
 import logging
+import tempfile
 from flask import Flask, render_template, request, jsonify, session
 from utils.data_processor import process_csv_data
 from utils.data_cleaner import analyze_csv_file, apply_cleaning_operations
@@ -10,6 +11,10 @@ logging.basicConfig(level=logging.DEBUG)
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key_for_development")
+
+# Configure Flask for handling large file uploads
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max upload size
+app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
 @app.route('/')
 def index():
