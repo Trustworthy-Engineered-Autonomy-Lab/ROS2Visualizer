@@ -91,14 +91,29 @@ function initScene() {
   // Add 3D house model at the specified coordinates from config
   try {
     console.log("Creating house at:", houseConfig.position);
-    houseModel = addHouseModel(
-      houseConfig.position.x, 
-      houseConfig.position.y, 
-      houseConfig.position.z
-    );
-    console.log("House model created:", houseModel);
+    // Check if THREE is available
+    if (typeof THREE === 'undefined') {
+      console.error("THREE.js is not loaded. House model will not be created.");
+      showMessage("Warning: 3D library not available. Some features may be limited.", "warning");
+    } else {
+      // Add a timeout to make sure everything is initialized
+      setTimeout(function() {
+        try {
+          houseModel = addHouseModel(
+            houseConfig.position.x, 
+            houseConfig.position.y, 
+            houseConfig.position.z
+          );
+          console.log("House model created:", houseModel);
+        } catch (innerError) {
+          console.error("Error creating house model in delayed initialization:", innerError);
+          showMessage("House model could not be displayed. Try refreshing the page.", "warning");
+        }
+      }, 500);
+    }
   } catch (error) {
     console.error("Error creating house model:", error);
+    showMessage("House model could not be displayed due to a browser compatibility issue.", "warning");
   }
   
   // Add text labels for axes
@@ -1045,49 +1060,109 @@ function onWindowResize() {
 
 // Function to toggle house visibility
 function toggleHouseVisibility(event) {
-  if (!houseModel) {
-    console.error("House model not found!");
-    showMessage("Error: House model not found", "danger");
-    return;
+  try {
+    // First save the checkbox state regardless of house model availability
+    houseConfig.visible = event.target.checked;
+    
+    // Safely toggle house model if it exists
+    if (!houseModel) {
+      console.warn("House model not found! Will apply visibility when house becomes available.");
+      showMessage("House model is still initializing. Your preference will be applied when ready.", "warning");
+      
+      // Try to create the house model if it doesn't exist yet
+      if (typeof THREE !== 'undefined' && scene) {
+        setTimeout(function() {
+          try {
+            if (!houseModel) {
+              console.log("Attempting to create house model on toggle...");
+              houseModel = addHouseModel(
+                houseConfig.position.x,
+                houseConfig.position.y,
+                houseConfig.position.z
+              );
+              
+              if (houseModel) {
+                houseModel.visible = houseConfig.visible;
+                console.log(`House created and visibility set to: ${houseConfig.visible}`);
+                showMessage(`House ${houseConfig.visible ? 'shown' : 'hidden'}`, "success");
+              }
+            }
+          } catch (e) {
+            console.error("Error creating house on toggle:", e);
+          }
+        }, 500);
+      }
+      return;
+    }
+    
+    // Apply visibility to existing house model
+    houseModel.visible = houseConfig.visible;
+    console.log(`House visibility set to: ${houseConfig.visible}`);
+    showMessage(`House ${houseConfig.visible ? 'shown' : 'hidden'}`, "info");
+  } catch (error) {
+    console.error("Error toggling house visibility:", error);
+    showMessage("Could not change house visibility due to a browser compatibility issue.", "warning");
   }
-  
-  houseConfig.visible = event.target.checked;
-  houseModel.visible = houseConfig.visible;
-  
-  console.log(`House visibility set to: ${houseConfig.visible}`);
-  showMessage(`House ${houseConfig.visible ? 'shown' : 'hidden'}`, "info");
 }
 
 // Function to update house position
 function updateHousePosition() {
-  if (!houseModel) {
-    console.error("House model not found!");
-    showMessage("Error: House model not found", "danger");
-    return;
+  try {
+    // Get values from input fields
+    const x = parseFloat(document.getElementById('house-x').value);
+    const y = parseFloat(document.getElementById('house-y').value);
+    const z = parseFloat(document.getElementById('house-z').value);
+    
+    // Validate input values
+    if (isNaN(x) || isNaN(y) || isNaN(z)) {
+      showMessage("Please enter valid numeric coordinates", "warning");
+      return;
+    }
+    
+    // Save position in config
+    houseConfig.position = { x, y, z };
+    
+    // If house model doesn't exist yet, try to create it
+    if (!houseModel) {
+      console.warn("House model not found! Attempting to create it now.");
+      
+      if (typeof THREE !== 'undefined' && scene) {
+        try {
+          console.log("Creating house model on position update...");
+          houseModel = addHouseModel(x, y, z);
+          
+          if (houseModel) {
+            // Apply saved visibility setting
+            houseModel.visible = houseConfig.visible;
+            console.log("House model created at specified position:", houseModel.position);
+            showMessage(`House created at position (${x}, ${y}, ${z})`, "success");
+          } else {
+            showMessage("Could not create house model. Try refreshing the page.", "warning");
+          }
+        } catch (e) {
+          console.error("Error creating house on position update:", e);
+          showMessage("Error creating house model. Browser may not support 3D rendering.", "danger");
+        }
+      } else {
+        console.error("THREE.js not available for house creation");
+        showMessage("3D library not available. Try refreshing the page.", "warning");
+      }
+      return;
+    }
+    
+    // Update existing house position - remember in THREE.js Y is up, so we swap Y and Z
+    console.log(`Updating house position to: X=${x}, Y=${y}, Z=${z}`);
+    
+    // In Three.js, we need to set (x, z, y) to match our coordinate system
+    houseModel.position.set(x, z, y); 
+    
+    // Log confirmation
+    console.log("New house position set:", houseModel.position);
+    showMessage(`House position updated to (${x}, ${y}, ${z})`, "success");
+  } catch (error) {
+    console.error("Error updating house position:", error);
+    showMessage("Could not update house position due to a browser compatibility issue.", "warning");
   }
-  
-  // Get values from input fields
-  const x = parseFloat(document.getElementById('house-x').value);
-  const y = parseFloat(document.getElementById('house-y').value);
-  const z = parseFloat(document.getElementById('house-z').value);
-  
-  // Validate input values
-  if (isNaN(x) || isNaN(y) || isNaN(z)) {
-    showMessage("Please enter valid numeric coordinates", "warning");
-    return;
-  }
-  
-  // Update house position - remember in THREE.js Y is up, so we swap Y and Z
-  console.log(`Updating house position to: X=${x}, Y=${y}, Z=${z}`);
-  houseConfig.position = { x, y, z };
-  
-  // In Three.js, we need to set (x, z, y) to match our coordinate system
-  houseModel.position.set(x, z, y); 
-  
-  // Log confirmation
-  console.log("New house position set:", houseModel.position);
-  
-  showMessage(`House position updated to (${x}, ${y}, ${z})`, "success");
 }
 
 // Show message to user

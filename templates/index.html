@@ -8,14 +8,46 @@
   <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <!-- Three.js for 3D visualization -->
+  <!-- Three.js for 3D visualization with fallback -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- OrbitControls for camera manipulation -->
+  <script>
+    // Check if Three.js loaded successfully
+    if (typeof THREE === 'undefined') {
+      console.error('Three.js failed to load. Attempting to load from alternate CDN...');
+      document.write('<script src="https://threejs.org/build/three.min.js"><\/script>');
+    }
+  </script>
+  <!-- OrbitControls for camera manipulation with fallback -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <!-- PapaParse for CSV processing -->
+  <script>
+    // Check if OrbitControls loaded successfully
+    setTimeout(function() {
+      if (typeof THREE.OrbitControls === 'undefined') {
+        console.error('OrbitControls failed to load. Attempting to load from alternate CDN...');
+        var script = document.createElement('script');
+        script.src = 'https://threejs.org/examples/js/controls/OrbitControls.js';
+        document.head.appendChild(script);
+      }
+    }, 500);
+  </script>
+  <!-- PapaParse for CSV processing with fallback -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-  <!-- Plotly for additional 2D charts -->
+  <script>
+    // Check if PapaParse loaded successfully
+    if (typeof Papa === 'undefined') {
+      console.error('PapaParse failed to load. Attempting to load from alternate CDN...');
+      document.write('<script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"><\/script>');
+    }
+  </script>
+  <!-- Plotly for additional 2D charts with fallback -->
   <script src="https://cdn.plot.ly/plotly-2.9.0.min.js"></script>
+  <script>
+    // Check if Plotly loaded successfully
+    if (typeof Plotly === 'undefined') {
+      console.error('Plotly failed to load. Attempting to load from alternate CDN...');
+      document.write('<script src="https://unpkg.com/plotly.js@2.9.0/dist/plotly.min.js"><\/script>');
+    }
+  </script>
   <!-- Font Awesome for icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
