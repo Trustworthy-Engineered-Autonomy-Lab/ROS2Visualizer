@@ -54,6 +54,8 @@ def analyze_csv():
         for file in files:
             if file and file.filename.endswith(('.csv', '.txt')):
                 try:
+                    start_time = time.time()
+                    
                     # Generate a unique identifier for this file
                     unique_id = str(uuid.uuid4())
                     safe_filename = f"{unique_id}_{file.filename.replace(' ', '_')}"
@@ -61,31 +63,46 @@ def analyze_csv():
                     
                     # Save file with chunked streaming to prevent timeouts for large files
                     logging.info(f"Streaming file {file.filename} to temporary location: {temp_filepath}")
-                    file.save(temp_filepath)
                     
-                    # Check file size to determine approach
+                    # Enhanced file saving with better chunking for large files
+                    try:
+                        os.makedirs(os.path.dirname(temp_filepath), exist_ok=True)
+                        chunk_size = 4 * 1024 * 1024  # 4MB chunks
+                        with open(temp_filepath, 'wb') as f:
+                            chunk = file.read(chunk_size)
+                            while chunk:
+                                f.write(chunk)
+                                chunk = file.read(chunk_size)
+                    except Exception as e:
+                        logging.error(f"Error saving file {file.filename}: {str(e)}")
+                        raise
+                    
+                    upload_duration = time.time() - start_time
+                    logging.info(f"File {file.filename} uploaded in {upload_duration:.2f} seconds")
+                    
+                    # Check file size to determine processing approach
                     file_size = os.path.getsize(temp_filepath)
                     is_large_file = file_size > 50 * 1024 * 1024  # Consider files > 50MB as large
+                    is_very_large_file = file_size > 500 * 1024 * 1024  # Files > 500MB get special handling
                     
-                    # Determine file encoding with fallback
+                    # Determine file encoding with multi-fallback strategy
                     encoding = 'utf-8'
-                    try:
-                        with open(temp_filepath, 'r', encoding=encoding) as f:
-                            # Just read first line to test encoding
-                            f.readline()
-                    except UnicodeDecodeError:
+                    encodings_to_try = ['utf-8', 'latin-1', 'utf-16', 'cp1252', 'iso-8859-1']
+                    
+                    for enc in encodings_to_try:
                         try:
-                            encoding = 'latin-1'
-                            with open(temp_filepath, 'r', encoding=encoding) as f:
+                            with open(temp_filepath, 'r', encoding=enc) as f:
+                                # Just read first line to test encoding
                                 f.readline()
-                            logging.info(f"Using {encoding} encoding for file {file.filename}")
+                            encoding = enc
+                            logging.info(f"Successfully detected {encoding} encoding for file {file.filename}")
+                            break
                         except UnicodeDecodeError:
-                            encoding = 'utf-16'
-                            logging.info(f"Trying {encoding} encoding for file {file.filename}")
+                            continue
                     
                     logging.info(f"File {file.filename} size: {file_size/(1024*1024):.2f} MB, encoding: {encoding}")
                     
-                    # Create a base file stats dictionary
+                    # Create a comprehensive file stats dictionary
                     file_stats = {
                         "filename": file.filename,
                         "temp_filepath": temp_filepath,
@@ -93,6 +110,9 @@ def analyze_csv():
                         "file_size_mb": file_size/(1024*1024),
                         "encoding": encoding,
                         "is_large_file": is_large_file,
+                        "is_very_large_file": is_very_large_file,
+                        "upload_duration": upload_duration,
+                        "upload_speed_mbps": (file_size/(1024*1024))/upload_duration if upload_duration > 0 else 0,
                         "timestamp": time.time()
                     }
                     

@@ -220,14 +220,13 @@
                             </form>
                             
                             <!-- Professional Upload Progress UI -->
-                            <div id="progress-container" class="mt-4 mb-4" style="display: none;">
+                            <div id="upload-progress-container" class="mt-4 mb-4 d-none">
                                 <div class="card bg-dark border-primary">
                                     <div class="card-header bg-primary bg-opacity-75 text-white d-flex align-items-center">
                                         <i class="fas fa-cloud-upload-alt me-2"></i> 
                                         <span>Upload Progress</span>
-                                        <div class="ms-auto d-flex align-items-center">
-                                            <span id="upload-speed" class="badge bg-info me-2">--</span>
-                                            <span id="upload-eta" class="badge bg-secondary">ETA: --</span>
+                                        <div class="ms-auto">
+                                            <span class="badge bg-dark border border-info">TEA Labs</span>
                                         </div>
                                     </div>
                                     <div class="card-body">
@@ -235,7 +234,11 @@
                                             <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
                                                  role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                                         </div>
-                                        <p id="upload-progress-text" class="mb-0 text-center">Waiting to start upload...</p>
+                                        <p id="upload-progress-text" class="mb-1 text-center">Ready to upload files</p>
+                                        <div id="upload-stats" class="d-flex justify-content-between small text-muted">
+                                            <span>Speed: -- KB/s</span>
+                                            <span>ETA: --</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
