@@ -122,8 +122,46 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('browse-server-data-btn').addEventListener('click', openServerDataBrowser);
   
   // Initialize modals
-  uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
-  serverDataModal = new bootstrap.Modal(document.getElementById('serverDataModal'));
+  // Initialize modals with proper focus management and accessibility settings
+  const uploadModalElement = document.getElementById('uploadModal');
+  const serverDataModalElement = document.getElementById('serverDataModal');
+  
+  // Ensure these elements exist before initializing
+  if (uploadModalElement) {
+    // Set up event handlers for proper focus management
+    uploadModalElement.addEventListener('hidden.bs.modal', function() {
+      // Reset focus to the trigger button when modal is closed
+      const uploadButton = document.getElementById('file-upload');
+      if (uploadButton) uploadButton.focus();
+    });
+    
+    uploadModal = new bootstrap.Modal(uploadModalElement, {
+      backdrop: true,
+      keyboard: true,
+      focus: true
+    });
+  }
+  
+  if (serverDataModalElement) {
+    // Set up event handlers for proper focus management
+    serverDataModalElement.addEventListener('hidden.bs.modal', function() {
+      // Reset focus to the trigger button when modal is closed
+      const browseButton = document.getElementById('browse-server-data-btn');
+      if (browseButton) browseButton.focus();
+    });
+    
+    // Focus the search input when the modal is shown
+    serverDataModalElement.addEventListener('shown.bs.modal', function() {
+      const searchInput = document.getElementById('server-data-search');
+      if (searchInput) searchInput.focus();
+    });
+    
+    serverDataModal = new bootstrap.Modal(serverDataModalElement, {
+      backdrop: true,
+      keyboard: true,
+      focus: true
+    });
+  }
   
   // Additional event listener
   document.getElementById('load-selected-server-files').addEventListener('click', loadSelectedServerFiles);

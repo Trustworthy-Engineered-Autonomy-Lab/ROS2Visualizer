@@ -255,25 +255,25 @@
   </div>
   
   <!-- File upload modal -->
-  <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+  <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-modal="true" role="dialog">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="uploadModalLabel">Processing Files</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="upload-modal-close-btn"></button>
         </div>
         <div class="modal-body">
           <div class="progress mb-3">
-            <div id="upload-progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+            <div id="upload-progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
           </div>
-          <p id="upload-status">Preparing to upload files...</p>
+          <p id="upload-status" aria-live="polite">Preparing to upload files...</p>
         </div>
       </div>
     </div>
   </div>
   
   <!-- Enhanced Server Data Browser Modal -->
-  <div class="modal fade" id="serverDataModal" tabindex="-1" aria-labelledby="serverDataModalLabel" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="modal fade" id="serverDataModal" tabindex="-1" aria-labelledby="serverDataModalLabel" role="dialog" aria-modal="true">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
         <div class="modal-header bg-dark text-white">
