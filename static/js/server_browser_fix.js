@@ -609,17 +609,29 @@ document.addEventListener('DOMContentLoaded', function() {
           folderContent += '</div></div>';
         }
         
-        // Add multi-select controls
+        // Add multi-select and view mode controls
         folderContent += `
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="toggle-multi-select"
-              aria-describedby="toggle-multi-select-description">
-            <label class="form-check-label" for="toggle-multi-select">
-              Multi-select mode ${serverBrowserState.multiSelectMode ? '(on)' : '(off)'}
-            </label>
-            <div id="toggle-multi-select-description" class="form-text visually-hidden">
-              Enable to select multiple files at once
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="toggle-multi-select"
+                aria-describedby="toggle-multi-select-description">
+              <label class="form-check-label" for="toggle-multi-select">
+                Multi-select mode ${serverBrowserState.multiSelectMode ? '(on)' : '(off)'}
+              </label>
+              <div id="toggle-multi-select-description" class="form-text visually-hidden">
+                Enable to select multiple files at once
+              </div>
+            </div>
+            <div class="btn-group" role="group" aria-label="View mode">
+              <button type="button" class="btn btn-sm btn-outline-secondary ${serverBrowserState.viewMode === 'list' ? 'active' : ''}" 
+                id="list-view-btn" aria-label="List view">
+                <i class="fas fa-list" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary ${serverBrowserState.viewMode === 'grid' ? 'active' : ''}" 
+                id="grid-view-btn" aria-label="Grid view">
+                <i class="fas fa-th" aria-hidden="true"></i>
+              </button>
             </div>
           </div>
           <button id="process-selected-files" class="btn btn-success btn-sm" 
@@ -634,54 +646,100 @@ document.addEventListener('DOMContentLoaded', function() {
         folderContent += '<div><h6>Files</h6>';
         
         if (serverBrowserState.files && serverBrowserState.files.length > 0) {
-          folderContent += '<table class="table table-sm table-hover">';
-          folderContent += '<thead><tr>';
-          
-          // Add selection column if multi-select is enabled
-          if (serverBrowserState.multiSelectMode) {
-            folderContent += '<th><div class="form-check"><input type="checkbox" id="select-all-files" class="form-check-input" aria-label="Select all files"><label class="visually-hidden" for="select-all-files">Select all files</label></div></th>';
-          }
-          
-          folderContent += '<th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody>';
-          
-          for (const file of serverBrowserState.files) {
-            // Check if file is already selected
-            const isSelected = isFileSelected(file.path);
+          if (serverBrowserState.viewMode === 'grid') {
+            // Grid view
+            folderContent += '<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">';
             
-            folderContent += `
-              <tr ${isSelected ? 'class="table-primary"' : ''}>`;
+            for (const file of serverBrowserState.files) {
+              // Check if file is already selected
+              const isSelected = isFileSelected(file.path);
               
-            // Add checkbox if multi-select is enabled
-            if (serverBrowserState.multiSelectMode) {
               folderContent += `
-                <td>
-                  <div class="form-check">
-                    <input type="checkbox" id="file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}" 
-                      class="form-check-input file-select-checkbox" 
-                      data-file-path="${file.path}" 
-                      data-file-name="${file.name}"
-                      data-file-size="${file.size}"
-                      ${isSelected ? 'checked' : ''} 
-                      aria-label="Select ${file.name}">
-                    <label class="visually-hidden" for="file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}">
-                      Select ${file.name}
-                    </label>
+                <div class="col">
+                  <div class="card h-100 ${isSelected ? 'border-primary' : ''}">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start">
+                        <h6 class="card-title text-truncate" title="${file.name}">${file.name}</h6>
+                        ${serverBrowserState.multiSelectMode ? `
+                          <div class="form-check">
+                            <input type="checkbox" id="grid-file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}" 
+                              class="form-check-input file-select-checkbox" 
+                              data-file-path="${file.path}" 
+                              data-file-name="${file.name}"
+                              data-file-size="${file.size}"
+                              ${isSelected ? 'checked' : ''} 
+                              aria-label="Select ${file.name}">
+                            <label class="visually-hidden" for="grid-file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}">
+                              Select ${file.name}
+                            </label>
+                          </div>
+                        ` : ''}
+                      </div>
+                      <p class="card-text mb-1">
+                        <small class="text-muted">${file.size_formatted || formatBytes(file.size)}</small>
+                      </p>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                      <button class="btn btn-primary btn-sm w-100" data-file-path="${file.path}" aria-label="Load file ${file.name}">
+                        <i class="fas fa-upload me-1" aria-hidden="true"></i>Load
+                      </button>
+                    </div>
                   </div>
-                </td>`;
+                </div>`;
             }
             
-            folderContent += `
-                <td>${file.name}</td>
-                <td>${file.size_formatted || formatBytes(file.size)}</td>
-                <td>
-                  <button class="btn btn-primary btn-sm" data-file-path="${file.path}" aria-label="Load file ${file.name}">
-                      <i class="fas fa-upload me-1" aria-hidden="true"></i>Load
-                  </button>
-                </td>
-              </tr>`;
+            folderContent += '</div>';
+          } else {
+            // List view (default)
+            folderContent += '<table class="table table-sm table-hover">';
+            folderContent += '<thead><tr>';
+            
+            // Add selection column if multi-select is enabled
+            if (serverBrowserState.multiSelectMode) {
+              folderContent += '<th><div class="form-check"><input type="checkbox" id="select-all-files" class="form-check-input" aria-label="Select all files"><label class="visually-hidden" for="select-all-files">Select all files</label></div></th>';
+            }
+            
+            folderContent += '<th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody>';
+            
+            for (const file of serverBrowserState.files) {
+              // Check if file is already selected
+              const isSelected = isFileSelected(file.path);
+              
+              folderContent += `
+                <tr ${isSelected ? 'class="table-primary"' : ''}>`;
+                
+              // Add checkbox if multi-select is enabled
+              if (serverBrowserState.multiSelectMode) {
+                folderContent += `
+                  <td>
+                    <div class="form-check">
+                      <input type="checkbox" id="file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}" 
+                        class="form-check-input file-select-checkbox" 
+                        data-file-path="${file.path}" 
+                        data-file-name="${file.name}"
+                        data-file-size="${file.size}"
+                        ${isSelected ? 'checked' : ''} 
+                        aria-label="Select ${file.name}">
+                      <label class="visually-hidden" for="file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}">
+                        Select ${file.name}
+                      </label>
+                    </div>
+                  </td>`;
+              }
+              
+              folderContent += `
+                  <td>${file.name}</td>
+                  <td>${file.size_formatted || formatBytes(file.size)}</td>
+                  <td>
+                    <button class="btn btn-primary btn-sm" data-file-path="${file.path}" aria-label="Load file ${file.name}">
+                        <i class="fas fa-upload me-1" aria-hidden="true"></i>Load
+                    </button>
+                  </td>
+                </tr>`;
+            }
+            
+            folderContent += '</tbody></table>';
           }
-          
-          folderContent += '</tbody></table>';
         } else {
           folderContent += '<p class="text-muted">No files found in this location.</p>';
         }
@@ -784,6 +842,42 @@ document.addEventListener('DOMContentLoaded', function() {
             });
           });
           
+          // Add event listeners to pagination controls
+          const pageLinks = contentContainer.querySelectorAll('.pagination .page-link');
+          pageLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+              e.preventDefault();
+              const page = parseInt(this.getAttribute('data-page'), 10);
+              if (!isNaN(page)) {
+                // Update state and reload with new page
+                serverBrowserState.currentPage = page;
+                navigateToFolder(serverBrowserState.currentFolder);
+              }
+            });
+          });
+          
+          // Add event listener to search input and button
+          const searchInput = contentContainer.querySelector('#server-data-search');
+          const searchButton = contentContainer.querySelector('#search-button');
+          
+          if (searchInput && searchButton) {
+            // Set up search button click handler
+            searchButton.addEventListener('click', function() {
+              serverBrowserState.searchQuery = searchInput.value.trim();
+              serverBrowserState.currentPage = 1; // Reset to first page on new search
+              navigateToFolder(serverBrowserState.currentFolder);
+            });
+            
+            // Set up search input enter key handler
+            searchInput.addEventListener('keyup', function(e) {
+              if (e.key === 'Enter') {
+                serverBrowserState.searchQuery = this.value.trim();
+                serverBrowserState.currentPage = 1; // Reset to first page on new search
+                navigateToFolder(serverBrowserState.currentFolder);
+              }
+            });
+          }
+          
           // Add event listener to refresh button
           const refreshButton = contentContainer.querySelector('#refresh-folder');
           if (refreshButton) {
@@ -805,6 +899,28 @@ document.addEventListener('DOMContentLoaded', function() {
               
               // Refresh the current folder
               navigateToFolder(serverBrowserState.currentFolder);
+            });
+          }
+          
+          // Add event listeners to view mode toggle buttons
+          const listViewBtn = contentContainer.querySelector('#list-view-btn');
+          const gridViewBtn = contentContainer.querySelector('#grid-view-btn');
+          
+          if (listViewBtn && gridViewBtn) {
+            // List view button
+            listViewBtn.addEventListener('click', function() {
+              if (serverBrowserState.viewMode !== 'list') {
+                serverBrowserState.viewMode = 'list';
+                navigateToFolder(serverBrowserState.currentFolder);
+              }
+            });
+            
+            // Grid view button
+            gridViewBtn.addEventListener('click', function() {
+              if (serverBrowserState.viewMode !== 'grid') {
+                serverBrowserState.viewMode = 'grid';
+                navigateToFolder(serverBrowserState.currentFolder);
+              }
             });
           }
           

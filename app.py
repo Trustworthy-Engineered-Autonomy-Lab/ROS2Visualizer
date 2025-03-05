@@ -165,17 +165,20 @@ def browse_data():
         # Get search filter if provided
         search_query = request.args.get('search', '').lower()
         
-        # Validate folder to prevent directory traversal
-        valid_folders = ['sample_data', 'flight_trajectories', 'Non_random_non_attacked_data']
-        if folder not in valid_folders:
-            return jsonify({"error": "Invalid folder specified"}), 400
-        
-        # Get the list of files in the specified folder
+        # Validate folder to prevent directory traversal - make sure it doesn't contain '..'
+        if '..' in folder or folder.startswith('/') or ':' in folder:
+            return jsonify({"error": "Invalid folder path"}), 400
+            
+        # Check if folder exists within the data directory
         data_dir = os.path.join('data', folder)
-        
-        # Create directory if it doesn't exist
         if not os.path.exists(data_dir):
-            os.makedirs(data_dir, exist_ok=True)
+            os.makedirs(data_dir, exist_ok=True)  # Create it if it doesn't exist
+        
+        # Get the list of available folders in the data directory
+        available_folders = []
+        for item in os.listdir('data'):
+            if os.path.isdir(os.path.join('data', item)):
+                available_folders.append(item)
             
         all_files = []
         for file_path in glob.glob(os.path.join(data_dir, '*.*')):
@@ -211,7 +214,7 @@ def browse_data():
         
         return jsonify({
             "current_folder": folder,
-            "folders": valid_folders,
+            "folders": available_folders,
             "files": paginated_files,
             "pagination": {
                 "page": page,
@@ -235,11 +238,14 @@ def get_server_file():
         if not file_path:
             return jsonify({"error": "No file path specified"}), 400
         
-        # Validate file path to prevent directory traversal
-        valid_folders = ['sample_data', 'flight_trajectories', 'Non_random_non_attacked_data']
+        # Get the folder from the file path
         folder = file_path.split('/')[0] if '/' in file_path else None
-        if not folder or folder not in valid_folders:
-            return jsonify({"error": "Invalid file path"}), 400
+        if not folder:
+            return jsonify({"error": "Invalid file path format"}), 400
+            
+        # Validate folder to prevent directory traversal - make sure it doesn't contain '..'
+        if '..' in folder or folder.startswith('/') or ':' in folder:
+            return jsonify({"error": "Invalid folder path"}), 400
         
         full_path = os.path.join('data', file_path)
         
