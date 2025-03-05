@@ -8,6 +8,15 @@ let animationState = {
   animationFrameId: null
 };
 let uploadModal;
+let houseModel = null;
+let houseConfig = {
+  visible: true,
+  position: {
+    x: 0.0,
+    y: -1010.0,
+    z: 10.0
+  }
+};
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -26,6 +35,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('playback-speed').addEventListener('change', handlePlaybackSpeedChange);
   document.getElementById('reset-view-btn').addEventListener('click', resetView);
   document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
+  
+  // House controls
+  document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
+  document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
   
   // Initialize modal
   uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
@@ -75,6 +88,19 @@ function initScene() {
   directionalLight.position.set(5, 10, 7.5);
   scene.add(directionalLight);
   
+  // Add 3D house model at the specified coordinates from config
+  try {
+    console.log("Creating house at:", houseConfig.position);
+    houseModel = addHouseModel(
+      houseConfig.position.x, 
+      houseConfig.position.y, 
+      houseConfig.position.z
+    );
+    console.log("House model created:", houseModel);
+  } catch (error) {
+    console.error("Error creating house model:", error);
+  }
+  
   // Add text labels for axes
   addAxisLabels();
   
@@ -87,6 +113,159 @@ function addAxisLabels() {
   // This is a placeholder - in a real application, you would add
   // 3D text labels using THREE.TextGeometry or HTML overlays
   // Since THREE.TextGeometry requires loading a font file, we'll skip it for simplicity
+}
+
+// Add 3D house model at specified coordinates
+function addHouseModel(x, y, z) {
+  // Create a group to hold all house parts
+  const house = new THREE.Group();
+  
+  // House colors
+  const roofColor = 0x8B4513;  // Brown
+  const wallColor = 0xF5F5DC;  // Beige
+  const windowColor = 0x87CEEB; // Sky blue
+  const doorColor = 0x8B4513;  // Brown
+  
+  // Materials
+  const roofMaterial = new THREE.MeshPhongMaterial({ color: roofColor });
+  const wallMaterial = new THREE.MeshPhongMaterial({ color: wallColor });
+  const windowMaterial = new THREE.MeshPhongMaterial({ 
+    color: windowColor,
+    transparent: true,
+    opacity: 0.7,
+    shininess: 100
+  });
+  const doorMaterial = new THREE.MeshPhongMaterial({ color: doorColor });
+  
+  // Main house body
+  const houseWidth = 50;
+  const houseHeight = 40;
+  const houseDepth = 60;
+  
+  const bodyGeometry = new THREE.BoxGeometry(houseWidth, houseHeight, houseDepth);
+  const body = new THREE.Mesh(bodyGeometry, wallMaterial);
+  body.position.set(0, houseHeight/2, 0); // Position bottom at ground level
+  house.add(body);
+  
+  // Roof (pyramid)
+  const roofHeight = 25;
+  
+  // Create a pyramid geometry for the roof
+  const roofGeometry = new THREE.ConeGeometry(Math.sqrt(houseWidth*houseWidth + houseDepth*houseDepth)/2, roofHeight, 4);
+  const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+  roof.position.set(0, houseHeight + roofHeight/2, 0);
+  roof.rotation.y = Math.PI/4; // Rotate to align with house
+  house.add(roof);
+  
+  // Front door
+  const doorWidth = 15;
+  const doorHeight = 25;
+  const doorGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, 1);
+  const door = new THREE.Mesh(doorGeometry, doorMaterial);
+  door.position.set(0, doorHeight/2, houseDepth/2 + 0.5);
+  house.add(door);
+  
+  // Windows
+  const windowSize = 10;
+  const windowGeometry = new THREE.BoxGeometry(windowSize, windowSize, 1);
+  
+  // Front windows
+  const frontWindow1 = new THREE.Mesh(windowGeometry, windowMaterial);
+  frontWindow1.position.set(-15, houseHeight - windowSize, houseDepth/2 + 0.5);
+  house.add(frontWindow1);
+  
+  const frontWindow2 = new THREE.Mesh(windowGeometry, windowMaterial);
+  frontWindow2.position.set(15, houseHeight - windowSize, houseDepth/2 + 0.5);
+  house.add(frontWindow2);
+  
+  // Side windows
+  const sideWindow1 = new THREE.Mesh(windowGeometry, windowMaterial);
+  sideWindow1.position.set(houseWidth/2 + 0.5, houseHeight - windowSize, 15);
+  sideWindow1.rotation.y = Math.PI/2;
+  house.add(sideWindow1);
+  
+  const sideWindow2 = new THREE.Mesh(windowGeometry, windowMaterial);
+  sideWindow2.position.set(houseWidth/2 + 0.5, houseHeight - windowSize, -15);
+  sideWindow2.rotation.y = Math.PI/2;
+  house.add(sideWindow2);
+  
+  // Back windows
+  const backWindow1 = new THREE.Mesh(windowGeometry, windowMaterial);
+  backWindow1.position.set(-15, houseHeight - windowSize, -houseDepth/2 - 0.5);
+  house.add(backWindow1);
+  
+  const backWindow2 = new THREE.Mesh(windowGeometry, windowMaterial);
+  backWindow2.position.set(15, houseHeight - windowSize, -houseDepth/2 - 0.5);
+  house.add(backWindow2);
+  
+  // Other side windows
+  const otherSideWindow1 = new THREE.Mesh(windowGeometry, windowMaterial);
+  otherSideWindow1.position.set(-houseWidth/2 - 0.5, houseHeight - windowSize, 15);
+  otherSideWindow1.rotation.y = Math.PI/2;
+  house.add(otherSideWindow1);
+  
+  const otherSideWindow2 = new THREE.Mesh(windowGeometry, windowMaterial);
+  otherSideWindow2.position.set(-houseWidth/2 - 0.5, houseHeight - windowSize, -15);
+  otherSideWindow2.rotation.y = Math.PI/2;
+  house.add(otherSideWindow2);
+  
+  // Add chimney
+  const chimneyWidth = 8;
+  const chimneyHeight = 20;
+  const chimneyGeometry = new THREE.BoxGeometry(chimneyWidth, chimneyHeight, chimneyWidth);
+  const chimney = new THREE.Mesh(chimneyGeometry, roofMaterial);
+  chimney.position.set(houseWidth/4, houseHeight + roofHeight/2 + chimneyHeight/2, houseDepth/4);
+  house.add(chimney);
+  
+  // Add a yard with fence
+  const yardSize = 130;
+  const yardHeight = 0.5;
+  const yardGeometry = new THREE.BoxGeometry(yardSize, yardHeight, yardSize);
+  const yardMaterial = new THREE.MeshPhongMaterial({ color: 0x7CFC00 }); // Light green
+  const yard = new THREE.Mesh(yardGeometry, yardMaterial);
+  yard.position.set(0, -yardHeight/2, 0);
+  house.add(yard);
+  
+  // Add fence posts
+  const fenceHeight = 10;
+  const fencePostSize = 2;
+  const fencePostGeometry = new THREE.BoxGeometry(fencePostSize, fenceHeight, fencePostSize);
+  const fencePostMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 }); // Brown
+  
+  // Create fence posts around the yard
+  const fenceOffset = yardSize/2 - fencePostSize/2;
+  for (let i = -yardSize/2; i <= yardSize/2; i += 15) {
+    // Front fence
+    const frontPost = new THREE.Mesh(fencePostGeometry, fencePostMaterial);
+    frontPost.position.set(i, fenceHeight/2, fenceOffset);
+    house.add(frontPost);
+    
+    // Back fence
+    const backPost = new THREE.Mesh(fencePostGeometry, fencePostMaterial);
+    backPost.position.set(i, fenceHeight/2, -fenceOffset);
+    house.add(backPost);
+    
+    // Left fence
+    const leftPost = new THREE.Mesh(fencePostGeometry, fencePostMaterial);
+    leftPost.position.set(-fenceOffset, fenceHeight/2, i);
+    house.add(leftPost);
+    
+    // Right fence
+    const rightPost = new THREE.Mesh(fencePostGeometry, fencePostMaterial);
+    rightPost.position.set(fenceOffset, fenceHeight/2, i);
+    house.add(rightPost);
+  }
+  
+  // Set the house position to the specified coordinates
+  // In Three.js, Y is up, whereas in our flight data, Z is up and Y is North
+  // So we need to swap Y and Z coordinates
+  console.log(`Positioning house at coordinates: X=${x}, Y=${y}, Z=${z}`);
+  house.position.set(x, z, y);
+  
+  // Add the house to the scene
+  scene.add(house);
+  
+  return house;
 }
 
 // Animation loop
@@ -864,6 +1043,53 @@ function onWindowResize() {
   renderer.setSize(container.clientWidth, container.clientHeight);
 }
 
+// Function to toggle house visibility
+function toggleHouseVisibility(event) {
+  if (!houseModel) {
+    console.error("House model not found!");
+    showMessage("Error: House model not found", "danger");
+    return;
+  }
+  
+  houseConfig.visible = event.target.checked;
+  houseModel.visible = houseConfig.visible;
+  
+  console.log(`House visibility set to: ${houseConfig.visible}`);
+  showMessage(`House ${houseConfig.visible ? 'shown' : 'hidden'}`, "info");
+}
+
+// Function to update house position
+function updateHousePosition() {
+  if (!houseModel) {
+    console.error("House model not found!");
+    showMessage("Error: House model not found", "danger");
+    return;
+  }
+  
+  // Get values from input fields
+  const x = parseFloat(document.getElementById('house-x').value);
+  const y = parseFloat(document.getElementById('house-y').value);
+  const z = parseFloat(document.getElementById('house-z').value);
+  
+  // Validate input values
+  if (isNaN(x) || isNaN(y) || isNaN(z)) {
+    showMessage("Please enter valid numeric coordinates", "warning");
+    return;
+  }
+  
+  // Update house position - remember in THREE.js Y is up, so we swap Y and Z
+  console.log(`Updating house position to: X=${x}, Y=${y}, Z=${z}`);
+  houseConfig.position = { x, y, z };
+  
+  // In Three.js, we need to set (x, z, y) to match our coordinate system
+  houseModel.position.set(x, z, y); 
+  
+  // Log confirmation
+  console.log("New house position set:", houseModel.position);
+  
+  showMessage(`House position updated to (${x}, ${y}, ${z})`, "success");
+}
+
 // Show message to user
 function showMessage(message, type = "info") {
   // Create a temporary message at the top of visualization container
@@ -878,4 +1104,49 @@ function showMessage(message, type = "info") {
   setTimeout(() => {
     msgElement.remove();
   }, 3000);
+}
+
+/**
+ * Refresh trajectories with data from cloud storage
+ * @param {Object} processedData - Data processed from cloud files
+ */
+function refreshTrajectories(processedData) {
+  if (!processedData || !Array.isArray(processedData)) {
+    showMessage("No valid trajectory data found", "warning");
+    return;
+  }
+  
+  // Clear existing trajectories
+  clearTrajectories();
+  
+  // Add each trajectory from processed data
+  processedData.forEach((data, index) => {
+    if (data && data.points && data.points.length > 0) {
+      // Generate a random color for this trajectory
+      const colors = [
+        0x1e88e5, // blue
+        0x43a047, // green
+        0xfb8c00, // orange
+        0xe53935, // red
+        0x8e24aa, // purple
+        0x3949ab, // indigo
+        0x00acc1, // cyan
+        0xffb300  // amber
+      ];
+      const color = colors[index % colors.length];
+      
+      // Add the trajectory to the scene
+      addTrajectory(data, data.filename || `Trajectory ${index + 1}`, color);
+    }
+  });
+  
+  // Update UI
+  updateTrajectoryList();
+  updateTimeSlider();
+  
+  // Show success message
+  showMessage(`Successfully loaded ${trajectories.length} trajectories`, "success");
+  
+  // Reset view
+  resetView();
 }

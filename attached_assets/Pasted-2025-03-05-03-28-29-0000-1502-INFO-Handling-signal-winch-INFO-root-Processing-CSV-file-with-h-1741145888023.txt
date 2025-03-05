@@ -1,0 +1,204 @@
+2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+INFO:root:Processing CSV file with headers: ['1741144197', '485332871', '\x01', '0.014227205', '-0.36270103', '-0.09170395', '0.12797975540161133', '-1.6263988018035889', '0.09525661170482635', '0.0009565306245349348', '0.0007031862041912973', '1.5834122896194458', '1.5834122896194458.1', '-0.007080088369548321', '0.012172489427030087', '-0.12720267474651337', '0.02034144476056099', '0.032218337059020996', '-0.0027669286355376244', '0.12797975540161133.1', '0.0', '0.0.1', '0.7026323', '8.586749e-05', '0.00058735174', '0.71155286', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Successfully processed file test_2.csv with 1012 points
+[2025-03-05 03:29:23 +0000] [1502] [INFO] Handling signal: winch
+INFO:root:Processing CSV file with headers: ['1741144197', '485332871', '\x01', '0.014227205', '-0.36270103', '-0.09170395', '0.12797975540161133', '-1.6263988018035889', '0.09525661170482635', '0.0009565306245349348', '0.0007031862041912973', '1.5834122896194458', '1.5834122896194458.1', '-0.007080088369548321', '0.012172489427030087', '-0.12720267474651337', '0.02034144476056099', '0.032218337059020996', '-0.0027669286355376244', '0.12797975540161133.1', '0.0', '0.0.1', '0.7026323', '8.586749e-05', '0.00058735174', '0.71155286', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Successfully processed file test_2.csv with 1012 points
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Starting gunicorn 23.0.0
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Listening at: http://0.0.0.0:5000 (1502)
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Using worker: sync
+[2025-03-05 03:28:28 +0000] [1513] [INFO] Booting worker with pid: 1513
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:28 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+[2025-03-05 03:28:29 +0000] [1502] [INFO] Handling signal: winch
+INFO:root:Processing CSV file with headers: ['1741144197', '485332871', '\x01', '0.014227205', '-0.36270103', '-0.09170395', '0.12797975540161133', '-1.6263988018035889', '0.09525661170482635', '0.0009565306245349348', '0.0007031862041912973', '1.5834122896194458', '1.5834122896194458.1', '-0.007080088369548321', '0.012172489427030087', '-0.12720267474651337', '0.02034144476056099', '0.032218337059020996', '-0.0027669286355376244', '0.12797975540161133.1', '0.0', '0.0.1', '0.7026323', '8.586749e-05', '0.00058735174', '0.71155286', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Successfully processed file test_2.csv with 1012 points
+[2025-03-05 03:29:23 +0000] [1502] [INFO] Handling signal: winch
+INFO:root:Processing CSV file with headers: ['1741144197', '485332871', '\x01', '0.014227205', '-0.36270103', '-0.09170395', '0.12797975540161133', '-1.6263988018035889', '0.09525661170482635', '0.0009565306245349348', '0.0007031862041912973', '1.5834122896194458', '1.5834122896194458.1', '-0.007080088369548321', '0.012172489427030087', '-0.12720267474651337', '0.02034144476056099', '0.032218337059020996', '-0.0027669286355376244', '0.12797975540161133.1', '0.0', '0.0.1', '0.7026323', '8.586749e-05', '0.00058735174', '0.71155286', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Successfully processed file test_2.csv with 1012 points
+INFO:root:Processing CSV file with headers: ['1741144197', '485332871', '\x01', '0.014227205', '-0.36270103', '-0.09170395', '0.12797975540161133', '-1.6263988018035889', '0.09525661170482635', '0.0009565306245349348', '0.0007031862041912973', '1.5834122896194458', '1.5834122896194458.1', '-0.007080088369548321', '0.012172489427030087', '-0.12720267474651337', '0.02034144476056099', '0.032218337059020996', '-0.0027669286355376244', '0.12797975540161133.1', '0.0', '0.0.1', '0.7026323', '8.586749e-05', '0.00058735174', '0.71155286', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Successfully processed file test_2.csv with 1012 points
+INFO:root:Processing CSV file with headers: ['1741144197', '485332871', '\x01', '0.014227205', '-0.36270103', '-0.09170395', '0.12797975540161133', '-1.6263988018035889', '0.09525661170482635', '0.0009565306245349348', '0.0007031862041912973', '1.5834122896194458', '1.5834122896194458.1', '-0.007080088369548321', '0.012172489427030087', '-0.12720267474651337', '0.02034144476056099', '0.032218337059020996', '-0.0027669286355376244', '0.12797975540161133.1', '0.0', '0.0.1', '0.7026323', '8.586749e-05', '0.00058735174', '0.71155286', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Successfully processed file test_2.csv with 1012 points
+INFO:root:Processing CSV file with headers: ['1741145024', '268707600', '\x01', '0.012579392', '-0.37605873', '-0.09022445', '0.23302392661571503', '2.351222276687622', '0.016089659184217453', '5.007734216633253e-05', '-0.0007345476187765598', '1.5914603471755981', '1.5914603471755981.1', '-0.1639302372932434', '0.0037491137627512217', '0.16556861996650696', '0.0069960011169314384', '0.0923042744398117', '5.1889939641114324e-05', '0.23302392661571503.1', '0.0', '0.0.1', '0.6997633', '0.00027989227', '-0.00023911774', '0.7143747', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.012579392': 'position_n', '-0.37605873': 'position_e', '-0.09022445': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.012579392': 'position_n', '-0.37605873': 'position_e', '-0.09022445': 'position_d'}
+INFO:root:Successfully processed file test_6.csv with 1002 points
+INFO:root:Processing CSV file with headers: ['1741145235', '488322172', '\x01', '0.021680186', '-0.36555812', '-0.08883252', '0.22961263358592987', '1.7170860767364502', '-0.05248965322971344', '0.0004993363982066512', '0.0001322291645919904', '1.5866546630859375', '1.5866546630859375.1', '-0.03342420607805252', '-0.012046754360198975', '0.22684721648693085', '0.07771236449480057', '0.14266182482242584', '0.010982346720993519', '0.22961263358592987.1', '0.0', '0.0.1', '0.7014778', '0.00012801742', '0.00022431425', '0.71269125', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.021680186': 'position_n', '-0.36555812': 'position_e', '-0.08883252': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.021680186': 'position_n', '-0.36555812': 'position_e', '-0.08883252': 'position_d'}
+INFO:root:Successfully processed file test_7.csv with 1003 points
+INFO:root:Processing CSV file with headers: ['1741144197', '485332871', '\x01', '0.014227205', '-0.36270103', '-0.09170395', '0.12797975540161133', '-1.6263988018035889', '0.09525661170482635', '0.0009565306245349348', '0.0007031862041912973', '1.5834122896194458', '1.5834122896194458.1', '-0.007080088369548321', '0.012172489427030087', '-0.12720267474651337', '0.02034144476056099', '0.032218337059020996', '-0.0027669286355376244', '0.12797975540161133.1', '0.0', '0.0.1', '0.7026323', '8.586749e-05', '0.00058735174', '0.71155286', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Successfully processed file test_2.csv with 1012 points
+INFO:root:Processing CSV file with headers: ['1741145024', '268707600', '\x01', '0.012579392', '-0.37605873', '-0.09022445', '0.23302392661571503', '2.351222276687622', '0.016089659184217453', '5.007734216633253e-05', '-0.0007345476187765598', '1.5914603471755981', '1.5914603471755981.1', '-0.1639302372932434', '0.0037491137627512217', '0.16556861996650696', '0.0069960011169314384', '0.0923042744398117', '5.1889939641114324e-05', '0.23302392661571503.1', '0.0', '0.0.1', '0.6997633', '0.00027989227', '-0.00023911774', '0.7143747', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.012579392': 'position_n', '-0.37605873': 'position_e', '-0.09022445': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.012579392': 'position_n', '-0.37605873': 'position_e', '-0.09022445': 'position_d'}
+INFO:root:Successfully processed file test_6.csv with 1002 points
+INFO:root:Processing CSV file with headers: ['1741145235', '488322172', '\x01', '0.021680186', '-0.36555812', '-0.08883252', '0.22961263358592987', '1.7170860767364502', '-0.05248965322971344', '0.0004993363982066512', '0.0001322291645919904', '1.5866546630859375', '1.5866546630859375.1', '-0.03342420607805252', '-0.012046754360198975', '0.22684721648693085', '0.07771236449480057', '0.14266182482242584', '0.010982346720993519', '0.22961263358592987.1', '0.0', '0.0.1', '0.7014778', '0.00012801742', '0.00022431425', '0.71269125', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.021680186': 'position_n', '-0.36555812': 'position_e', '-0.08883252': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.021680186': 'position_n', '-0.36555812': 'position_e', '-0.08883252': 'position_d'}
+INFO:root:Successfully processed file test_7.csv with 1003 points
+INFO:root:Processing CSV file with headers: ['1741145235', '488322172', '\x01', '0.021680186', '-0.36555812', '-0.08883252', '0.22961263358592987', '1.7170860767364502', '-0.05248965322971344', '0.0004993363982066512', '0.0001322291645919904', '1.5866546630859375', '1.5866546630859375.1', '-0.03342420607805252', '-0.012046754360198975', '0.22684721648693085', '0.07771236449480057', '0.14266182482242584', '0.010982346720993519', '0.22961263358592987.1', '0.0', '0.0.1', '0.7014778', '0.00012801742', '0.00022431425', '0.71269125', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.021680186': 'position_n', '-0.36555812': 'position_e', '-0.08883252': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.021680186': 'position_n', '-0.36555812': 'position_e', '-0.08883252': 'position_d'}
+INFO:root:Successfully processed file test_7.csv with 1003 points
+INFO:root:Processing CSV file with headers: ['1741144197', '485332871', '\x01', '0.014227205', '-0.36270103', '-0.09170395', '0.12797975540161133', '-1.6263988018035889', '0.09525661170482635', '0.0009565306245349348', '0.0007031862041912973', '1.5834122896194458', '1.5834122896194458.1', '-0.007080088369548321', '0.012172489427030087', '-0.12720267474651337', '0.02034144476056099', '0.032218337059020996', '-0.0027669286355376244', '0.12797975540161133.1', '0.0', '0.0.1', '0.7026323', '8.586749e-05', '0.00058735174', '0.71155286', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.014227205': 'position_n', '-0.36270103': 'position_e', '-0.09170395': 'position_d'}
+INFO:root:Successfully processed file test_2.csv with 1012 points
+INFO:root:Processing CSV file with headers: ['1741145024', '268707600', '\x01', '0.012579392', '-0.37605873', '-0.09022445', '0.23302392661571503', '2.351222276687622', '0.016089659184217453', '5.007734216633253e-05', '-0.0007345476187765598', '1.5914603471755981', '1.5914603471755981.1', '-0.1639302372932434', '0.0037491137627512217', '0.16556861996650696', '0.0069960011169314384', '0.0923042744398117', '5.1889939641114324e-05', '0.23302392661571503.1', '0.0', '0.0.1', '0.6997633', '0.00027989227', '-0.00023911774', '0.7143747', 'True', '0.0.2', '0.0.3', '0.0.4', '0.0.5', '0.0.6']
+INFO:root:ROS2 timestamp structure detected. Trying special column mapping.
+INFO:root:Detected position columns from ROS2 message structure: {'0.012579392': 'position_n', '-0.37605873': 'position_e', '-0.09022445': 'position_d'}
+INFO:root:Renamed position columns using mapping: {'0.012579392': 'position_n', '-0.37605873': 'position_e', '-0.09022445': 'position_d'}
+INFO:root:Successfully processed file test_6.csv with 1002 points
+[2025-03-05 03:37:54 +0000] [1502] [CRITICAL] WORKER TIMEOUT (pid:1513)
+[2025-03-05 03:37:54 +0000] [1513] [ERROR] Error handling request /analyze_csv
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/workers/sync.py", line 134, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/workers/sync.py", line 177, in handle_request
+    respiter = self.wsgi(environ, resp.start_response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1536, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/app.py", line 28, in analyze_csv
+    if 'files[]' not in request.files:
+                        ^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/utils.py", line 107, in __get__
+    value = self.fget(obj)  # type: ignore
+            ^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/wrappers/request.py", line 497, in files
+    self._load_form_data()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/wrappers.py", line 198, in _load_form_data
+    super()._load_form_data()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/wrappers/request.py", line 271, in _load_form_data
+    data = parser.parse(
+           ^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/formparser.py", line 242, in parse
+    return parse_func(stream, mimetype, content_length, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/formparser.py", line 267, in _parse_multipart
+    form, files = parser.parse(stream, boundary, content_length)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/formparser.py", line 368, in parse
+    for data in _chunk_iter(stream.read, self.buffer_size):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/formparser.py", line 423, in _chunk_iter
+    data = read(size)
+           ^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/http/body.py", line 221, in read
+    data = self.reader.read(1024)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/http/body.py", line 131, in read
+    data = self.unreader.read()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+        ^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/http/unreader.py", line 63, in chunk
+    return self.sock.recv(self.mxchunk)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/workers/base.py", line 204, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2025-03-05 03:37:54 +0000] [1513] [INFO] Worker exiting (pid: 1513)
+[2025-03-05 03:37:54 +0000] [1722] [INFO] Booting worker with pid: 1722
+[2025-03-05 03:38:01 +0000] [1502] [INFO] Handling signal: winch

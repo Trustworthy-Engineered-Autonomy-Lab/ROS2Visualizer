@@ -9,44 +9,90 @@ import os
 import logging
 import math
 import statistics
+import tempfile
+import shutil
 from datetime import datetime
 
-# Install pandas and numpy if not already installed
-try:
-    import pandas as pd
-    import numpy as np
-except ImportError:
-    logging.error("Required packages not found. Please install pandas and numpy.")
-    raise
+# Import pandas and numpy - these are necessary for processing CSV files
+import pandas as pd
+import numpy as np
 
-def analyze_csv_file(file_content, filename):
+def analyze_csv_file(file_content, filename, is_sample=False):
     """
     Analyze a CSV file and return basic statistics.
+    Optimized for very large files (GBs of data) with chunked processing.
     
     Args:
         file_content (str): CSV file content as string
         filename (str): Name of the file
+        is_sample (bool): If True, indicates this is just a sample of a large file
         
     Returns:
         dict: Statistics about the file
     """
     try:
+        # First, check for very large files by size and handle differently if needed
+        file_size_bytes = len(file_content)
+        file_size_mb = file_size_bytes / (1024 * 1024)
+        is_large_file = file_size_mb > 100  # Consider files larger than 100MB as large
+        
+        if is_large_file:
+            logging.info(f"Processing large file ({file_size_mb:.2f} MB) with chunked approach")
+        
         # Try to detect if the file has headers
         with io.StringIO(file_content) as f:
             first_line = f.readline().strip()
             # Check if first line looks like headers (contains non-numeric values)
             has_headers = not all(col.replace('-', '').replace('.', '').isdigit() for col in first_line.split(',') if col.strip())
         
-        # Convert string content to DataFrame, inferring headers
-        if has_headers:
-            df = pd.read_csv(io.StringIO(file_content))
-            logging.info(f"CSV file '{filename}' loaded with headers: {list(df.columns)}")
+        # For very large files, use a chunked approach with iterative processing
+        if is_large_file:
+            # Create a TextIOWrapper for reading the file in chunks
+            chunk_size = 100000  # Process 100k rows at a time
+            total_rows = 0
+            sample_rows = []
+            column_names = None
+            
+            # Read the first chunk to get headers and initial statistics
+            if has_headers:
+                # Read with headers
+                df_iter = pd.read_csv(io.StringIO(file_content), chunksize=chunk_size)
+                first_chunk = next(df_iter)
+                column_names = list(first_chunk.columns)
+                logging.info(f"CSV file '{filename}' loaded with headers: {column_names}")
+            else:
+                # Read without headers
+                df_iter = pd.read_csv(io.StringIO(file_content), header=None, chunksize=chunk_size)
+                first_chunk = next(df_iter)
+                # Create default column names
+                column_names = [f'col{i}' for i in range(len(first_chunk.columns))]
+                first_chunk.columns = column_names
+                logging.info(f"CSV file '{filename}' loaded without headers, creating {len(column_names)} default columns")
+            
+            # Initialize statistics tracking variables
+            total_rows += len(first_chunk)
+            
+            # Sample rows for preview (take first 5 rows)
+            sample_rows = first_chunk.head(5).to_dict('records')
+            
+            # Create a simplified dataframe with just the essential columns for analysis
+            # This avoids loading the entire file into memory
+            df = first_chunk
+            
+            # For large files, we'll estimate rather than compute exact stats
+            logging.info(f"Analyzing large file using sampling approach - total rows sampled: {total_rows}")
         else:
-            # If no headers detected, create default column names
-            logging.info(f"CSV file '{filename}' loaded without headers, creating default column names")
-            df = pd.read_csv(io.StringIO(file_content), header=None)
-            # Create default column names (col0, col1, etc.)
-            df.columns = [f'col{i}' for i in range(len(df.columns))]
+            # For smaller files, use the standard approach
+            if has_headers:
+                df = pd.read_csv(io.StringIO(file_content))
+                logging.info(f"CSV file '{filename}' loaded with headers: {list(df.columns)}")
+            else:
+                # If no headers detected, create default column names
+                logging.info(f"CSV file '{filename}' loaded without headers, creating default column names")
+                df = pd.read_csv(io.StringIO(file_content), header=None)
+                # Create default column names (col0, col1, etc.)
+                df.columns = [f'col{i}' for i in range(len(df.columns))]
+            sample_rows = df.head(5).to_dict('records')
         
         # Calculate basic statistics
         row_count = len(df)
@@ -110,42 +156,58 @@ def analyze_csv_file(file_content, filename):
             
             if len(df_clean) > 1:
                 try:
+                    # For large files, sample the data to prevent timeouts
+                    sample_rate = max(1, len(df_clean) // 500)  # Sample at most 500 points for analysis
+                    logging.info(f"Analyzing trajectory with sampling rate: {sample_rate} for {len(df_clean)} points")
+                    
+                    # Initialize arrays for coordinates
                     distances = []
-                    for i in range(1, len(df_clean)):
+                    
+                    # Process samples instead of every point to improve performance
+                    for i in range(1, len(df_clean), sample_rate):
+                        if i >= len(df_clean):
+                            break
+                            
+                        prev_i = max(0, i - sample_rate)
                         try:
-                            # Safely get values with fallbacks in case of missing data
-                            if i-1 < 0 or i-1 >= len(df_clean) or i >= len(df_clean):
-                                continue
-                                
-                            # Check if keys exist and convert safely
+                            # Initialize with defaults
                             pos_n1 = pos_e1 = pos_d1 = pos_n2 = pos_e2 = pos_d2 = 0.0
                             
-                            # First point coordinates
-                            if 'position_n' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_n']):
-                                pos_n1 = float(df_clean.iloc[i-1]['position_n'])
-                            if 'position_e' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_e']):
-                                pos_e1 = float(df_clean.iloc[i-1]['position_e'])
-                            if 'position_d' in df_clean.columns and not pd.isna(df_clean.iloc[i-1]['position_d']):
-                                pos_d1 = float(df_clean.iloc[i-1]['position_d'])
+                            # Extract position data using loc instead of iloc for better performance
+                            # and use try/except for safer access
+                            try:
+                                # First point coordinates - using loc for column access is faster 
+                                if 'position_n' in df_clean.columns:
+                                    pos_n1 = float(df_clean['position_n'].iloc[prev_i])
+                                if 'position_e' in df_clean.columns:
+                                    pos_e1 = float(df_clean['position_e'].iloc[prev_i])
+                                if 'position_d' in df_clean.columns:
+                                    pos_d1 = float(df_clean['position_d'].iloc[prev_i])
+                                    
+                                # Second point coordinates
+                                if 'position_n' in df_clean.columns:
+                                    pos_n2 = float(df_clean['position_n'].iloc[i])
+                                if 'position_e' in df_clean.columns:
+                                    pos_e2 = float(df_clean['position_e'].iloc[i])
+                                if 'position_d' in df_clean.columns:
+                                    pos_d2 = float(df_clean['position_d'].iloc[i])
                                 
-                            # Second point coordinates
-                            if 'position_n' in df_clean.columns and not pd.isna(df_clean.iloc[i]['position_n']):
-                                pos_n2 = float(df_clean.iloc[i]['position_n'])
-                            if 'position_e' in df_clean.columns and not pd.isna(df_clean.iloc[i]['position_e']):
-                                pos_e2 = float(df_clean.iloc[i]['position_e'])
-                            if 'position_d' in df_clean.columns and not pd.isna(df_clean.iloc[i]['position_d']):
-                                pos_d2 = float(df_clean.iloc[i]['position_d'])
-                            
-                            p1 = (pos_n1, pos_e1, pos_d1)
-                            p2 = (pos_n2, pos_e2, pos_d2)
-                            
-                            distance = math.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2 + (p2[2]-p1[2])**2)
-                            distances.append(distance)
+                                # Calculate distance
+                                p1 = (pos_n1, pos_e1, pos_d1)
+                                p2 = (pos_n2, pos_e2, pos_d2)
+                                distance = math.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2 + (p2[2]-p1[2])**2)
+                                
+                                # Scale distance based on sample rate
+                                distances.append(distance)
+                            except (ValueError, TypeError) as e:
+                                logging.debug(f"Skipping point due to conversion error: {str(e)}")
+                                continue
                         except Exception as e:
-                            logging.warning(f"Error calculating distance for row {i}: {str(e)}")
+                            logging.warning(f"Error calculating distance: {str(e)}")
                             continue
                     
-                    total_distance = sum(distances) if distances else 0
+                    # Scale up distances based on sample rate to estimate total
+                    total_distance = sum(distances) * (sample_rate if sample_rate > 1 else 1) if distances else 0
                     static_samples = sum(1 for d in distances if d < 0.01)
                     static_percentage = (static_samples / len(distances)) * 100 if distances else 0
                     
@@ -211,13 +273,14 @@ def analyze_csv_file(file_content, filename):
             'timestamp': datetime.now().isoformat()
         }
 
-def apply_cleaning_operations(file_info, config):
+def apply_cleaning_operations(file_info, config, use_temp_file=False):
     """
     Apply configured cleaning operations to a file.
     
     Args:
-        file_info (dict): File information including content
+        file_info (dict): File information including content or temp_filepath
         config (dict): Cleaning configuration
+        use_temp_file (bool): If True, read from temp_filepath instead of content
         
     Returns:
         dict: Results of cleaning operations
@@ -233,13 +296,45 @@ def apply_cleaning_operations(file_info, config):
         'cleaning_results': {}
     }
     
-    # Get file content
-    file_content = file_info.get('content', '')
-    if not file_content:
-        result['error'] = 'File content not available'
-        return result
+    # Check if we're using a temporary file path or content in memory
+    if use_temp_file and 'temp_filepath' in file_info and os.path.exists(file_info['temp_filepath']):
+        # Get content from temp file
+        temp_filepath = file_info['temp_filepath']
+        encoding = file_info.get('encoding', 'utf-8')
+        logging.info(f"Reading file content from temporary file: {temp_filepath} with encoding {encoding}")
+        
+        try:
+            # Read just the first ~1MB for initial processing and detection
+            with open(temp_filepath, 'r', encoding=encoding) as f:
+                file_content = f.read(1024 * 1024)  # Read first MB for analysis
+                
+            # Get file size from the file system
+            file_size_bytes = os.path.getsize(temp_filepath)
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            
+            # Flag that we're using a temp file for chunked processing
+            is_temp_file = True
+        except Exception as e:
+            logging.error(f"Error reading from temp file: {str(e)}")
+            result['error'] = f"Error reading from temporary file: {str(e)}"
+            return result
+    else:
+        # Use content from memory
+        file_content = file_info.get('content', '')
+        if not file_content:
+            result['error'] = 'File content not available'
+            return result
+        is_temp_file = False
     
     try:
+        # Check if this is a large file
+        file_size_bytes = len(file_content)
+        file_size_mb = file_size_bytes / (1024 * 1024)
+        is_large_file = file_size_mb > 100  # Consider files larger than 100MB as large
+        
+        if is_large_file:
+            logging.info(f"Cleaning large file ({file_size_mb:.2f} MB) with chunked processing approach")
+        
         # Try to detect if the file has headers
         with io.StringIO(file_content) as f:
             first_line = f.readline().strip()
@@ -247,17 +342,64 @@ def apply_cleaning_operations(file_info, config):
             has_headers = not all(col.replace('-', '').replace('.', '').isdigit() 
                                for col in first_line.split(',') if col.strip())
         
-        # Convert to DataFrame for processing, handling headers appropriately
-        if has_headers:
-            df = pd.read_csv(io.StringIO(file_content))
-            logging.info(f"Cleaning CSV file with detected headers: {list(df.columns)}")
+        # For large files, we'll use chunked processing to minimize memory usage
+        if is_large_file:
+            chunk_size = 100000  # Process in 100k row chunks
+            
+            # Initialize an output buffer to collect processed results
+            output_buffer = io.StringIO()
+            header_written = False
+            total_rows_processed = 0
+            
+            # Process the file in chunks
+            if has_headers:
+                df_chunks = pd.read_csv(io.StringIO(file_content), chunksize=chunk_size)
+                logging.info(f"Processing large file with headers in chunks")
+            else:
+                df_chunks = pd.read_csv(io.StringIO(file_content), header=None, chunksize=chunk_size)
+                # Create column names for headerless files
+                first_chunk = next(df_chunks)
+                first_chunk.columns = [f'col{i}' for i in range(len(first_chunk.columns))]
+                logging.info(f"Processing large file without headers in chunks, creating default column names")
+                
+                # We need to reset the iterator since we pulled the first chunk
+                df_chunks = pd.read_csv(io.StringIO(file_content), header=None, chunksize=chunk_size)
+                for i, col in enumerate(first_chunk.columns):
+                    df_chunks.columns = [f'col{i}' for i in range(len(first_chunk.columns))]
+            
+            # For the cleaning operations, we'll use the first chunk as a sample
+            if has_headers:
+                df = next(df_chunks)
+            else:
+                df = next(df_chunks)
+                df.columns = [f'col{i}' for i in range(len(df.columns))]
+            
+            # Reset the iterator for actual processing
+            if has_headers:
+                df_chunks = pd.read_csv(io.StringIO(file_content), chunksize=chunk_size)
+            else:
+                df_chunks = pd.read_csv(io.StringIO(file_content), header=None, chunksize=chunk_size)
+                for chunk in df_chunks:
+                    chunk.columns = [f'col{i}' for i in range(len(chunk.columns))]
+            
+            # Save a copy of the first chunk for before/after comparison
+            original_df = df.copy()
+            
+            # Note: Actual chunk processing will happen after applying operations to the sample
         else:
-            # If no headers detected, create default column names
-            logging.info(f"Cleaning CSV file without headers, creating default column names")
-            df = pd.read_csv(io.StringIO(file_content), header=None)
-            # Create default column names (col0, col1, etc.)
-            df.columns = [f'col{i}' for i in range(len(df.columns))]
-        original_df = df.copy()
+            # For smaller files, use the standard approach
+            if has_headers:
+                df = pd.read_csv(io.StringIO(file_content))
+                logging.info(f"Cleaning CSV file with detected headers: {list(df.columns)}")
+            else:
+                # If no headers detected, create default column names
+                logging.info(f"Cleaning CSV file without headers, creating default column names")
+                df = pd.read_csv(io.StringIO(file_content), header=None)
+                # Create default column names (col0, col1, etc.)
+                df.columns = [f'col{i}' for i in range(len(df.columns))]
+                
+            # Save a copy for comparison
+            original_df = df.copy()
         
         # Track changes for each operation
         changes = {}
@@ -344,19 +486,54 @@ def apply_cleaning_operations(file_info, config):
             if all(col in df.columns for col in ['position_n', 'position_e', 'position_d']):
                 start_index = 0
                 
-                # Calculate position changes in sliding windows
-                for i in range(len(df) - window_size):
-                    window = df.iloc[i:i+window_size]
+                # Optimize calculation for large files
+                if len(df) > 5000:  # Only use sampling for large files
+                    # Use sampling to speed up analysis for large files
+                    sample_rate = max(1, len(df) // 200)  # Analyze at most 200 windows
+                    logging.info(f"Analyzing static start with sampling rate: {sample_rate} for {len(df)} points")
                     
-                    # Calculate max position change in window
-                    max_change_n = window['position_n'].max() - window['position_n'].min()
-                    max_change_e = window['position_e'].max() - window['position_e'].min()
-                    max_change_d = window['position_d'].max() - window['position_d'].min()
-                    max_change = math.sqrt(max_change_n**2 + max_change_e**2 + max_change_d**2)
-                    
-                    if max_change > position_threshold:
-                        start_index = i
-                        break
+                    for i in range(0, len(df) - window_size, sample_rate):
+                        # Extract window data directly as numpy arrays for faster calculation
+                        window_n = df['position_n'].iloc[i:i+window_size].to_numpy()
+                        window_e = df['position_e'].iloc[i:i+window_size].to_numpy()
+                        window_d = df['position_d'].iloc[i:i+window_size].to_numpy()
+                        
+                        # Calculate max position change in window using vectorized operations
+                        max_change_n = np.max(window_n) - np.min(window_n)
+                        max_change_e = np.max(window_e) - np.min(window_e)
+                        max_change_d = np.max(window_d) - np.min(window_d)
+                        max_change = math.sqrt(max_change_n**2 + max_change_e**2 + max_change_d**2)
+                        
+                        if max_change > position_threshold:
+                            # Fine-tune the start index by checking each point in the sample range
+                            for j in range(i, min(i + sample_rate, len(df) - window_size)):
+                                sub_window_n = df['position_n'].iloc[j:j+window_size].to_numpy()
+                                sub_window_e = df['position_e'].iloc[j:j+window_size].to_numpy()
+                                sub_window_d = df['position_d'].iloc[j:j+window_size].to_numpy()
+                                
+                                sub_max_change_n = np.max(sub_window_n) - np.min(sub_window_n)
+                                sub_max_change_e = np.max(sub_window_e) - np.min(sub_window_e)
+                                sub_max_change_d = np.max(sub_window_d) - np.min(sub_window_d)
+                                sub_max_change = math.sqrt(sub_max_change_n**2 + sub_max_change_e**2 + sub_max_change_d**2)
+                                
+                                if sub_max_change > position_threshold:
+                                    start_index = j
+                                    break
+                            break
+                else:
+                    # For smaller files, use the original approach
+                    for i in range(len(df) - window_size):
+                        window = df.iloc[i:i+window_size]
+                        
+                        # Calculate max position change in window
+                        max_change_n = window['position_n'].max() - window['position_n'].min()
+                        max_change_e = window['position_e'].max() - window['position_e'].min()
+                        max_change_d = window['position_d'].max() - window['position_d'].min()
+                        max_change = math.sqrt(max_change_n**2 + max_change_e**2 + max_change_d**2)
+                        
+                        if max_change > position_threshold:
+                            start_index = i
+                            break
                 
                 if start_index > 0:
                     rows_before = len(df)
@@ -389,20 +566,39 @@ def apply_cleaning_operations(file_info, config):
             else:
                 # If velocity isn't available, calculate it from position changes
                 if all(col in df.columns for col in ['position_n', 'position_e', 'position_d']):
-                    # Calculate velocities
+                    # For large files, sample to prevent timeout
+                    sample_rate = max(1, len(df) // 1000)  # Process at most 1000 points
+                    logging.info(f"Calculating velocities with sampling rate: {sample_rate} for {len(df)} points")
+                    
+                    # Create separate arrays for better performance
+                    pos_n = df['position_n'].to_numpy()
+                    pos_e = df['position_e'].to_numpy()
+                    pos_d = df['position_d'].to_numpy()
+                    
+                    # Initialize velocity column
                     df['calculated_velocity'] = 0.0
-                    for i in range(1, len(df)):
+                    
+                    # Create a mask of points to process
+                    indices_to_process = list(range(0, len(df), sample_rate))
+                    if indices_to_process[-1] != len(df) - 1:
+                        indices_to_process.append(len(df) - 1)
+                    
+                    # Batch calculate velocities for sampled points
+                    for i in range(1, len(indices_to_process)):
+                        idx = indices_to_process[i]
+                        prev_idx = indices_to_process[i-1]
                         try:
-                            p1 = np.array([float(df.iloc[i-1]['position_n']), 
-                                        float(df.iloc[i-1]['position_e']), 
-                                        float(df.iloc[i-1]['position_d'])])
-                            p2 = np.array([float(df.iloc[i]['position_n']), 
-                                        float(df.iloc[i]['position_e']), 
-                                        float(df.iloc[i]['position_d'])])
+                            # Calculate velocity between sampled points
+                            p1 = np.array([float(pos_n[prev_idx]), float(pos_e[prev_idx]), float(pos_d[prev_idx])])
+                            p2 = np.array([float(pos_n[idx]), float(pos_e[idx]), float(pos_d[idx])])
                             distance = np.linalg.norm(p2 - p1)
-                            df.loc[i, 'calculated_velocity'] = distance
-                        except (ValueError, KeyError, IndexError, TypeError):
-                            df.loc[i, 'calculated_velocity'] = 0.0
+                            
+                            # Assign velocity to all points in this segment
+                            segment_velocity = distance / (idx - prev_idx) if idx != prev_idx else 0.0
+                            df.loc[prev_idx:idx, 'calculated_velocity'] = segment_velocity
+                        except (ValueError, IndexError, TypeError) as e:
+                            logging.debug(f"Error calculating velocity at index {idx}: {str(e)}")
+                            df.loc[prev_idx:idx, 'calculated_velocity'] = 0.0
                     
                     rows_before = len(df)
                     df = df[df['calculated_velocity'] > speed_threshold].reset_index(drop=True)

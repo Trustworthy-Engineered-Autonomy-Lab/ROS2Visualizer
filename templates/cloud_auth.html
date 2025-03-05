@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Storage Integration - Flight Trajectory Visualizer</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .card {
+            margin-bottom: 2rem;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background-color: var(--bs-dark);
+            border-bottom: 1px solid var(--bs-gray-700);
+        }
+        .form-control, .form-select {
+            background-color: var(--bs-dark);
+            border-color: var(--bs-gray-700);
+            color: var(--bs-light);
+        }
+        .cloud-logo {
+            width: 48px;
+            height: 48px;
+            margin-right: 1rem;
+        }
+        .auth-steps {
+            margin-top: 1rem;
+            padding-left: 1.5rem;
+        }
+        .auth-steps li {
+            margin-bottom: 0.75rem;
+        }
+        .auth-code-input {
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+        #authResults {
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="display-5 mb-3">Cloud Storage Integration</h1>
+                <p class="lead">Connect to your cloud storage providers to import large flight trajectory datasets.</p>
+                <div class="d-flex gap-2 mb-4">
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-house-door"></i> Home
+                    </a>
+                    <a href="{{ url_for('data_cleaning') }}" class="btn btn-outline-info">
+                        <i class="bi bi-tools"></i> Data Cleaning
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header d-flex align-items-center">
+                        <svg class="cloud-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                            <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+                            <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+                            <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+                            <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+                        </svg>
+                        <h5 class="mb-0">Google Drive Integration</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="googleCredentialsForm">
+                            <div class="mb-3">
+                                <label for="googleClientId" class="form-label">Client ID</label>
+                                <input type="text" class="form-control" id="googleClientId" placeholder="Your Google OAuth Client ID">
+                            </div>
+                            <div class="mb-3">
+                                <label for="googleClientSecret" class="form-label">Client Secret</label>
+                                <input type="password" class="form-control" id="googleClientSecret" placeholder="Your Google OAuth Client Secret">
+                            </div>
+                            <button type="button" class="btn btn-primary" id="googleSaveCredentials">Save Credentials</button>
+                            <button type="button" class="btn btn-success" id="googleAuth">Start Authentication</button>
+                        </form>
+
+                        <div id="googleAuthFlow" class="mt-4 d-none">
+                            <h6>Authentication Steps:</h6>
+                            <ol class="auth-steps">
+                                <li>Click the "Open Auth Page" button below</li>
+                                <li>Sign in to your Google account and grant permissions</li>
+                                <li>Copy the authorization code from Google</li>
+                                <li>Paste the code below and click "Complete Authentication"</li>
+                            </ol>
+                            <div class="d-grid gap-2">
+                                <a href="#" class="btn btn-outline-primary" id="googleAuthUrl" target="_blank">Open Auth Page</a>
+                                <div class="mb-3">
+                                    <label for="googleAuthCode" class="form-label">Authorization Code</label>
+                                    <input type="text" class="form-control auth-code-input" id="googleAuthCode" placeholder="Paste your authorization code here">
+                                </div>
+                                <button type="button" class="btn btn-success" id="googleCompleteAuth">Complete Authentication</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex align-items-center">
+                        <svg class="cloud-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                            <path fill="#1976D2" d="M6.5 22c0-2.761 2.239-5 5-5h3l6-6h10c2.761 0 5 2.239 5 5v22c0 2.761-2.239 5-5 5h-19c-2.761 0-5-2.239-5-5v-16z"/>
+                            <path fill="#1565C0" d="M38.5 16c0-2.761-2.239-5-5-5h-6.101c1.675 1.267 2.739 3.153 2.74 5.1 0 3.755-3.165 6.65-6.789 6.65-3.625 0-6.738-2.907-6.738-6.65 0-1.947 1.017-3.833 2.692-5.1h-2.804c-2.761 0-5 2.239-5 5v16c0 2.761 2.239 5 5 5h19c2.761 0 5-2.239 5-5v-16z"/>
+                            <path fill="#BBDEFB" d="M23.495 17c0 3.038-2.463 5.5-5.5 5.5s-5.5-2.462-5.5-5.5 2.463-5.5 5.5-5.5 5.5 2.462 5.5 5.5z"/>
+                            <path fill="#E3F2FD" d="M17.995 20.095c-1.711 0-3.094-1.383-3.094-3.095s1.383-3.094 3.094-3.094 3.095 1.383 3.095 3.094-1.384 3.095-3.095 3.095z"/>
+                            <path fill="#E3F2FD" d="M38.5 16c0-2.761-2.239-5-5-5h-1.101c1.675 1.267 2.739 3.153 2.74 5.1 0 3.755-3.165 6.65-6.789 6.65-3.625 0-6.738-2.907-6.738-6.65 0-1.947 1.017-3.833 2.692-5.1h-7.804l6 6h3c2.761 0 5 2.239 5 5v16h9c2.761 0 5-2.239 5-5v-16z" opacity=".2"/>
+                        </svg>
+                        <h5 class="mb-0">OneDrive Integration</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="msCredentialsForm">
+                            <div class="mb-3">
+                                <label for="msClientId" class="form-label">Client ID / Application ID</label>
+                                <input type="text" class="form-control" id="msClientId" placeholder="Your Microsoft Application (client) ID">
+                            </div>
+                            <div class="mb-3">
+                                <label for="msClientSecret" class="form-label">Client Secret / Application Secret</label>
+                                <input type="password" class="form-control" id="msClientSecret" placeholder="Your Microsoft Application Secret">
+                            </div>
+                            <div class="mb-3">
+                                <label for="msRedirectUri" class="form-label">Redirect URI</label>
+                                <input type="text" class="form-control" id="msRedirectUri" placeholder="Your Redirect URI" value="https://login.microsoftonline.com/common/oauth2/nativeclient">
+                            </div>
+                            <div class="mb-3">
+                                <label for="msTenantId" class="form-label">Tenant ID (Optional)</label>
+                                <input type="text" class="form-control" id="msTenantId" placeholder="Your Microsoft Tenant ID (Optional)">
+                            </div>
+                            <button type="button" class="btn btn-primary" id="msSaveCredentials">Save Credentials</button>
+                            <button type="button" class="btn btn-success" id="msAuth">Start Authentication</button>
+                        </form>
+
+                        <div id="msAuthFlow" class="mt-4 d-none">
+                            <h6>Authentication Steps:</h6>
+                            <ol class="auth-steps">
+                                <li>Click the "Open Auth Page" button below</li>
+                                <li>Sign in to your Microsoft account and grant permissions</li>
+                                <li>Copy the authorization code from the URL after redirecting</li>
+                                <li>Paste the code below and click "Complete Authentication"</li>
+                            </ol>
+                            <div class="d-grid gap-2">
+                                <a href="#" class="btn btn-outline-primary" id="msAuthUrl" target="_blank">Open Auth Page</a>
+                                <div class="mb-3">
+                                    <label for="msAuthCode" class="form-label">Authorization Code</label>
+                                    <input type="text" class="form-control auth-code-input" id="msAuthCode" placeholder="Paste your authorization code here">
+                                </div>
+                                <button type="button" class="btn btn-success" id="msCompleteAuth">Complete Authentication</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div id="authResults" class="d-none">
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">Authentication Results</h5>
+                        <div id="authResultContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Google Drive Integration
+            const googleSaveCredentialsBtn = document.getElementById('googleSaveCredentials');
+            const googleAuthBtn = document.getElementById('googleAuth');
+            const googleAuthFlow = document.getElementById('googleAuthFlow');
+            const googleAuthUrl = document.getElementById('googleAuthUrl');
+            const googleCompleteAuthBtn = document.getElementById('googleCompleteAuth');
+            
+            // Microsoft OneDrive Integration
+            const msSaveCredentialsBtn = document.getElementById('msSaveCredentials');
+            const msAuthBtn = document.getElementById('msAuth');
+            const msAuthFlow = document.getElementById('msAuthFlow');
+            const msAuthUrl = document.getElementById('msAuthUrl');
+            const msCompleteAuthBtn = document.getElementById('msCompleteAuth');
+            
+            // Auth Results
+            const authResults = document.getElementById('authResults');
+            const authResultContent = document.getElementById('authResultContent');
+            
+            // Save Google Credentials
+            googleSaveCredentialsBtn.addEventListener('click', function() {
+                const clientId = document.getElementById('googleClientId').value.trim();
+                const clientSecret = document.getElementById('googleClientSecret').value.trim();
+                
+                if (!clientId || !clientSecret) {
+                    showAuthResult('Please enter both Client ID and Client Secret for Google Drive integration.', 'danger');
+                    return;
+                }
+                
+                saveCredentials('google', {
+                    client_id: clientId,
+                    client_secret: clientSecret
+                });
+            });
+            
+            // Start Google Auth
+            googleAuthBtn.addEventListener('click', function() {
+                startAuth('google');
+            });
+            
+            // Complete Google Auth
+            googleCompleteAuthBtn.addEventListener('click', function() {
+                const authCode = document.getElementById('googleAuthCode').value.trim();
+                if (!authCode) {
+                    showAuthResult('Please enter the authorization code from Google.', 'danger');
+                    return;
+                }
+                
+                completeAuth('google', authCode);
+            });
+            
+            // Save Microsoft Credentials
+            msSaveCredentialsBtn.addEventListener('click', function() {
+                const clientId = document.getElementById('msClientId').value.trim();
+                const clientSecret = document.getElementById('msClientSecret').value.trim();
+                const redirectUri = document.getElementById('msRedirectUri').value.trim();
+                const tenantId = document.getElementById('msTenantId').value.trim();
+                
+                if (!clientId || !clientSecret) {
+                    showAuthResult('Please enter both Client ID and Client Secret for OneDrive integration.', 'danger');
+                    return;
+                }
+                
+                saveCredentials('microsoft', {
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    redirect_uri: redirectUri,
+                    tenant_id: tenantId
+                });
+            });
+            
+            // Start Microsoft Auth
+            msAuthBtn.addEventListener('click', function() {
+                startAuth('microsoft');
+            });
+            
+            // Complete Microsoft Auth
+            msCompleteAuthBtn.addEventListener('click', function() {
+                const authCode = document.getElementById('msAuthCode').value.trim();
+                if (!authCode) {
+                    showAuthResult('Please enter the authorization code from Microsoft.', 'danger');
+                    return;
+                }
+                
+                completeAuth('microsoft', authCode);
+            });
+            
+            // Helper function to save credentials
+            function saveCredentials(provider, credentials) {
+                fetch('/cloud/save_credentials', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        provider: provider,
+                        ...credentials
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showAuthResult(`Error saving credentials: ${data.error}`, 'danger');
+                    } else {
+                        showAuthResult(`${provider === 'google' ? 'Google Drive' : 'OneDrive'} credentials saved successfully. You can now start authentication.`, 'success');
+                    }
+                })
+                .catch(error => {
+                    showAuthResult(`Error saving credentials: ${error.message}`, 'danger');
+                });
+            }
+            
+            // Helper function to start authentication
+            function startAuth(provider) {
+                fetch('/cloud/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        provider: provider
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showAuthResult(`Error starting authentication: ${data.error}`, 'danger');
+                    } else if (data.auth_url) {
+                        // Show authentication flow and set the auth URL
+                        if (provider === 'google') {
+                            googleAuthFlow.classList.remove('d-none');
+                            googleAuthUrl.href = data.auth_url;
+                        } else {
+                            msAuthFlow.classList.remove('d-none');
+                            msAuthUrl.href = data.auth_url;
+                        }
+                        
+                        showAuthResult(`Please follow the authentication steps to connect to ${provider === 'google' ? 'Google Drive' : 'OneDrive'}.`, 'info');
+                    } else if (data.authenticated) {
+                        showAuthResult(`Successfully authenticated with ${provider === 'google' ? 'Google Drive' : 'OneDrive'}.`, 'success');
+                    }
+                })
+                .catch(error => {
+                    showAuthResult(`Error starting authentication: ${error.message}`, 'danger');
+                });
+            }
+            
+            // Helper function to complete authentication
+            function completeAuth(provider, authCode) {
+                fetch('/cloud/auth/callback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        provider: provider,
+                        auth_code: authCode
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showAuthResult(`Error completing authentication: ${data.error}`, 'danger');
+                    } else if (data.authenticated) {
+                        if (provider === 'google') {
+                            googleAuthFlow.classList.add('d-none');
+                        } else {
+                            msAuthFlow.classList.add('d-none');
+                        }
+                        
+                        showAuthResult(`Successfully authenticated with ${provider === 'google' ? 'Google Drive' : 'OneDrive'}. You can now use the cloud storage integration to import large datasets.`, 'success');
+                    }
+                })
+                .catch(error => {
+                    showAuthResult(`Error completing authentication: ${error.message}`, 'danger');
+                });
+            }
+            
+            // Helper function to show authentication results
+            function showAuthResult(message, type) {
+                authResults.classList.remove('d-none');
+                authResults.className = authResults.className.replace(/alert-\w+/, '');
+                authResults.classList.add(`alert-${type}`);
+                authResultContent.innerHTML = `<p>${message}</p>`;
+                
+                // Scroll to results
+                authResults.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    </script>
+</body>
+</html>
