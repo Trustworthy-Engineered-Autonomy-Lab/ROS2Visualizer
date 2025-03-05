@@ -238,6 +238,19 @@ document.addEventListener('DOMContentLoaded', function() {
           // Generate UI content
           let folderContent = '';
           
+          // Generate breadcrumb with refresh button
+          folderContent += `<div class="d-flex justify-content-between align-items-center mb-3">
+            <nav aria-label="breadcrumb" class="mb-0">
+              <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="#" data-folder="sample_data" aria-label="Navigate to root folder">Root</a></li>
+                <li class="breadcrumb-item active" aria-current="page">${serverBrowserState.currentFolder}</li>
+              </ol>
+            </nav>
+            <button id="refresh-folder" class="btn btn-outline-secondary btn-sm" aria-label="Refresh folder">
+              <i class="fas fa-sync-alt" aria-hidden="true"></i> Refresh
+            </button>
+          </div>`;
+          
           // Generate folder buttons
           if (serverBrowserState.folders && serverBrowserState.folders.length > 0) {
             folderContent += '<div class="mb-3"><h6>Folders</h6><div class="d-flex flex-wrap gap-2">';
@@ -372,6 +385,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 navigateToFolder(folderName);
               });
             });
+            
+            // Add event listener to refresh button
+            const refreshButton = contentContainer.querySelector('#refresh-folder');
+            if (refreshButton) {
+              refreshButton.addEventListener('click', function() {
+                // Add spinning animation to the icon
+                const icon = this.querySelector('i');
+                if (icon) {
+                  icon.classList.add('fa-spin');
+                  // Remove the spinning animation after 1.5 seconds
+                  setTimeout(() => {
+                    icon.classList.remove('fa-spin');
+                  }, 1500);
+                }
+                
+                // Show a refreshing message
+                if (typeof showMessage === 'function') {
+                  showMessage('Refreshing folder contents...', 'info');
+                }
+                
+                // Refresh the current folder
+                navigateToFolder(serverBrowserState.currentFolder);
+              });
+            };
             
             // Add event listeners for multi-select functionality
             
@@ -514,13 +551,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update UI (reusing the same structure as above)
         let folderContent = '';
         
-        // Generate breadcrumb
-        folderContent += `<nav aria-label="breadcrumb" class="mb-3">
-          <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="#" data-folder="sample_data" aria-label="Navigate to root folder">Root</a></li>
-            <li class="breadcrumb-item active" aria-current="page">${serverBrowserState.currentFolder}</li>
-          </ol>
-        </nav>`;
+        // Generate breadcrumb with refresh button
+        folderContent += `<div class="d-flex justify-content-between align-items-center mb-3">
+          <nav aria-label="breadcrumb" class="mb-0">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item"><a href="#" data-folder="sample_data" aria-label="Navigate to root folder">Root</a></li>
+              <li class="breadcrumb-item active" aria-current="page">${serverBrowserState.currentFolder}</li>
+            </ol>
+          </nav>
+          <button id="refresh-folder" class="btn btn-outline-secondary btn-sm" aria-label="Refresh folder">
+            <i class="fas fa-sync-alt" aria-hidden="true"></i> Refresh
+          </button>
+        </div>`;
         
         // Generate folder buttons
         if (serverBrowserState.folders && serverBrowserState.folders.length > 0) {
@@ -666,6 +708,30 @@ document.addEventListener('DOMContentLoaded', function() {
               navigateToFolder(folderName);
             });
           });
+          
+          // Add event listener to refresh button
+          const refreshButton = contentContainer.querySelector('#refresh-folder');
+          if (refreshButton) {
+            refreshButton.addEventListener('click', function() {
+              // Add spinning animation to the icon
+              const icon = this.querySelector('i');
+              if (icon) {
+                icon.classList.add('fa-spin');
+                // Remove the spinning animation after 1.5 seconds
+                setTimeout(() => {
+                  icon.classList.remove('fa-spin');
+                }, 1500);
+              }
+              
+              // Show a refreshing message
+              if (typeof showMessage === 'function') {
+                showMessage('Refreshing folder contents...', 'info');
+              }
+              
+              // Refresh the current folder
+              navigateToFolder(serverBrowserState.currentFolder);
+            });
+          }
           
           // Add event listeners for multi-select functionality
           
