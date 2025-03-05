@@ -51,11 +51,11 @@ function directOpenModal() {
     modalElement.classList.add('show');
     document.body.classList.add('modal-open');
     
-    // Add backdrop
-    // const backdrop = document.createElement('div');
-    // backdrop.className = 'modal-backdrop fade show';
-    // document.body.appendChild(backdrop);
-    // return true;
+    Add backdrop
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop fade show';
+    document.body.appendChild(backdrop);
+    return true;
   } catch (error) {
     console.error('All modal opening methods failed:', error);
     return false;
