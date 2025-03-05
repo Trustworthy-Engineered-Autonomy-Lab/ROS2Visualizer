@@ -84,8 +84,8 @@
   </script>
 </head>
 <body>
-  <!-- Loading Overlay -->
-  <div id="loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background: rgba(18, 18, 18, 0.9); z-index: 9999; backdrop-filter: blur(8px);">
+  <!-- Loading Overlay - Hidden by default -->
+  <div id="loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background: rgba(18, 18, 18, 0.9); z-index: 9999; backdrop-filter: blur(8px); display: none;">
     <div class="text-center">
       <div class="loading-spinner mb-3 mx-auto"></div>
       <h4 class="text-white mb-2">Loading Flight Visualizer</h4>
@@ -250,7 +250,7 @@
       <div class="col-md-9 content-area">
         <div id="visualization-container" class="mb-2">
           <!-- 3D visualization will be rendered here -->
-          <div class="loading-indicator">
+          <div class="loading-indicator" style="display: none;">
             <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
           </div>
           
@@ -336,20 +336,22 @@
   
   <!-- Script to handle the loading overlay -->
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Hide loading overlay with fade effect after a short delay
-      setTimeout(function() {
-        const loadingOverlay = document.getElementById('loading-overlay');
-        if (loadingOverlay) {
-          loadingOverlay.style.opacity = '0';
-          loadingOverlay.style.transition = 'opacity 0.5s ease-out';
-          setTimeout(function() {
-            loadingOverlay.style.display = 'none';
-          }, 500);
-        }
-      }, 1000);
+    // Hide loading overlay immediately 
+    window.addEventListener('load', function() {
+      const loadingOverlay = document.getElementById('loading-overlay');
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+      }
       
-      // Initialize tooltips
+      // Also hide the loading indicator inside the visualization
+      const loadingIndicator = document.querySelector('.loading-indicator');
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+      }
+    });
+    
+    // Initialize tooltips
+    document.addEventListener('DOMContentLoaded', function() {
       if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
         [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
