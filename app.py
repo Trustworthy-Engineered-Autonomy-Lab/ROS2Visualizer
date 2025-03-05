@@ -411,6 +411,34 @@ def cloud_auth():
         return render_template('cloud_auth.html')
 
 
+@app.route('/cloud/auth/status', methods=['GET'])
+def cloud_auth_status():
+    """Check authentication status for cloud providers."""
+    try:
+        # Check Google auth status
+        google_service = get_cloud_service('google')
+        google_authenticated = google_service.authenticated
+        
+        # Check Microsoft auth status
+        ms_service = get_cloud_service('microsoft')
+        ms_authenticated = ms_service.authenticated
+        
+        return jsonify({
+            'google_authenticated': google_authenticated,
+            'microsoft_authenticated': ms_authenticated
+        })
+        
+    except Exception as e:
+        logging.error(f"Error checking cloud auth status: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({
+            'google_authenticated': False,
+            'microsoft_authenticated': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/cloud/auth/callback', methods=['POST'])
 def cloud_auth_callback():
     """Handle OAuth callback from cloud providers."""
@@ -442,13 +470,19 @@ def cloud_auth_callback():
         return jsonify({"error": f"Error in OAuth callback: {str(e)}"}), 500
 
 
-@app.route('/cloud/list_files', methods=['POST'])
+@app.route('/cloud/list_files', methods=['GET', 'POST'])
 def cloud_list_files():
     """List files from cloud storage."""
     try:
-        provider = request.json.get('provider')
-        folder_id = request.json.get('folder_id')
-        file_types = request.json.get('file_types', ['csv', 'txt'])
+        if request.method == 'POST':
+            provider = request.json.get('provider')
+            folder_id = request.json.get('folder_id')
+            file_types = request.json.get('file_types', ['csv', 'txt'])
+        else:
+            provider = request.args.get('provider')
+            folder_id = request.args.get('folder_id')
+            file_types_str = request.args.get('file_types', 'csv,txt')
+            file_types = file_types_str.split(',') if file_types_str else ['csv', 'txt']
         
         if not provider:
             return jsonify({"error": "Cloud provider not specified"}), 400
@@ -479,10 +513,15 @@ def cloud_download_file():
     """Download a file from cloud storage and process it."""
     try:
         provider = request.json.get('provider')
-        file_id = request.json.get('file_id')
+        files = request.json.get('files', [])
+        file_id = request.json.get('file_id')  # For backward compatibility
         
-        if not provider or not file_id:
-            return jsonify({"error": "Missing provider or file_id"}), 400
+        # Support both single file_id and array of files
+        if file_id and not files:
+            files = [{'id': file_id, 'name': 'Unknown'}]
+        
+        if not provider or not files:
+            return jsonify({"error": "Missing provider or files"}), 400
         
         # Get cloud service instance
         cloud_service = get_cloud_service(provider)
