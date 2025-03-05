@@ -2159,9 +2159,11 @@ function previewFile(file) {
   // Show loading state for data
   if (previewDataSample) {
     previewDataSample.innerHTML = `
-      <div class="text-center py-3">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-2">Loading preview...</p>
+      <div class="text-center py-3" aria-live="polite" aria-busy="true">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2" id="preview-loading-message">Loading preview of ${file.name}...</p>
       </div>
     `;
   }
@@ -2191,45 +2193,55 @@ function previewFile(file) {
           // Convert to array and sort
           const keys = Array.from(allKeys).sort();
           
-          // Create table
-          let tableHtml = '<table class="table table-sm table-striped">';
+          // Create table with ARIA attributes for better accessibility
+          let tableHtml = '<table class="table table-sm table-striped" aria-label="Flight data sample" role="grid">';
           
           // Table header
-          tableHtml += '<thead><tr>';
+          tableHtml += '<thead><tr role="row">';
           keys.forEach(key => {
-            tableHtml += `<th>${key}</th>`;
+            tableHtml += `<th role="columnheader" scope="col">${key}</th>`;
           });
           tableHtml += '</tr></thead>';
           
           // Table body
           tableHtml += '<tbody>';
-          sampleData.forEach(item => {
-            tableHtml += '<tr>';
+          sampleData.forEach((item, index) => {
+            tableHtml += `<tr role="row">`;
             keys.forEach(key => {
-              tableHtml += `<td>${item[key] !== undefined ? item[key] : '-'}</td>`;
+              const cellValue = item[key] !== undefined ? item[key] : '-';
+              // First column should be a header for the row in most cases
+              if (key === keys[0]) {
+                tableHtml += `<th role="rowheader" scope="row">${cellValue}</th>`;
+              } else {
+                tableHtml += `<td role="cell">${cellValue}</td>`;
+              }
             });
             tableHtml += '</tr>';
           });
           tableHtml += '</tbody></table>';
           
-          // Add note if there's more data
+          // Add note if there's more data with proper screen reader context
           if (data.data.length > 10) {
-            tableHtml += `<p class="text-muted small mt-2">Showing 10 of ${data.data.length} records.</p>`;
+            tableHtml += `<p class="text-muted small mt-2" aria-live="polite">
+              <i class="fas fa-info-circle me-1" aria-hidden="true"></i>
+              Showing 10 of ${data.data.length} records. Additional data is available in the full visualization.
+            </p>`;
           }
           
           previewDataSample.innerHTML = tableHtml;
         } else {
-          previewDataSample.innerHTML = '<div class="alert alert-info">No data available for preview.</div>';
+          previewDataSample.innerHTML = '<div class="alert alert-info" role="alert"><i class="fas fa-info-circle me-2" aria-hidden="true"></i>No data available for preview.</div>';
         }
       } else if (previewDataSample) {
-        previewDataSample.innerHTML = '<div class="alert alert-warning">Unable to load preview data.</div>';
+        previewDataSample.innerHTML = '<div class="alert alert-warning" role="alert" aria-live="assertive"><i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>Unable to load preview data.</div>';
       }
     })
     .catch(error => {
       console.error('Error loading file preview:', error);
       
       if (previewDataSample) {
-        previewDataSample.innerHTML = `<div class="alert alert-danger">
+        previewDataSample.innerHTML = `<div class="alert alert-danger" role="alert" aria-live="assertive">
+          <i class="fas fa-exclamation-circle me-2" aria-hidden="true"></i>
           Error loading preview: ${error.message || 'Unknown error'}
         </div>`;
       }
