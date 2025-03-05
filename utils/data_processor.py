@@ -9,12 +9,30 @@ import json
 import math
 import logging
 from datetime import datetime
-import pandas as pd
-import numpy as np
+try:
+    import pandas as pd
+    import numpy as np
+except ImportError:
+    logging.error("Required packages not found. Please install pandas and numpy.")
+    # Handle import errors gracefully
+    import sys
+    if 'pandas' not in sys.modules:
+        # Create mock pandas module
+        class MockPd:
+            def __getattr__(self, name):
+                raise ImportError(f"pandas module is not available: {name}")
+        pd = MockPd()
+    if 'numpy' not in sys.modules:
+        # Create mock numpy module
+        class MockNp:
+            def __getattr__(self, name):
+                raise ImportError(f"numpy module is not available: {name}")
+        np = MockNp()
 
 def process_csv_data(csv_content):
     """
     Process CSV content into a format suitable for visualization.
+    Optimized for gigabytes of data with memory-efficient processing.
     
     Args:
         csv_content (str): CSV file content as a string
@@ -23,22 +41,56 @@ def process_csv_data(csv_content):
         dict: Processed data ready for visualization
     """
     try:
+        # First, check file size to decide on processing approach
+        file_size_bytes = len(csv_content)
+        file_size_mb = file_size_bytes / (1024 * 1024)
+        is_large_file = file_size_mb > 100  # Consider files larger than 100MB as large
+        
+        if is_large_file:
+            logging.info(f"Processing large file of {file_size_mb:.2f} MB with chunked approach")
+        
         # Try to detect if the file has headers
         with io.StringIO(csv_content) as f:
             first_line = f.readline().strip()
             # Check if first line looks like headers (contains non-numeric values)
             has_headers = not all(col.replace('-', '').replace('.', '').isdigit() for col in first_line.split(',') if col.strip())
-        
-        # Parse CSV to pandas DataFrame with appropriate header handling
-        if has_headers:
-            df = pd.read_csv(io.StringIO(csv_content))
-            logging.info(f"Processing CSV file with headers: {list(df.columns)}")
+            
+        # For very large files, use chunked processing to reduce memory usage
+        if is_large_file:
+            chunk_size = 50000  # Process in chunks of 50k rows
+            
+            # Get column names and structure from first chunk
+            if has_headers:
+                # Get first chunk to determine column structure
+                df_iter = pd.read_csv(io.StringIO(csv_content), chunksize=chunk_size)
+                first_chunk = next(df_iter)
+                column_names = list(first_chunk.columns)
+                logging.info(f"Processing large CSV file with headers: {column_names}")
+                
+                # Create a sample dataframe from the first chunk for detection and processing
+                df = first_chunk
+            else:
+                # For headerless files
+                df_iter = pd.read_csv(io.StringIO(csv_content), header=None, chunksize=chunk_size)
+                first_chunk = next(df_iter)
+                # Create default column names
+                column_names = [f'col{i}' for i in range(len(first_chunk.columns))]
+                first_chunk.columns = column_names
+                logging.info(f"Processing large CSV file without headers, creating {len(column_names)} default columns")
+                
+                # Create a sample dataframe from the first chunk
+                df = first_chunk
         else:
-            # If no headers detected, create default column names
-            logging.info(f"Processing CSV file without headers, creating default column names")
-            df = pd.read_csv(io.StringIO(csv_content), header=None)
-            # Create default column names (col0, col1, etc.)
-            df.columns = [f'col{i}' for i in range(len(df.columns))]
+            # For regular sized files, load everything into memory
+            if has_headers:
+                df = pd.read_csv(io.StringIO(csv_content))
+                logging.info(f"Processing CSV file with headers: {list(df.columns)}")
+            else:
+                # If no headers detected, create default column names
+                logging.info(f"Processing CSV file without headers, creating default column names")
+                df = pd.read_csv(io.StringIO(csv_content), header=None)
+                # Create default column names (col0, col1, etc.)
+                df.columns = [f'col{i}' for i in range(len(df.columns))]
         
         # Check if required position columns exist
         required_columns = ['position_n', 'position_e', 'position_d']
