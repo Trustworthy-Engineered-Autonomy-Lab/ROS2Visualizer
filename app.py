@@ -1,20 +1,31 @@
 import os
 import logging
 import tempfile
-from flask import Flask, render_template, request, jsonify, session
+import time
+import uuid
+from werkzeug.middleware.proxy_fix import ProxyFix
+from flask import Flask, render_template, request, jsonify, session, Response, stream_with_context
 from utils.data_processor import process_csv_data
 from utils.data_cleaner import analyze_csv_file, apply_cleaning_operations
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key_for_development")
 
+# Set up proxy fix for gunicorn
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
 # Configure Flask for handling large file uploads
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max upload size
-app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
+app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024 * 1024  # 4GB max upload size
+app.config['UPLOAD_FOLDER'] = os.path.join(tempfile.gettempdir(), 'tea_labs_upload_cache')
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 year cache timeout for static files
+
+# Create upload folder if it doesn't exist
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/')
 def index():
