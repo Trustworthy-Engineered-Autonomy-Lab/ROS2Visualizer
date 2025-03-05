@@ -84,8 +84,8 @@ let houseModel = null;
 let houseConfig = {
   visible: true,
   position: {
-    x: 0.0,
-    y: -1010.0,
+    x: -1010.0,
+    y: 0,
     z: 10.0
   }
 };
