@@ -33,7 +33,12 @@ document.addEventListener('DOMContentLoaded', function() {
     sortDirection: 'desc', // 'asc' or 'desc'
     folderHistory: [],
     filter: '',
-    multiSelectMode: true // Enable multi-select by default
+    multiSelectMode: true, // Enable multi-select by default
+    currentPage: 1,
+    pageSize: 50,
+    totalPages: 1,
+    totalFiles: 0,
+    searchQuery: ''
   };
   
   // Add functions for multi-select operations
@@ -219,8 +224,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (errorContainer) errorContainer.classList.add('d-none');
       if (contentContainer) contentContainer.classList.add('d-none');
       
-      // Fetch data from server
-      fetch('/browse_data')
+      // Fetch data from server with pagination parameters
+      fetch(`/browse_data?page=${serverBrowserState.currentPage}&page_size=${serverBrowserState.pageSize}&search=${encodeURIComponent(serverBrowserState.searchQuery)}`)
         .then(response => {
           if (!response.ok) {
             throw new Error(`Server error: ${response.status} ${response.statusText}`);
@@ -529,8 +534,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (contentContainer) contentContainer.classList.add('d-none');
     if (errorContainer) errorContainer.classList.add('d-none');
     
-    // Update URL with folder parameter
-    const url = `/browse_data?folder=${encodeURIComponent(folderName)}`;
+    // Reset to page 1 when navigating to a new folder
+    serverBrowserState.currentPage = 1;
+    
+    // Update URL with folder parameter and pagination
+    const url = `/browse_data?folder=${encodeURIComponent(folderName)}&page=${serverBrowserState.currentPage}&page_size=${serverBrowserState.pageSize}&search=${encodeURIComponent(serverBrowserState.searchQuery)}`;
     
     // Fetch data from server
     fetch(url)
@@ -548,6 +556,14 @@ document.addEventListener('DOMContentLoaded', function() {
         serverBrowserState.files = data.files || [];
         serverBrowserState.folders = data.folders || [];
         
+        // Update pagination state if available
+        if (data.pagination) {
+          serverBrowserState.currentPage = data.pagination.page || 1;
+          serverBrowserState.pageSize = data.pagination.page_size || 50;
+          serverBrowserState.totalPages = data.pagination.total_pages || 1;
+          serverBrowserState.totalFiles = data.pagination.total_files || serverBrowserState.files.length;
+        }
+        
         // Update UI (reusing the same structure as above)
         let folderContent = '';
         
@@ -562,6 +578,23 @@ document.addEventListener('DOMContentLoaded', function() {
           <button id="refresh-folder" class="btn btn-outline-secondary btn-sm" aria-label="Refresh folder">
             <i class="fas fa-sync-alt" aria-hidden="true"></i> Refresh
           </button>
+        </div>`;
+        
+        // Add search input
+        folderContent += `
+        <div class="mb-3">
+          <div class="input-group">
+            <input type="text" id="server-data-search" class="form-control" placeholder="Search files..." aria-label="Search files" 
+              value="${serverBrowserState.searchQuery}">
+            <button class="btn btn-outline-secondary" type="button" id="search-button" aria-label="Search">
+              <i class="fas fa-search" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="form-text" id="search-results-count">
+            ${serverBrowserState.totalFiles > 0 ? 
+              `Showing ${serverBrowserState.files.length} of ${serverBrowserState.totalFiles} files` : 
+              'No files found'}
+          </div>
         </div>`;
         
         // Generate folder buttons
@@ -651,6 +684,48 @@ document.addEventListener('DOMContentLoaded', function() {
           folderContent += '</tbody></table>';
         } else {
           folderContent += '<p class="text-muted">No files found in this location.</p>';
+        }
+        
+        // Add pagination controls
+        if (serverBrowserState.totalPages > 1) {
+          folderContent += `
+          <nav aria-label="File pagination" class="mt-3">
+            <ul class="pagination justify-content-center pagination-sm">
+              <li class="page-item ${serverBrowserState.currentPage <= 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" aria-label="First page" data-page="1">
+                  <span aria-hidden="true">&laquo;&laquo;</span>
+                </a>
+              </li>
+              <li class="page-item ${serverBrowserState.currentPage <= 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" aria-label="Previous page" data-page="${serverBrowserState.currentPage - 1}">
+                  <span aria-hidden="true">&laquo;</span>
+                </a>
+              </li>`;
+              
+          // Generate page numbers
+          const startPage = Math.max(1, serverBrowserState.currentPage - 2);
+          const endPage = Math.min(serverBrowserState.totalPages, startPage + 4);
+          
+          for (let page = startPage; page <= endPage; page++) {
+            folderContent += `
+              <li class="page-item ${page === serverBrowserState.currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" data-page="${page}">${page}</a>
+              </li>`;
+          }
+          
+          folderContent += `
+              <li class="page-item ${serverBrowserState.currentPage >= serverBrowserState.totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" aria-label="Next page" data-page="${serverBrowserState.currentPage + 1}">
+                  <span aria-hidden="true">&raquo;</span>
+                </a>
+              </li>
+              <li class="page-item ${serverBrowserState.currentPage >= serverBrowserState.totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" aria-label="Last page" data-page="${serverBrowserState.totalPages}">
+                  <span aria-hidden="true">&raquo;&raquo;</span>
+                </a>
+              </li>
+            </ul>
+          </nav>`;
         }
         
         // Display currently selected files

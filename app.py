@@ -158,8 +158,15 @@ def browse_data():
         # Get folder parameter, default to sample_data
         folder = request.args.get('folder', 'sample_data')
         
+        # Get pagination parameters
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 50))  # Default to 50 files per page
+        
+        # Get search filter if provided
+        search_query = request.args.get('search', '').lower()
+        
         # Validate folder to prevent directory traversal
-        valid_folders = ['sample_data', 'flight_trajectories']
+        valid_folders = ['sample_data', 'flight_trajectories', 'Non_random_non_attacked_data']
         if folder not in valid_folders:
             return jsonify({"error": "Invalid folder specified"}), 400
         
@@ -170,7 +177,7 @@ def browse_data():
         if not os.path.exists(data_dir):
             os.makedirs(data_dir, exist_ok=True)
             
-        files = []
+        all_files = []
         for file_path in glob.glob(os.path.join(data_dir, '*.*')):
             filename = os.path.basename(file_path)
             size = os.path.getsize(file_path)
@@ -178,7 +185,11 @@ def browse_data():
             
             # Only include CSV and related files
             if filename.lower().endswith(('.csv', '.txt', '.data', '.dat', '.tsv', '.tab')):
-                files.append({
+                # Apply search filter if provided
+                if search_query and search_query not in filename.lower():
+                    continue
+                
+                all_files.append({
                     'name': filename,
                     'size': size,
                     'size_formatted': format_file_size(size),
@@ -187,12 +198,27 @@ def browse_data():
                 })
         
         # Sort files by modified date (newest first)
-        files.sort(key=lambda x: x['modified'], reverse=True)
+        all_files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        # Calculate total pages and file count
+        total_files = len(all_files)
+        total_pages = (total_files + page_size - 1) // page_size  # Ceiling division
+        
+        # Apply pagination
+        start_idx = (page - 1) * page_size
+        end_idx = min(start_idx + page_size, total_files)
+        paginated_files = all_files[start_idx:end_idx]
         
         return jsonify({
             "current_folder": folder,
             "folders": valid_folders,
-            "files": files
+            "files": paginated_files,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "total_files": total_files
+            }
         })
         
     except Exception as e:
@@ -210,7 +236,7 @@ def get_server_file():
             return jsonify({"error": "No file path specified"}), 400
         
         # Validate file path to prevent directory traversal
-        valid_folders = ['sample_data', 'flight_trajectories']
+        valid_folders = ['sample_data', 'flight_trajectories', 'Non_random_non_attacked_data']
         folder = file_path.split('/')[0] if '/' in file_path else None
         if not folder or folder not in valid_folders:
             return jsonify({"error": "Invalid file path"}), 400
