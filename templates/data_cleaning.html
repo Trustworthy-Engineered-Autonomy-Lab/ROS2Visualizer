@@ -126,10 +126,12 @@
     <header class="bg-dark text-light py-3 mb-4">
         <div class="container">
             <div class="d-flex align-items-center">
-                <a href="/" class="text-decoration-none d-flex align-items-center">
-                    <img src="{{ url_for('static', filename='images/tea_labs_logo.svg') }}" alt="TEA Labs Logo" height="40" class="me-2">
+                <a href="/" class="text-decoration-none">
+                    <h1 class="display-5 mb-0 text-light">
+                        <span class="text-primary">TEA</span> Labs
+                    </h1>
                 </a>
-                <span class="ms-2 text-light">Flight Trajectory Data Cleaning</span>
+                <span class="ms-3 text-light">Flight Trajectory Data Cleaning</span>
                 <div class="ms-auto">
                     <a href="/" class="btn btn-outline-light btn-sm me-2">
                         <i class="fas fa-chart-line me-1"></i> Visualizer
@@ -192,11 +194,8 @@
                 <!-- Step 1: Upload Files -->
                 <div class="cleaning-section active" id="upload-section">
                     <div class="card bg-dark mb-4">
-                        <div class="card-header bg-primary bg-opacity-75 text-white d-flex align-items-center">
+                        <div class="card-header bg-primary bg-opacity-75 text-white">
                             <i class="fas fa-upload me-2"></i> Upload Flight Data Files
-                            <div class="ms-auto">
-                                <span class="badge bg-dark border border-info">TEA Labs</span>
-                            </div>
                         </div>
                         <div class="card-body">
                             <p class="card-text">
@@ -265,11 +264,8 @@
                 <!-- Step 2: Analyze Data -->
                 <div class="cleaning-section" id="analyze-section">
                     <div class="card bg-dark mb-4">
-                        <div class="card-header bg-primary bg-opacity-75 text-white d-flex align-items-center">
+                        <div class="card-header bg-primary bg-opacity-75 text-white">
                             <i class="fas fa-analytics me-2"></i> Data Analysis
-                            <div class="ms-auto">
-                                <span class="badge bg-dark border border-info">TEA Labs</span>
-                            </div>
                         </div>
                         <div class="card-body">
                             <div id="analysis-loader" class="text-center mb-4 d-none">
@@ -345,11 +341,8 @@
                 <!-- Step 3: Configure Cleaning Operations -->
                 <div class="cleaning-section" id="configure-section">
                     <div class="card bg-dark mb-4">
-                        <div class="card-header bg-primary bg-opacity-75 text-white d-flex align-items-center">
+                        <div class="card-header bg-primary bg-opacity-75 text-white">
                             <i class="fas fa-sliders-h me-2"></i> Configure Cleaning Operations
-                            <div class="ms-auto">
-                                <span class="badge bg-dark border border-info">TEA Labs</span>
-                            </div>
                         </div>
                         <div class="card-body">
                             <p class="card-text mb-4">
