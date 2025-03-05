@@ -1035,6 +1035,38 @@ function onWindowResize() {
   renderer.setSize(container.clientWidth, container.clientHeight);
 }
 
+// Function to toggle house visibility
+function toggleHouseVisibility(event) {
+  if (!houseModel) return;
+  
+  houseConfig.visible = event.target.checked;
+  houseModel.visible = houseConfig.visible;
+  
+  showMessage(`House ${houseConfig.visible ? 'shown' : 'hidden'}`, "info");
+}
+
+// Function to update house position
+function updateHousePosition() {
+  if (!houseModel) return;
+  
+  // Get values from input fields
+  const x = parseFloat(document.getElementById('house-x').value);
+  const y = parseFloat(document.getElementById('house-y').value);
+  const z = parseFloat(document.getElementById('house-z').value);
+  
+  // Validate input values
+  if (isNaN(x) || isNaN(y) || isNaN(z)) {
+    showMessage("Please enter valid numeric coordinates", "warning");
+    return;
+  }
+  
+  // Update house position
+  houseConfig.position = { x, y, z };
+  houseModel.position.set(x, z, y); // Note the swapped y and z for THREE.js coordinates
+  
+  showMessage(`House position updated to (${x}, ${y}, ${z})`, "success");
+}
+
 // Show message to user
 function showMessage(message, type = "info") {
   // Create a temporary message at the top of visualization container
