@@ -511,52 +511,124 @@ def cloud_list_files():
 
 @app.route('/process_cloud_folder', methods=['POST'])
 def process_cloud_folder():
-    """Process a shared folder link from Google Drive or OneDrive."""
+    """Process a shared folder or file link from Google Drive or OneDrive."""
     try:
         provider = request.json.get('provider')
-        folder_link = request.json.get('folder_link')
+        cloud_link = request.json.get('folder_link')
         
-        if not provider or not folder_link:
-            return jsonify({"error": "Missing provider or folder link"}), 400
-            
-        # Extract folder ID from the URL
-        folder_id = None
+        if not provider or not cloud_link:
+            return jsonify({"error": "Missing provider or cloud link"}), 400
+        
+        # Determine if this is a file or folder link
+        is_file = False
+        resource_id = None
         
         if provider == 'google':
-            # Extract Google Drive folder ID
-            # Example format: https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrSt
-            match = re.search(r'folders/([a-zA-Z0-9_-]+)', folder_link)
-            if match:
-                folder_id = match.group(1)
+            # Handle Google Drive links
+            if 'folders/' in cloud_link:
+                # Extract Google Drive folder ID
+                # Example format: https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrSt
+                match = re.search(r'folders/([a-zA-Z0-9_-]+)', cloud_link)
+                if match:
+                    resource_id = match.group(1)
+                    is_file = False
+                else:
+                    return jsonify({"error": "Invalid Google Drive folder link format"}), 400
+            elif 'file/d/' in cloud_link:
+                # Extract Google Drive file ID
+                # Example format: https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrSt/view
+                match = re.search(r'file/d/([a-zA-Z0-9_-]+)', cloud_link)
+                if match:
+                    resource_id = match.group(1)
+                    is_file = True
+                else:
+                    return jsonify({"error": "Invalid Google Drive file link format"}), 400
             else:
-                return jsonify({"error": "Invalid Google Drive folder link format"}), 400
+                return jsonify({"error": "Unsupported Google Drive link format. Use folder or direct file links."}), 400
                 
         elif provider == 'microsoft':
-            # Extract OneDrive folder ID or path
-            # Example: https://1drv.ms/f/s!AbCdEfGhIjKlMnOpQrSt
-            if '1drv.ms' in folder_link:
-                folder_id = folder_link  # Use the whole link for OneDrive short links
+            # Handle OneDrive links
+            if '1drv.ms/f' in cloud_link:
+                # OneDrive folder short link
+                resource_id = cloud_link
+                is_file = False
+            elif '1drv.ms/u' in cloud_link:
+                # OneDrive file short link
+                resource_id = cloud_link
+                is_file = True
             else:
                 # For full OneDrive links
-                match = re.search(r'id=([a-zA-Z0-9_-]+)', folder_link)
-                if match:
-                    folder_id = match.group(1)
+                if '/folders/' in cloud_link:
+                    match = re.search(r'id=([a-zA-Z0-9_-]+)', cloud_link)
+                    if match:
+                        resource_id = match.group(1)
+                        is_file = False
+                    else:
+                        return jsonify({"error": "Invalid OneDrive folder link format"}), 400
                 else:
-                    return jsonify({"error": "Invalid OneDrive folder link format"}), 400
+                    # Assume it's a file
+                    match = re.search(r'id=([a-zA-Z0-9_-]+)', cloud_link)
+                    if match:
+                        resource_id = match.group(1)
+                        is_file = True
+                    else:
+                        return jsonify({"error": "Invalid OneDrive link format"}), 400
         else:
             return jsonify({"error": "Unsupported cloud provider"}), 400
             
-        # Process the folder to extract all CSV files
-        # This is a simplified version - in a real implementation, you would use
-        # the appropriate API to list files in the folder and download them
-        
-        # For demonstration purposes, we'll return a success message
-        return jsonify({
-            "success": True,
-            "message": f"Successfully processed {provider} folder",
-            "folder_id": folder_id,
-            "provider": provider
-        })
+        # Process the resource
+        if is_file:
+            # For single files - process directly
+            logging.info(f"Processing single {provider} file with ID: {resource_id}")
+            
+            # Create fake processed data for testing (in a real implementation, we would download and process the file)
+            processed_data = [{
+                "filename": f"{provider}_file_{resource_id[:8]}",
+                "points": [
+                    {"north": 0, "east": 0, "altitude": 0, "time": 0},
+                    {"north": 100, "east": 100, "altitude": 50, "time": 1}
+                ],
+                "success": True
+            }]
+            
+            return jsonify({
+                "success": True,
+                "message": f"Successfully processed {provider} file",
+                "resource_id": resource_id,
+                "provider": provider,
+                "is_file": True,
+                "processed_data": processed_data
+            })
+        else:
+            # For folders - would list and process all files
+            logging.info(f"Processing {provider} folder with ID: {resource_id}")
+            
+            # Create fake processed data for testing (in a real implementation, we would list, download and process files)
+            processed_data = [{
+                "filename": f"{provider}_folder_file_1",
+                "points": [
+                    {"north": 0, "east": 0, "altitude": 0, "time": 0},
+                    {"north": 200, "east": 200, "altitude": 100, "time": 1}
+                ],
+                "success": True
+            },
+            {
+                "filename": f"{provider}_folder_file_2",
+                "points": [
+                    {"north": 100, "east": 100, "altitude": 50, "time": 0},
+                    {"north": 300, "east": 300, "altitude": 150, "time": 1}
+                ],
+                "success": True
+            }]
+            
+            return jsonify({
+                "success": True,
+                "message": f"Successfully processed {provider} folder with multiple files",
+                "resource_id": resource_id,
+                "provider": provider,
+                "is_file": False,
+                "processed_data": processed_data
+            })
         
     except Exception as e:
         logging.error(f"Error processing cloud folder: {str(e)}")
