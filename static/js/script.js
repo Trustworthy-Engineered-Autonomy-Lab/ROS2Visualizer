@@ -1105,3 +1105,48 @@ function showMessage(message, type = "info") {
     msgElement.remove();
   }, 3000);
 }
+
+/**
+ * Refresh trajectories with data from cloud storage
+ * @param {Object} processedData - Data processed from cloud files
+ */
+function refreshTrajectories(processedData) {
+  if (!processedData || !Array.isArray(processedData)) {
+    showMessage("No valid trajectory data found", "warning");
+    return;
+  }
+  
+  // Clear existing trajectories
+  clearTrajectories();
+  
+  // Add each trajectory from processed data
+  processedData.forEach((data, index) => {
+    if (data && data.points && data.points.length > 0) {
+      // Generate a random color for this trajectory
+      const colors = [
+        0x1e88e5, // blue
+        0x43a047, // green
+        0xfb8c00, // orange
+        0xe53935, // red
+        0x8e24aa, // purple
+        0x3949ab, // indigo
+        0x00acc1, // cyan
+        0xffb300  // amber
+      ];
+      const color = colors[index % colors.length];
+      
+      // Add the trajectory to the scene
+      addTrajectory(data, data.filename || `Trajectory ${index + 1}`, color);
+    }
+  });
+  
+  // Update UI
+  updateTrajectoryList();
+  updateTimeSlider();
+  
+  // Show success message
+  showMessage(`Successfully loaded ${trajectories.length} trajectories`, "success");
+  
+  // Reset view
+  resetView();
+}
