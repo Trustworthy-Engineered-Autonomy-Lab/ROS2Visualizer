@@ -33,11 +33,16 @@
           </div>
           <h2 class="mb-4 text-center">Flight Trajectory Visualizer</h2>
           
-          <!-- Data Cleaning Link -->
+          <!-- Tools Links -->
           <div class="mb-4 text-center">
-            <a href="{{ url_for('data_cleaning') }}" class="btn btn-outline-info btn-sm">
-              <i class="fas fa-tools me-2"></i>Data Cleaning Tools
-            </a>
+            <div class="btn-group">
+              <a href="{{ url_for('data_cleaning') }}" class="btn btn-outline-info btn-sm">
+                <i class="fas fa-tools me-2"></i>Data Cleaning
+              </a>
+              <a href="{{ url_for('cloud_auth') }}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-cloud me-2"></i>Cloud Import
+              </a>
+            </div>
           </div>
           
           <!-- File Upload Control -->
