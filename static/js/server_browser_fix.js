@@ -168,8 +168,23 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Browse Server Data button clicked');
     
     try {
-      // Create and show the modal directly
-      const modal = new bootstrap.Modal(modalElement);
+      // Create and show the modal directly with proper accessibility handling
+      const modal = new bootstrap.Modal(modalElement, {
+        backdrop: true,
+        keyboard: true,
+        focus: true
+      });
+      
+      // Add event listener for when modal is shown
+      modalElement.addEventListener('shown.bs.modal', function() {
+        // Set focus to the search input for better accessibility
+        const searchInput = document.getElementById('server-data-search');
+        if (searchInput) {
+          searchInput.focus();
+        }
+        console.log('Modal shown and focus set to search input');
+      });
+      
       modal.show();
       console.log('Modal shown successfully');
       
@@ -208,8 +223,8 @@ document.addEventListener('DOMContentLoaded', function() {
             folderContent += '<div class="mb-3"><h6>Folders</h6><div class="d-flex flex-wrap gap-2">';
             for (const folder of serverBrowserState.folders) {
               folderContent += `
-                <button class="btn btn-outline-secondary btn-sm" data-folder="${folder}">
-                  <i class="fas fa-folder me-1"></i>${folder}
+                <button class="btn btn-outline-secondary btn-sm" data-folder="${folder}" aria-label="Open folder ${folder}">
+                  <i class="fas fa-folder me-1" aria-hidden="true"></i>${folder}
                 </button>`;
             }
             folderContent += '</div></div>';
@@ -224,7 +239,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 Multi-select mode ${serverBrowserState.multiSelectMode ? '(on)' : '(off)'}
               </label>
             </div>
-            <button id="process-selected-files" class="btn btn-success btn-sm" ${serverBrowserState.selectedFiles.length === 0 ? 'disabled' : ''}>
+            <button id="process-selected-files" class="btn btn-success btn-sm" 
+              ${serverBrowserState.selectedFiles.length === 0 ? 'disabled' : ''} 
+              aria-label="Process ${serverBrowserState.selectedFiles.length} selected files">
+              <i class="fas fa-chart-line me-1" aria-hidden="true"></i>
               Process ${serverBrowserState.selectedFiles.length} Selected File(s)
             </button>
           </div>`;
@@ -254,11 +272,18 @@ document.addEventListener('DOMContentLoaded', function() {
               if (serverBrowserState.multiSelectMode) {
                 folderContent += `
                   <td>
-                    <input type="checkbox" class="form-check-input file-select-checkbox" 
-                      data-file-path="${file.path}" 
-                      data-file-name="${file.name}"
-                      data-file-size="${file.size}"
-                      ${isSelected ? 'checked' : ''}>
+                    <div class="form-check">
+                      <input type="checkbox" id="file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}" 
+                        class="form-check-input file-select-checkbox" 
+                        data-file-path="${file.path}" 
+                        data-file-name="${file.name}"
+                        data-file-size="${file.size}"
+                        ${isSelected ? 'checked' : ''} 
+                        aria-label="Select ${file.name}">
+                      <label class="visually-hidden" for="file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}">
+                        Select ${file.name}
+                      </label>
+                    </div>
                   </td>`;
               }
               
@@ -266,7 +291,9 @@ document.addEventListener('DOMContentLoaded', function() {
                   <td>${file.name}</td>
                   <td>${file.size_formatted || formatBytes(file.size)}</td>
                   <td>
-                    <button class="btn btn-primary btn-sm" data-file-path="${file.path}">Load</button>
+                    <button class="btn btn-primary btn-sm" data-file-path="${file.path}" aria-label="Load file ${file.name}">
+                      <i class="fas fa-upload me-1" aria-hidden="true"></i>Load
+                    </button>
                   </td>
                 </tr>`;
             }
@@ -490,7 +517,10 @@ document.addEventListener('DOMContentLoaded', function() {
               Multi-select mode ${serverBrowserState.multiSelectMode ? '(on)' : '(off)'}
             </label>
           </div>
-          <button id="process-selected-files" class="btn btn-success btn-sm" ${serverBrowserState.selectedFiles.length === 0 ? 'disabled' : ''}>
+          <button id="process-selected-files" class="btn btn-success btn-sm" 
+            ${serverBrowserState.selectedFiles.length === 0 ? 'disabled' : ''} 
+            aria-label="Process ${serverBrowserState.selectedFiles.length} selected files">
+            <i class="fas fa-chart-line me-1" aria-hidden="true"></i>
             Process ${serverBrowserState.selectedFiles.length} Selected File(s)
           </button>
         </div>`;
@@ -520,11 +550,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if (serverBrowserState.multiSelectMode) {
               folderContent += `
                 <td>
-                  <input type="checkbox" class="form-check-input file-select-checkbox" 
-                    data-file-path="${file.path}" 
-                    data-file-name="${file.name}"
-                    data-file-size="${file.size}"
-                    ${isSelected ? 'checked' : ''}>
+                  <div class="form-check">
+                    <input type="checkbox" id="file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}" 
+                      class="form-check-input file-select-checkbox" 
+                      data-file-path="${file.path}" 
+                      data-file-name="${file.name}"
+                      data-file-size="${file.size}"
+                      ${isSelected ? 'checked' : ''} 
+                      aria-label="Select ${file.name}">
+                    <label class="visually-hidden" for="file-checkbox-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}">
+                      Select ${file.name}
+                    </label>
+                  </div>
                 </td>`;
             }
             
