@@ -313,8 +313,10 @@ document.addEventListener('DOMContentLoaded', function() {
               folderContent += `
                 <li class="list-group-item d-flex justify-content-between align-items-center py-1">
                   ${file.name}
-                  <button class="btn btn-sm btn-outline-danger remove-selection" data-file-path="${file.path}">
-                    <i class="fas fa-times"></i> Remove
+                  <button class="btn btn-sm btn-outline-danger remove-selection" 
+                    data-file-path="${file.path}"
+                    aria-label="Remove ${file.name} from selection">
+                    <i class="fas fa-times" aria-hidden="true"></i> Remove
                   </button>
                 </li>`;
             }
@@ -512,10 +514,14 @@ document.addEventListener('DOMContentLoaded', function() {
         folderContent += `
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="toggle-multi-select">
+            <input class="form-check-input" type="checkbox" id="toggle-multi-select"
+              aria-describedby="toggle-multi-select-description">
             <label class="form-check-label" for="toggle-multi-select">
               Multi-select mode ${serverBrowserState.multiSelectMode ? '(on)' : '(off)'}
             </label>
+            <div id="toggle-multi-select-description" class="form-text visually-hidden">
+              Enable to select multiple files at once
+            </div>
           </div>
           <button id="process-selected-files" class="btn btn-success btn-sm" 
             ${serverBrowserState.selectedFiles.length === 0 ? 'disabled' : ''} 
@@ -569,7 +575,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${file.name}</td>
                 <td>${file.size_formatted || formatBytes(file.size)}</td>
                 <td>
-                  <button class="btn btn-primary btn-sm" data-file-path="${file.path}">Load</button>
+                  <button class="btn btn-primary btn-sm" data-file-path="${file.path}" aria-label="Load file ${file.name}">
+                      <i class="fas fa-upload me-1" aria-hidden="true"></i>Load
+                  </button>
                 </td>
               </tr>`;
           }
@@ -589,8 +597,10 @@ document.addEventListener('DOMContentLoaded', function() {
             folderContent += `
               <li class="list-group-item d-flex justify-content-between align-items-center py-1">
                 ${file.name}
-                <button class="btn btn-sm btn-outline-danger remove-selection" data-file-path="${file.path}">
-                  <i class="fas fa-times"></i> Remove
+                <button class="btn btn-sm btn-outline-danger remove-selection" 
+                  data-file-path="${file.path}" 
+                  aria-label="Remove ${file.name} from selection">
+                  <i class="fas fa-times" aria-hidden="true"></i> Remove
                 </button>
               </li>`;
           }
