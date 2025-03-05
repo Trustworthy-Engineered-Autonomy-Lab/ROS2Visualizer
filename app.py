@@ -42,7 +42,7 @@ def data_cleaning():
 
 @app.route('/analyze_csv', methods=['POST'])
 def analyze_csv():
-    """Analyze uploaded CSV files and return basic statistics with streaming approach."""
+    """Analyze uploaded CSV files and return basic statistics with memory-efficient approach."""
     try:
         if 'files[]' not in request.files:
             return jsonify({"error": "No files uploaded"}), 400
@@ -52,7 +52,7 @@ def analyze_csv():
             return jsonify({"error": "No selected files"}), 400
         
         analysis_results = []
-        temp_files = {}  # Store temporary file paths for session
+        temp_files = {}  # Store file metadata without keeping full paths
         
         for file in files:
             if file and file.filename.endswith(('.csv', '.txt')):
@@ -61,100 +61,120 @@ def analyze_csv():
                     
                     # Generate a unique identifier for this file
                     unique_id = str(uuid.uuid4())
-                    safe_filename = f"{unique_id}_{file.filename.replace(' ', '_')}"
-                    temp_filepath = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
+                    safe_filename = file.filename.replace(' ', '_')
                     
-                    # Save file with chunked streaming to prevent timeouts for large files
-                    logging.info(f"Streaming file {file.filename} to temporary location: {temp_filepath}")
+                    # Process directly from memory - don't save to disk
+                    logging.info(f"Processing file {file.filename} in memory")
                     
-                    # Enhanced file saving with better chunking for large files
-                    try:
-                        os.makedirs(os.path.dirname(temp_filepath), exist_ok=True)
-                        chunk_size = 4 * 1024 * 1024  # 4MB chunks
-                        with open(temp_filepath, 'wb') as f:
-                            chunk = file.read(chunk_size)
-                            while chunk:
-                                f.write(chunk)
-                                chunk = file.read(chunk_size)
-                    except Exception as e:
-                        logging.error(f"Error saving file {file.filename}: {str(e)}")
-                        raise
-                    
-                    upload_duration = time.time() - start_time
-                    logging.info(f"File {file.filename} uploaded in {upload_duration:.2f} seconds")
-                    
-                    # Check file size to determine processing approach
-                    file_size = os.path.getsize(temp_filepath)
-                    is_large_file = file_size > 50 * 1024 * 1024  # Consider files > 50MB as large
-                    is_very_large_file = file_size > 500 * 1024 * 1024  # Files > 500MB get special handling
+                    # Read initial chunk to detect encoding
+                    initial_chunk_size = 1024 * 256  # 256KB initial chunk
+                    file.seek(0)
+                    initial_chunk = file.read(initial_chunk_size)
+                    file.seek(0)  # Reset to beginning of file
                     
                     # Determine file encoding with multi-fallback strategy
-                    encoding = 'utf-8'
-                    encodings_to_try = ['utf-8', 'latin-1', 'utf-16', 'cp1252', 'iso-8859-1']
+                    encoding = 'utf-8'  # Default encoding
+                    encodings_to_try = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1', 'utf-16']
                     
+                    # Try to decode the initial chunk with different encodings
+                    encoding_found = False
                     for enc in encodings_to_try:
                         try:
-                            with open(temp_filepath, 'r', encoding=enc) as f:
-                                # Just read first line to test encoding
-                                f.readline()
+                            initial_chunk.decode(enc)
                             encoding = enc
+                            encoding_found = True
                             logging.info(f"Successfully detected {encoding} encoding for file {file.filename}")
                             break
                         except UnicodeDecodeError:
                             continue
                     
-                    logging.info(f"File {file.filename} size: {file_size/(1024*1024):.2f} MB, encoding: {encoding}")
+                    if not encoding_found:
+                        logging.warning(f"Could not detect encoding for {file.filename}, using utf-8 as fallback")
                     
-                    # Create a comprehensive file stats dictionary
+                    # Estimate file size based on content-length or stream reading
+                    estimated_size = 0
+                    if 'Content-Length' in request.headers:
+                        try:
+                            estimated_size = int(request.headers['Content-Length'])
+                            logging.info(f"Estimated file size from Content-Length: {estimated_size/(1024*1024):.2f} MB")
+                        except (ValueError, TypeError):
+                            logging.warning("Could not parse Content-Length header")
+                    
+                    if estimated_size <= 0:
+                        # Fallback: estimate based on initial chunk proportion
+                        file.seek(0, os.SEEK_END)
+                        try:
+                            estimated_size = file.tell()
+                            logging.info(f"Estimated file size from stream: {estimated_size/(1024*1024):.2f} MB")
+                        except (OSError, IOError) as e:
+                            logging.warning(f"Could not determine file size: {str(e)}")
+                            # Make a reasonable guess based on the initial chunk
+                            estimated_size = len(initial_chunk) * 100  # Assume it's about 100x the initial chunk
+                        file.seek(0)
+                    
+                    is_large_file = estimated_size > 50 * 1024 * 1024  # Files > 50MB
+                    is_very_large_file = estimated_size > 500 * 1024 * 1024  # Files > 500MB
+                    
+                    # Create a base file stats dictionary with what we know so far
                     file_stats = {
+                        "file_id": unique_id,
                         "filename": file.filename,
-                        "temp_filepath": temp_filepath,
-                        "file_size": file_size,
-                        "file_size_mb": file_size/(1024*1024),
+                        "estimated_size": estimated_size,
+                        "estimated_size_mb": estimated_size/(1024*1024) if estimated_size > 0 else 0,
                         "encoding": encoding,
                         "is_large_file": is_large_file,
                         "is_very_large_file": is_very_large_file,
-                        "upload_duration": upload_duration,
-                        "upload_speed_mbps": (file_size/(1024*1024))/upload_duration if upload_duration > 0 else 0,
+                        "memory_efficient_processing": True,
+                        "success": True,
                         "timestamp": time.time()
                     }
                     
-                    # For large files, use a sample-based approach for initial stats
-                    if is_large_file:
-                        logging.info(f"Processing large file with chunked approach")
-                        
-                        # Read just the first part of the file for quick analysis
-                        try:
-                            with open(temp_filepath, 'r', encoding=encoding) as f:
-                                # Read just first ~1MB for quick analysis to avoid timeouts
-                                sample_content = f.read(1024 * 1024)
-                                sample_stats = analyze_csv_file(sample_content, file.filename, is_sample=True)
-                                
-                                # Merge sample stats with file info
-                                file_stats.update(sample_stats)
-                                file_stats['analyzed_with_sample'] = True
-                        except Exception as e:
-                            logging.error(f"Error reading sample from large file: {str(e)}")
-                            file_stats['error'] = f"Error reading sample: {str(e)}"
-                    else:
-                        # For smaller files, process the whole file
-                        try:
-                            with open(temp_filepath, 'r', encoding=encoding) as f:
-                                file_content = f.read()
-                                stats = analyze_csv_file(file_content, file.filename)
-                                file_stats.update(stats)
-                        except Exception as e:
-                            logging.error(f"Error analyzing file content: {str(e)}")
-                            file_stats['error'] = f"Error analyzing content: {str(e)}"
+                    # For analysis, process a sample of the file in memory
+                    file.seek(0)
                     
-                    # Store temporary file info for future processing
-                    temp_files[file.filename] = {
-                        "path": temp_filepath,
+                    # Determine sample size based on file size
+                    if is_very_large_file:
+                        sample_size = 1024 * 512  # 512KB sample for very large files
+                        file_stats["is_sample_analysis"] = True 
+                    elif is_large_file:
+                        sample_size = 1024 * 1024  # 1MB sample for large files
+                        file_stats["is_sample_analysis"] = True
+                    else:
+                        sample_size = 1024 * 1024 * 5  # 5MB sample or full file for smaller files
+                        file_stats["is_sample_analysis"] = False
+                    
+                    # Read the sample and analyze
+                    try:
+                        sample_content = file.read(sample_size).decode(encoding)
+                        
+                        # Get statistics from the sample
+                        start_analysis = time.time()
+                        is_sample = is_large_file or is_very_large_file
+                        stats = analyze_csv_file(sample_content, file.filename, is_sample=is_sample)
+                        analysis_duration = time.time() - start_analysis
+                        
+                        # Add analysis stats to file info
+                        file_stats.update(stats)
+                        file_stats["analysis_time"] = analysis_duration
+                    except Exception as e:
+                        logging.error(f"Error analyzing file sample: {str(e)}")
+                        file_stats["error"] = f"Error analyzing file: {str(e)}"
+                        file_stats["success"] = False
+                    
+                    # Store minimal file metadata for session (not the full content or paths)
+                    temp_files[unique_id] = {
+                        "name": file.filename,
                         "encoding": encoding,
-                        "is_large_file": is_large_file
+                        "is_large_file": is_large_file,
+                        "estimated_size": estimated_size,
+                        "sample_headers": stats.get("headers", []) if "stats" in locals() else []
                     }
                     
+                    # Add to the analysis results
                     analysis_results.append(file_stats)
+                    
+                    processing_duration = time.time() - start_time
+                    logging.info(f"File {file.filename} processed in {processing_duration:.2f} seconds")
                 except Exception as e:
                     logging.error(f"Error processing file {file.filename}: {str(e)}")
                     import traceback
