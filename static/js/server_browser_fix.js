@@ -1,6 +1,6 @@
 /**
  * Server Data Browser - Fix Module
- * This is a complete standalone implementation to solve the modal display issue
+ * Enhanced with proper accessibility support for modal dialog interactions
  */
 document.addEventListener('DOMContentLoaded', function() {
   console.log('Server browser standalone module loaded');
@@ -8,6 +8,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // Get the button and modal elements
   const browseButton = document.getElementById('browse-server-data-btn');
   const modalElement = document.getElementById('serverDataModal');
+  const modalCloseBtn = document.getElementById('server-modal-close-btn');
+  const searchInput = document.getElementById('server-data-search');
+  
+  // Store the element that had focus before opening the modal
+  let previousActiveElement = null;
   
   // Check if elements exist
   if (!browseButton) {
@@ -21,6 +26,36 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   console.log('Elements found, setting up event listener');
+  
+  // Set up proper focus management for the modal
+  modalElement.addEventListener('shown.bs.modal', function() {
+    // Store the element that had focus before opening the modal
+    previousActiveElement = document.activeElement;
+    
+    // Focus on the search input when modal opens for better keyboard navigation
+    if (searchInput) {
+      searchInput.focus();
+    }
+  });
+  
+  // Return focus to the previous element when modal closes
+  modalElement.addEventListener('hidden.bs.modal', function() {
+    // Return focus to the element that had focus before the modal was opened
+    if (previousActiveElement) {
+      previousActiveElement.focus();
+    }
+  });
+  
+  // Handle keyboard navigation within the modal
+  modalElement.addEventListener('keydown', function(event) {
+    // Close modal on Escape key
+    if (event.key === 'Escape') {
+      const bsModal = bootstrap.Modal.getInstance(modalElement);
+      if (bsModal) {
+        bsModal.hide();
+      }
+    }
+  });
   
   // Initialize state
   const serverBrowserState = {

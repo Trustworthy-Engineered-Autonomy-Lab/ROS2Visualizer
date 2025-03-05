@@ -1699,14 +1699,50 @@ function setupDataBrowserEventListeners() {
     });
   }
   
-  // Close preview button
+  // Close preview button with proper focus management
   const closePreview = document.getElementById('close-preview');
   if (closePreview) {
+    // Store the element that had focus before opening the preview panel
+    let previewTriggerElement = null;
+    
     closePreview.addEventListener('click', function() {
       const previewPanel = document.getElementById('file-preview-panel');
-      if (previewPanel) previewPanel.classList.add('d-none');
-      serverDataBrowser.currentFilePreview = null;
+      if (previewPanel) {
+        previewPanel.classList.add('d-none');
+        serverDataBrowser.currentFilePreview = null;
+        
+        // Return focus to the element that triggered the preview
+        if (previewTriggerElement) {
+          previewTriggerElement.focus();
+          previewTriggerElement = null;
+        }
+      }
     });
+    
+    // Add keyboard handler for accessibility
+    document.addEventListener('keydown', function(event) {
+      const previewPanel = document.getElementById('file-preview-panel');
+      // Only process if preview panel is visible
+      if (previewPanel && !previewPanel.classList.contains('d-none')) {
+        if (event.key === 'Escape') {
+          previewPanel.classList.add('d-none');
+          serverDataBrowser.currentFilePreview = null;
+          
+          // Return focus to the element that triggered the preview
+          if (previewTriggerElement) {
+            previewTriggerElement.focus();
+            previewTriggerElement = null;
+          }
+          
+          event.preventDefault();
+        }
+      }
+    });
+    
+    // Store the trigger element when previewing a file
+    window.storePreviewTrigger = function(element) {
+      previewTriggerElement = element;
+    };
   }
   
   // Mark as initialized
@@ -2207,6 +2243,11 @@ function previewFile(file) {
   // Set current preview
   serverDataBrowser.currentFilePreview = file;
   
+  // Store the current active element (the button that triggered the preview)
+  if (window.storePreviewTrigger && document.activeElement) {
+    window.storePreviewTrigger(document.activeElement);
+  }
+  
   // Update preview panel UI
   const previewPanel = document.getElementById('file-preview-panel');
   const previewFileName = document.getElementById('preview-file-name');
@@ -2216,10 +2257,33 @@ function previewFile(file) {
   const previewInfoPoints = document.getElementById('preview-info-points');
   const previewInfoModified = document.getElementById('preview-info-modified');
   const previewDataSample = document.getElementById('preview-data-sample');
+  const closePreviewButton = document.getElementById('close-preview');
   
   // Show panel and update basic info
-  if (previewPanel) previewPanel.classList.remove('d-none');
+  if (previewPanel) {
+    previewPanel.classList.remove('d-none');
+    
+    // Announce to screen readers that the preview is now open
+    const liveRegion = document.createElement('div');
+    liveRegion.setAttribute('aria-live', 'polite');
+    liveRegion.className = 'visually-hidden';
+    liveRegion.textContent = `Previewing file ${file.name}`;
+    document.body.appendChild(liveRegion);
+    
+    // Remove the live region after announcement
+    setTimeout(() => {
+      document.body.removeChild(liveRegion);
+    }, 1000);
+  }
+  
   if (previewFileName) previewFileName.textContent = file.name;
+  
+  // Focus the close button for better keyboard navigation
+  if (closePreviewButton) {
+    setTimeout(() => {
+      closePreviewButton.focus();
+    }, 100);
+  }
   if (previewInfoName) previewInfoName.textContent = file.name;
   if (previewInfoSize) previewInfoSize.textContent = file.size_formatted || formatValue(file.size || 0, 'B');
   if (previewInfoType) previewInfoType.textContent = getFileExtension(file.name).toUpperCase() || 'Unknown';
