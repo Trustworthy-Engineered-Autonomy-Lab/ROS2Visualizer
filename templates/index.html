@@ -3,53 +3,97 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>TEA Lab - 3D Flight Trajectory Visualizer</title>
-  <!-- Bootstrap CSS from Replit theme -->
-  <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+  
+  <!-- Promise polyfill for IE11 support -->
+  <script>window.Promise||document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>');</script>
+  
+  <!-- Fetch polyfill for IE11 and older browsers -->
+  <script>window.fetch||document.write('<script src="https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.2/dist/fetch.umd.min.js"><\/script>');</script>
+  
+  <!-- Bootstrap CSS from Replit theme with fallback -->
+  <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css';">
+  
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
   <!-- Three.js for 3D visualization with fallback -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     // Check if Three.js loaded successfully
     if (typeof THREE === 'undefined') {
       console.error('Three.js failed to load. Attempting to load from alternate CDN...');
-      document.write('<script src="https://threejs.org/build/three.min.js"><\/script>');
+      document.write('<script src="https://threejs.org/build/three.min.js" onerror="loadFallbackScript(\'https://unpkg.com/three@0.128.0/build/three.min.js\')"><\/script>');
+    }
+    
+    // Function to load fallback scripts if primary and secondary CDNs fail
+    function loadFallbackScript(url) {
+      console.error('Alternate CDN failed, attempting final fallback...');
+      var script = document.createElement('script');
+      script.src = url;
+      script.onerror = function() {
+        console.error('All fallbacks failed for: ' + url);
+        alert('Some required libraries failed to load. The application might not work correctly.');
+      };
+      document.head.appendChild(script);
     }
   </script>
+  
   <!-- OrbitControls for camera manipulation with fallback -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script>
-    // Check if OrbitControls loaded successfully
-    setTimeout(function() {
-      if (typeof THREE.OrbitControls === 'undefined') {
-        console.error('OrbitControls failed to load. Attempting to load from alternate CDN...');
+    // Check if OrbitControls loaded successfully with retry mechanism
+    var orbitControlsAttempts = 0;
+    function checkOrbitControls() {
+      if (typeof THREE !== 'undefined' && typeof THREE.OrbitControls === 'undefined') {
+        orbitControlsAttempts++;
+        if (orbitControlsAttempts > 3) {
+          console.error('OrbitControls failed to load after multiple attempts.');
+          return;
+        }
+        
+        console.error('OrbitControls failed to load. Attempt ' + orbitControlsAttempts + ' to load from alternate CDN...');
         var script = document.createElement('script');
-        script.src = 'https://threejs.org/examples/js/controls/OrbitControls.js';
+        script.src = orbitControlsAttempts === 2 
+          ? 'https://threejs.org/examples/js/controls/OrbitControls.js' 
+          : 'https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js';
+        
+        script.onload = function() {
+          console.log('OrbitControls loaded successfully from fallback');
+        };
+        script.onerror = function() {
+          setTimeout(checkOrbitControls, 500);
+        };
         document.head.appendChild(script);
       }
-    }, 500);
+    }
+    setTimeout(checkOrbitControls, 500);
   </script>
+  
   <!-- PapaParse for CSV processing with fallback -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
   <script>
     // Check if PapaParse loaded successfully
     if (typeof Papa === 'undefined') {
       console.error('PapaParse failed to load. Attempting to load from alternate CDN...');
-      document.write('<script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"><\/script>');
+      document.write('<script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js" onerror="loadFallbackScript(\'https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js\')"><\/script>');
     }
   </script>
+  
   <!-- Plotly for additional 2D charts with fallback -->
   <script src="https://cdn.plot.ly/plotly-2.9.0.min.js"></script>
   <script>
     // Check if Plotly loaded successfully
     if (typeof Plotly === 'undefined') {
       console.error('Plotly failed to load. Attempting to load from alternate CDN...');
-      document.write('<script src="https://unpkg.com/plotly.js@2.9.0/dist/plotly.min.js"><\/script>');
+      document.write('<script src="https://unpkg.com/plotly.js@2.9.0/dist/plotly.min.js" onerror="loadFallbackScript(\'https://cdn.jsdelivr.net/npm/plotly.js@2.9.0/dist/plotly.min.js\')"><\/script>');
     }
   </script>
-  <!-- Font Awesome for icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  
+  <!-- Font Awesome for icons with fallback -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" 
+        onerror="this.onerror=null;this.href='https://use.fontawesome.com/releases/v5.15.4/css/all.min.css';">
 </head>
 <body>
   <div class="app-container">

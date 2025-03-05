@@ -1,3 +1,74 @@
+// Cross-browser compatibility polyfills
+(function() {
+  // Array.from polyfill for IE support
+  if (!Array.from) {
+    Array.from = function(object) {
+      return [].slice.call(object);
+    };
+  }
+  
+  // Object.assign polyfill for IE support
+  if (typeof Object.assign !== 'function') {
+    Object.assign = function(target) {
+      if (target === null || target === undefined) {
+        throw new TypeError('Cannot convert undefined or null to object');
+      }
+      var to = Object(target);
+      for (var index = 1; index < arguments.length; index++) {
+        var nextSource = arguments[index];
+        if (nextSource !== null && nextSource !== undefined) {
+          for (var nextKey in nextSource) {
+            if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
+              to[nextKey] = nextSource[nextKey];
+            }
+          }
+        }
+      }
+      return to;
+    };
+  }
+  
+  // requestAnimationFrame polyfill
+  var lastTime = 0;
+  var vendors = ['webkit', 'moz', 'ms', 'o'];
+  for (var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+    window.requestAnimationFrame = window[vendors[x] + 'RequestAnimationFrame'];
+    window.cancelAnimationFrame = window[vendors[x] + 'CancelAnimationFrame'] || 
+                                  window[vendors[x] + 'CancelRequestAnimationFrame'];
+  }
+  if (!window.requestAnimationFrame) {
+    window.requestAnimationFrame = function(callback) {
+      var currTime = new Date().getTime();
+      var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+      var id = window.setTimeout(function() { 
+        callback(currTime + timeToCall); 
+      }, timeToCall);
+      lastTime = currTime + timeToCall;
+      return id;
+    };
+  }
+  if (!window.cancelAnimationFrame) {
+    window.cancelAnimationFrame = function(id) {
+      clearTimeout(id);
+    };
+  }
+})();
+
+// Feature detection
+const browserSupport = {
+  webGL: (function() {
+    try {
+      var canvas = document.createElement('canvas');
+      return !!(window.WebGLRenderingContext && 
+        (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+    } catch(e) {
+      return false;
+    }
+  })(),
+  fileAPI: !!(window.File && window.FileReader && window.FileList && window.Blob),
+  fetch: !!window.fetch
+};
+
 // Global variables
 let scene, camera, renderer, controls;
 let trajectories = [];
@@ -346,85 +417,211 @@ function initCharts() {
   }, {responsive: true});
 }
 
-// Handle file upload
+// Handle file upload with cross-browser compatibility
 function handleFileUpload() {
+  // Check for File API support
+  if (!browserSupport.fileAPI) {
+    showMessage("Your browser doesn't support the File API. Please upgrade to a modern browser.", "danger");
+    return;
+  }
+
   const fileInput = document.getElementById('file-input');
-  const files = fileInput.files;
+  let files;
   
-  if (files.length === 0) {
-    showMessage("Please select at least one file to upload", "warning");
+  try {
+    // Modern browsers
+    files = fileInput.files;
+    
+    if (!files || files.length === 0) {
+      showMessage("Please select at least one file to upload", "warning");
+      return;
+    }
+  } catch (error) {
+    console.error("Error accessing files:", error);
+    showMessage("Error accessing files. Please try again or use a different browser.", "danger");
     return;
   }
   
   // Show upload modal
-  uploadModal.show();
+  try {
+    uploadModal.show();
+  } catch (error) {
+    console.error("Error showing modal:", error);
+    // Fallback if modal can't be shown
+    showMessage("Processing files, please wait...", "info");
+  }
+  
   const progressBar = document.getElementById('upload-progress');
   const statusText = document.getElementById('upload-status');
+  
+  if (progressBar) progressBar.style.width = '0%';
+  if (statusText) statusText.textContent = 'Preparing to process files...';
   
   // Reset any existing trajectories
   clearTrajectories();
   
   // Process each file
   let processedCount = 0;
+  const totalFiles = files.length;
   const colors = [0x0088ff, 0xff8800, 0x88ff00, 0xff0088, 0x00ff88, 0x8800ff];
   
-  // Use server-side processing for large files and to handle Unix timestamps
-  Array.from(files).forEach((file, index) => {
-    statusText.textContent = `Processing file: ${file.name}`;
-    progressBar.style.width = `${(index / files.length) * 100}%`;
+  // Safe Array conversion for older browsers
+  const fileArray = [];
+  for (let i = 0; i < files.length; i++) {
+    fileArray.push(files[i]);
+  }
+  
+  // Process files sequentially to avoid overwhelming the server
+  function processNextFile(index) {
+    if (index >= fileArray.length) {
+      // All files processed
+      if (statusText) statusText.textContent = `Completed processing ${processedCount} files`;
+      setTimeout(() => {
+        try {
+          uploadModal.hide();
+        } catch (e) {
+          console.error("Error hiding modal:", e);
+        }
+        updateTrajectoryList();
+        updateTimeSlider();
+        showMessage(`Successfully loaded ${processedCount} trajectories`, "success");
+      }, 500);
+      return;
+    }
+    
+    const file = fileArray[index];
+    if (statusText) statusText.textContent = `Processing file: ${file.name} (${index + 1}/${totalFiles})`;
+    if (progressBar) progressBar.style.width = `${(index / totalFiles) * 100}%`;
     
     // Create form data for file upload
-    const formData = new FormData();
-    formData.append('file', file);
+    let formData;
+    try {
+      formData = new FormData();
+      formData.append('file', file);
+    } catch (error) {
+      console.error("Error creating FormData:", error);
+      processNextFile(index + 1);
+      return;
+    }
     
-    // Send file to server for processing
-    fetch('/process_csv', {
-      method: 'POST',
-      body: formData
-    })
-    .then(response => {
-      if (!response.ok) {
-        return response.json().then(err => { throw new Error(err.error || 'Server error') });
+    // Use a robust fetch with fallback
+    sendFileToServer(formData, file.name, index)
+      .then(data => {
+        processedCount++;
+        if (progressBar) progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
+        
+        // Check if we have data points
+        if (!data.data || data.data.length === 0) {
+          throw new Error('No valid data points found in file');
+        }
+        
+        // Log metadata
+        console.log(`File ${file.name} metadata:`, data.metadata);
+        
+        // Add trajectory to scene
+        addTrajectory(data.data, file.name, colors[index % colors.length]);
+        
+        // Update status
+        if (statusText) {
+          statusText.textContent = `Processed ${processedCount} of ${totalFiles} files`;
+          if (data.metadata && data.metadata.points_count) {
+            statusText.textContent += ` (${data.metadata.points_count} points from ${data.metadata.original_count || 'unknown'} total)`;
+          }
+        }
+        
+        // Process next file
+        processNextFile(index + 1);
+      })
+      .catch(error => {
+        console.error("Error processing file:", error);
+        if (statusText) statusText.textContent = `Error processing ${file.name}: ${error.message || 'Unknown error'}`;
+        processedCount++;
+        
+        // Update progress even if there's an error
+        if (progressBar) progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
+        
+        // Continue with next file
+        setTimeout(() => processNextFile(index + 1), 1000);
+      });
+  }
+  
+  // Start processing the first file
+  processNextFile(0);
+}
+
+// Send file to server with fallbacks for older browsers
+function sendFileToServer(formData, fileName, index) {
+  return new Promise((resolve, reject) => {
+    if (browserSupport.fetch) {
+      // Modern fetch API
+      fetch('/process_csv', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => { 
+            throw new Error(err.error || `Server error (${response.status})`);
+          }).catch(err => {
+            // If JSON parsing fails
+            throw new Error(`Server error (${response.status}): ${response.statusText}`);
+          });
+        }
+        return response.json();
+      })
+      .then(data => resolve(data))
+      .catch(error => reject(error));
+    } else {
+      // Fallback to XHR for older browsers
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/process_csv', true);
+      
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve(data);
+          } catch (error) {
+            reject(new Error(`Error parsing server response: ${error.message}`));
+          }
+        } else {
+          let errorMessage = `Server error (${xhr.status})`;
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (response && response.error) {
+              errorMessage = response.error;
+            }
+          } catch (e) {
+            // If JSON parsing fails, use status text
+            errorMessage = `Server error (${xhr.status}): ${xhr.statusText}`;
+          }
+          reject(new Error(errorMessage));
+        }
+      };
+      
+      xhr.onerror = function() {
+        reject(new Error('Network error occurred'));
+      };
+      
+      xhr.ontimeout = function() {
+        reject(new Error('Request timed out'));
+      };
+      
+      // Add error handling for all possible XHR events
+      xhr.onabort = function() {
+        reject(new Error('Request was aborted'));
+      };
+      
+      // Set timeout to handle slow connections
+      xhr.timeout = 60000; // 60 seconds
+      
+      // Try to send the data
+      try {
+        xhr.send(formData);
+      } catch (error) {
+        reject(new Error(`Error sending file: ${error.message}`));
       }
-      return response.json();
-    })
-    .then(data => {
-      processedCount++;
-      progressBar.style.width = `${(processedCount / files.length) * 100}%`;
-      
-      // Check if we have data points
-      if (!data.data || data.data.length === 0) {
-        throw new Error('No valid data points found in file');
-      }
-      
-      // Log metadata
-      console.log(`File ${file.name} metadata:`, data.metadata);
-      
-      // Add trajectory to scene
-      addTrajectory(data.data, file.name, colors[index % colors.length]);
-      
-      // Update status
-      statusText.textContent = `Processed ${processedCount} of ${files.length} files`;
-      statusText.textContent += ` (${data.metadata.points_count} points from ${data.metadata.original_count} total)`;
-      
-      // If all files are processed, close modal and update UI
-      if (processedCount === files.length) {
-        setTimeout(() => {
-          uploadModal.hide();
-          updateTrajectoryList();
-          updateTimeSlider();
-          showMessage(`Successfully loaded ${files.length} trajectories`, "success");
-        }, 500);
-      }
-    })
-    .catch(error => {
-      console.error("Error processing file:", error);
-      statusText.textContent = `Error processing ${file.name}: ${error.message}`;
-      processedCount++;
-      
-      // Update progress even if there's an error
-      progressBar.style.width = `${(processedCount / files.length) * 100}%`;
-    });
+    }
   });
 }
 
