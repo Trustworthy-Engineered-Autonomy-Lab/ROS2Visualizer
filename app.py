@@ -1,7 +1,9 @@
 import os
 import logging
 import tempfile
-from flask import Flask, render_template, request, jsonify
+import glob
+from pathlib import Path
+from flask import Flask, render_template, request, jsonify, send_file
 from utils.data_processor import process_csv_data
 
 # Set up logging
@@ -148,6 +150,106 @@ def process_csv():
         import traceback
         logging.error(traceback.format_exc())
         return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route('/browse_data', methods=['GET'])
+def browse_data():
+    """Browse available flight data files on the server."""
+    try:
+        # Get folder parameter, default to sample_data
+        folder = request.args.get('folder', 'sample_data')
+        
+        # Validate folder to prevent directory traversal
+        valid_folders = ['sample_data', 'flight_trajectories']
+        if folder not in valid_folders:
+            return jsonify({"error": "Invalid folder specified"}), 400
+        
+        # Get the list of files in the specified folder
+        data_dir = os.path.join('data', folder)
+        
+        # Create directory if it doesn't exist
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir, exist_ok=True)
+            
+        files = []
+        for file_path in glob.glob(os.path.join(data_dir, '*.*')):
+            filename = os.path.basename(file_path)
+            size = os.path.getsize(file_path)
+            modified = os.path.getmtime(file_path)
+            
+            # Only include CSV and related files
+            if filename.lower().endswith(('.csv', '.txt', '.data', '.dat', '.tsv', '.tab')):
+                files.append({
+                    'name': filename,
+                    'size': size,
+                    'size_formatted': format_file_size(size),
+                    'modified': modified,
+                    'path': os.path.join(folder, filename)
+                })
+        
+        # Sort files by modified date (newest first)
+        files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        return jsonify({
+            "current_folder": folder,
+            "folders": valid_folders,
+            "files": files
+        })
+        
+    except Exception as e:
+        logging.error(f"Error in browse_data: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route('/get_server_file', methods=['GET'])
+def get_server_file():
+    """Get a file from the server and process it."""
+    try:
+        file_path = request.args.get('path')
+        if not file_path:
+            return jsonify({"error": "No file path specified"}), 400
+        
+        # Validate file path to prevent directory traversal
+        valid_folders = ['sample_data', 'flight_trajectories']
+        folder = file_path.split('/')[0] if '/' in file_path else None
+        if not folder or folder not in valid_folders:
+            return jsonify({"error": "Invalid file path"}), 400
+        
+        full_path = os.path.join('data', file_path)
+        
+        if not os.path.exists(full_path) or not os.path.isfile(full_path):
+            return jsonify({"error": "File not found"}), 404
+            
+        if not full_path.lower().endswith(('.csv', '.txt', '.data', '.dat', '.tsv', '.tab')):
+            return jsonify({"error": "File type not supported"}), 400
+        
+        # Process the file
+        try:
+            processed_data = process_csv_data(full_path, use_file_path=True)
+            if 'error' in processed_data:
+                return jsonify({"error": processed_data.get('message', 'Failed to process file')}), 400
+                
+            return jsonify(processed_data)
+            
+        except Exception as proc_error:
+            logging.error(f"Error processing file: {str(proc_error)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            return jsonify({"error": f"Error processing file: {str(proc_error)}"}), 500
+        
+    except Exception as e:
+        logging.error(f"Error in get_server_file: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+def format_file_size(size_bytes):
+    """Format file size in a human-readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.1f} TB"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
