@@ -118,12 +118,14 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
   document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
   
+  // Server data browser
+  document.getElementById('browse-server-data-btn').addEventListener('click', openServerDataBrowser);
+  
   // Initialize modals
   uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
   serverDataModal = new bootstrap.Modal(document.getElementById('serverDataModal'));
   
-  // Server data browser event listener
-  document.getElementById('browse-server-data-btn').addEventListener('click', openServerDataBrowser);
+  // Additional event listener
   document.getElementById('load-selected-server-files').addEventListener('click', loadSelectedServerFiles);
   
   // Handle window resize
