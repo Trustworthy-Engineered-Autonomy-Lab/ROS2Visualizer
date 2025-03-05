@@ -59,6 +59,20 @@ document.addEventListener('DOMContentLoaded', function() {
     return serverBrowserState.selectedFiles.some(f => f.path === filePath);
   }
   
+  // Helper function to ensure the modal backdrop is removed
+  function removeModalBackdrop() {
+    // Get all elements with the modal-backdrop class
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => {
+      backdrop.remove();
+    });
+    
+    // Remove modal-open class from body to ensure scrolling works properly
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+  }
+  
   function processSelectedFiles() {
     if (serverBrowserState.selectedFiles.length === 0) {
       alert('No files selected');
@@ -76,6 +90,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Remove the event listener to avoid multiple registrations
         modalElement.removeEventListener('hidden.bs.modal', onModalHidden);
         
+        // Manually remove any remaining modal backdrops
+        removeModalBackdrop();
+        
         // Set focus back to the original button to fix accessibility issues
         if (focusAfterClose) {
           setTimeout(() => {
@@ -86,6 +103,9 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Hide the modal
       modalInstance.hide();
+      
+      // Also manually remove backdrop after a short delay as a fallback
+      setTimeout(removeModalBackdrop, 300);
     }
     
     // Show success message
@@ -794,6 +814,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Remove the event listener to avoid multiple registrations
             modalElement.removeEventListener('hidden.bs.modal', onModalHidden);
             
+            // Manually remove any remaining modal backdrops
+            removeModalBackdrop();
+            
             // Set focus back to the original button to fix accessibility issues
             if (focusAfterClose) {
               setTimeout(() => {
@@ -804,6 +827,9 @@ document.addEventListener('DOMContentLoaded', function() {
           
           // Hide the modal
           modalInstance.hide();
+          
+          // Also manually remove backdrop after a short delay as a fallback
+          setTimeout(removeModalBackdrop, 300);
         }
         
         // Show success message using the global showMessage function if available
