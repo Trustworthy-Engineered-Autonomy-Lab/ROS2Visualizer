@@ -13,31 +13,72 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-def process_csv_data(csv_content):
+def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is_large_file=False):
     """
     Process CSV content into a format suitable for visualization.
     Optimized for gigabytes of data with memory-efficient processing.
     
     Args:
-        csv_content (str): CSV file content as a string
+        csv_content (str or path): CSV file content as a string or path to CSV file
+        file_encoding (str): Encoding of the file, used when use_file_path=True
+        use_file_path (bool): If True, csv_content is treated as a file path
+        is_large_file (bool): If True, forces chunked processing approach
     
     Returns:
         dict: Processed data ready for visualization
     """
     try:
-        # First, check file size to decide on processing approach
-        file_size_bytes = len(csv_content)
-        file_size_mb = file_size_bytes / (1024 * 1024)
-        is_large_file = file_size_mb > 100  # Consider files larger than 100MB as large
+        start_time = datetime.now()
+        logging.info(f"Starting CSV processing at {start_time}")
         
-        if is_large_file:
-            logging.info(f"Processing large file of {file_size_mb:.2f} MB with chunked approach")
-        
-        # Try to detect if the file has headers
-        with io.StringIO(csv_content) as f:
-            first_line = f.readline().strip()
-            # Check if first line looks like headers (contains non-numeric values)
-            has_headers = not all(col.replace('-', '').replace('.', '').isdigit() for col in first_line.split(',') if col.strip())
+        # Determine processing approach based on whether we're dealing with a file path or content
+        if use_file_path:
+            # When processing from a file path, we can use pandas' efficiency for large files
+            file_path = csv_content
+            
+            # Get file size for logging and decision making
+            import os
+            file_size_bytes = os.path.getsize(file_path)
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            
+            logging.info(f"Processing from file path: {file_path}, size: {file_size_mb:.2f} MB")
+            
+            # Check if the file is large to determine chunked approach
+            is_large_file = is_large_file or file_size_mb > 100  # Consider files >100MB as large
+            
+            # Peek at first few lines to detect headers and column structure
+            with open(file_path, 'r', encoding=file_encoding) as f:
+                first_lines = [f.readline() for _ in range(5)]
+                first_line = first_lines[0].strip()
+                
+                # Check if first line looks like headers (contains non-numeric values)
+                has_headers = not all(col.replace('-', '').replace('.', '').replace('e', '').replace('+', '').isdigit() 
+                                    for col in first_line.split(',') if col.strip())
+                
+                logging.info(f"Detected headers: {has_headers}")
+                logging.info(f"First line: {first_line}")
+                
+                # Log headers for debugging
+                header_line = first_line if has_headers else "No headers detected"
+                logging.info(f"Processing CSV file with headers: {header_line.split(',')}")
+                
+        else:
+            # Traditional string content processing
+            file_size_bytes = len(csv_content)
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            
+            # Determine if chunked processing is needed
+            is_large_file = is_large_file or file_size_mb > 100
+            
+            if is_large_file:
+                logging.info(f"Processing large content of {file_size_mb:.2f} MB with chunked approach")
+            
+            # Try to detect if the file has headers
+            with io.StringIO(csv_content) as f:
+                first_line = f.readline().strip()
+                # Check if first line looks like headers with enhanced scientific notation handling
+                has_headers = not all(col.replace('-', '').replace('.', '').replace('e', '').replace('+', '').isdigit() 
+                                      for col in first_line.split(',') if col.strip())
             
         # For very large files, use chunked processing to reduce memory usage
         if is_large_file:
@@ -45,18 +86,41 @@ def process_csv_data(csv_content):
             
             # Get column names and structure from first chunk
             if has_headers:
-                # Get first chunk to determine column structure
-                df_iter = pd.read_csv(io.StringIO(csv_content), chunksize=chunk_size)
-                first_chunk = next(df_iter)
+                try:
+                    # Handle both file path and content string cases
+                    if use_file_path:
+                        df_iter = pd.read_csv(csv_content, encoding=file_encoding, 
+                                             chunksize=chunk_size, low_memory=True)
+                    else:
+                        df_iter = pd.read_csv(io.StringIO(csv_content), chunksize=chunk_size, 
+                                             low_memory=True)
+                    
+                    first_chunk = next(df_iter)
+                    logging.info(f"Successfully loaded first chunk with {len(first_chunk)} rows")
+                except Exception as e:
+                    logging.error(f"Error loading first chunk: {str(e)}")
+                    raise
                 column_names = list(first_chunk.columns)
                 logging.info(f"Processing large CSV file with headers: {column_names}")
                 
                 # Create a sample dataframe from the first chunk for detection and processing
                 df = first_chunk
             else:
-                # For headerless files
-                df_iter = pd.read_csv(io.StringIO(csv_content), header=None, chunksize=chunk_size)
-                first_chunk = next(df_iter)
+                # For headerless files - handle both file path and content string cases
+                try:
+                    if use_file_path:
+                        df_iter = pd.read_csv(csv_content, encoding=file_encoding, 
+                                             header=None, chunksize=chunk_size, low_memory=True)
+                    else:
+                        df_iter = pd.read_csv(io.StringIO(csv_content), 
+                                             header=None, chunksize=chunk_size, low_memory=True)
+                    
+                    first_chunk = next(df_iter)
+                    logging.info(f"Successfully loaded first chunk of headerless file with {len(first_chunk)} rows")
+                except Exception as e:
+                    logging.error(f"Error loading first chunk of headerless file: {str(e)}")
+                    raise
+                    
                 # Create default column names
                 column_names = [f'col{i}' for i in range(len(first_chunk.columns))]
                 first_chunk.columns = column_names
@@ -67,14 +131,30 @@ def process_csv_data(csv_content):
         else:
             # For regular sized files, load everything into memory
             if has_headers:
-                df = pd.read_csv(io.StringIO(csv_content))
-                logging.info(f"Processing CSV file with headers: {list(df.columns)}")
+                try:
+                    # Handle both file path and content string cases
+                    if use_file_path:
+                        df = pd.read_csv(csv_content, encoding=file_encoding)
+                        logging.info(f"Processing file with path: {csv_content}")
+                    else:
+                        df = pd.read_csv(io.StringIO(csv_content))
+                    logging.info(f"Processing CSV file with headers: {list(df.columns)}")
+                except Exception as e:
+                    logging.error(f"Error loading CSV with headers: {str(e)}")
+                    raise
             else:
                 # If no headers detected, create default column names
                 logging.info(f"Processing CSV file without headers, creating default column names")
-                df = pd.read_csv(io.StringIO(csv_content), header=None)
-                # Create default column names (col0, col1, etc.)
-                df.columns = [f'col{i}' for i in range(len(df.columns))]
+                try:
+                    if use_file_path:
+                        df = pd.read_csv(csv_content, encoding=file_encoding, header=None)
+                    else:
+                        df = pd.read_csv(io.StringIO(csv_content), header=None)
+                    # Create default column names (col0, col1, etc.)
+                    df.columns = [f'col{i}' for i in range(len(df.columns))]
+                except Exception as e:
+                    logging.error(f"Error loading CSV without headers: {str(e)}")
+                    raise
         
         # Check if required position columns exist
         required_columns = ['position_n', 'position_e', 'position_d']

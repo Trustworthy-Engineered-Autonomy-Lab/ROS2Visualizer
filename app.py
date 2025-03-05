@@ -246,7 +246,14 @@ def clean_data():
 
 @app.route('/process_csv', methods=['POST'])
 def process_csv():
-    """Process uploaded CSV file and return processed data."""
+    """Process uploaded CSV file and return processed data with enhanced progress tracking.
+    
+    This function is optimized for gigabyte-scale data with the following features:
+    - Multi-encoding fallback strategy for robust file loading
+    - Stream-based file processing to avoid memory exhaustion
+    - Adaptive chunk processing based on file size
+    - Comprehensive error handling with detailed feedback
+    """
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file part"}), 400
@@ -256,49 +263,122 @@ def process_csv():
             return jsonify({"error": "No selected file"}), 400
         
         if file and file.filename.endswith(('.csv', '.txt')):
+            start_time = time.time()
+            
             try:
-                # Read file content with UTF-8 encoding
-                file_content = file.read().decode('utf-8')
+                # Save to temporary file for large file handling
+                unique_id = str(uuid.uuid4())
+                safe_filename = f"{unique_id}_{file.filename.replace(' ', '_')}"
+                temp_filepath = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
                 
-                # Process the CSV data
-                processed_data = process_csv_data(file_content)
+                # Ensure directory exists
+                os.makedirs(os.path.dirname(temp_filepath), exist_ok=True)
                 
+                # Save file with efficient chunking
+                file_size = 0
+                chunk_size = 4 * 1024 * 1024  # 4MB chunks
+                with open(temp_filepath, 'wb') as f:
+                    chunk = file.read(chunk_size)
+                    while chunk:
+                        file_size += len(chunk)
+                        f.write(chunk)
+                        chunk = file.read(chunk_size)
+                
+                upload_duration = time.time() - start_time
+                upload_speed = (file_size/(1024*1024))/upload_duration if upload_duration > 0 else 0
+                
+                logging.info(f"File {file.filename} ({file_size/(1024*1024):.2f} MB) uploaded in {upload_duration:.2f} seconds at {upload_speed:.2f} MB/s")
+                
+                # Determine if this is a large file
+                is_large_file = file_size > 50 * 1024 * 1024  # 50MB threshold
+                
+                # Use a multi-encoding fallback approach for file reading
+                encodings_to_try = ['utf-8', 'latin-1', 'utf-16', 'cp1252', 'iso-8859-1']
+                successful_encoding = None
+                
+                for encoding in encodings_to_try:
+                    try:
+                        # Just test reading the file header with this encoding
+                        with open(temp_filepath, 'r', encoding=encoding) as f:
+                            # Read just the first line to test encoding
+                            f.readline()
+                        successful_encoding = encoding
+                        logging.info(f"Successfully detected {encoding} encoding for file {file.filename}")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                
+                if not successful_encoding:
+                    return jsonify({"error": "Could not determine file encoding. File may be corrupted or in an unsupported format."}), 400
+                
+                # Process based on file size
+                if is_large_file:
+                    # For large files, use a chunked processing approach via the data processor
+                    logging.info(f"Processing large file with chunked approach and {successful_encoding} encoding")
+                    processed_data = process_csv_data(temp_filepath, file_encoding=successful_encoding, 
+                                                     use_file_path=True, is_large_file=True)
+                else:
+                    # For smaller files, read the content and process normally
+                    with open(temp_filepath, 'r', encoding=successful_encoding) as f:
+                        file_content = f.read()
+                    processed_data = process_csv_data(file_content)
+                
+                # Clean up temporary file
+                try:
+                    os.remove(temp_filepath)
+                    logging.info(f"Removed temporary file {temp_filepath}")
+                except:
+                    logging.warning(f"Could not remove temporary file {temp_filepath}")
+                
+                # Log processing results
                 if 'error' in processed_data:
                     logging.error(f"Error in process_csv_data: {processed_data['error']}")
                     if 'message' in processed_data:
                         logging.error(f"Error message: {processed_data['message']}")
                 else:
-                    logging.info(f"Successfully processed file {file.filename} with {processed_data.get('metadata', {}).get('points_count', 0)} points")
+                    # Add processing metrics to the response
+                    processing_duration = time.time() - start_time - upload_duration
+                    total_duration = time.time() - start_time
+                    
+                    points_count = processed_data.get('metadata', {}).get('points_count', 0)
+                    logging.info(f"Successfully processed file {file.filename} with {points_count} points")
+                    logging.info(f"Processing took {processing_duration:.2f} seconds, total time: {total_duration:.2f} seconds")
+                    
+                    # Add performance metrics to the response
+                    processed_data['performance_metrics'] = {
+                        'upload_duration_seconds': round(upload_duration, 2),
+                        'processing_duration_seconds': round(processing_duration, 2),
+                        'total_duration_seconds': round(total_duration, 2),
+                        'upload_speed_mbps': round(upload_speed, 2),
+                        'file_size_mb': round(file_size/(1024*1024), 2),
+                        'points_per_second': round(points_count/processing_duration if processing_duration > 0 else 0, 2)
+                    }
                 
                 return jsonify(processed_data)
-            except UnicodeDecodeError:
-                # Try with different encoding if UTF-8 fails
-                file.seek(0)
-                try:
-                    file_content = file.read().decode('latin-1')
-                    processed_data = process_csv_data(file_content)
-                    
-                    if 'error' not in processed_data:
-                        logging.info(f"Successfully processed file {file.filename} with latin-1 encoding")
-                    
-                    return jsonify(processed_data)
-                except Exception as e:
-                    logging.error(f"Error processing file with alternative encoding: {str(e)}")
-                    import traceback
-                    logging.error(traceback.format_exc())
-                    return jsonify({"error": f"Encoding error: {str(e)}"}), 500
+                
             except Exception as e:
-                logging.error(f"Error processing file: {str(e)}")
+                logging.error(f"Error processing file {file.filename}: {str(e)}")
                 import traceback
                 logging.error(traceback.format_exc())
-                return jsonify({"error": f"Error processing file: {str(e)}"}), 500
+                return jsonify({
+                    "error": f"Error processing file: {str(e)}",
+                    "filename": file.filename,
+                    "timestamp": time.time()
+                }), 500
         else:
-            return jsonify({"error": "File type not supported. Please upload a CSV or TXT file."}), 400
+            return jsonify({
+                "error": "File type not supported. Please upload a CSV or TXT file.",
+                "supported_formats": [".csv", ".txt"],
+                "timestamp": time.time()
+            }), 400
     except Exception as e:
         logging.error(f"Unexpected error in process_csv route: {str(e)}")
         import traceback
         logging.error(traceback.format_exc())
-        return jsonify({"error": f"Server error: {str(e)}"}), 500
+        return jsonify({
+            "error": f"Server error: {str(e)}",
+            "timestamp": time.time()
+        }), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
