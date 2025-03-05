@@ -410,13 +410,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Check for the simplified cloud folder link interface
+    initSimplifiedCloudInterface();
+});
+
+// Initialize the simplified cloud folder link interface
+function initSimplifiedCloudInterface() {
     const processCloudLinkBtn = document.getElementById('process-cloud-link-btn');
     if (processCloudLinkBtn) {
+        console.log('Found process-cloud-link-btn, adding event listener');
         processCloudLinkBtn.addEventListener('click', function() {
             processCloudFolderLink();
         });
+    } else {
+        console.log('Could not find process-cloud-link-btn');
+        // Try again after a short delay
+        setTimeout(initSimplifiedCloudInterface, 1000);
     }
-});
+}
 
 /**
  * Add cloud storage integration to the main index page
@@ -536,6 +546,9 @@ function processCloudFolderLink() {
         const resourceType = data.is_file ? 'file' : 'folder';
         const providerName = provider === 'google' ? 'Google Drive' : 
                            (cloudLink.includes('sharepoint.com') ? 'SharePoint' : 'OneDrive');
+                           
+        // Log processing information for debugging
+        console.log(`Processing ${providerName} ${resourceType}:`, data);
         
         // Display processing steps in a modal before showing results
         showProcessingDetails(data, providerName, resourceType);
