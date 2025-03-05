@@ -27,13 +27,121 @@ document.addEventListener('DOMContentLoaded', function() {
     currentFolder: 'sample_data',
     files: [],
     folders: [],
-    selectedFiles: [],
+    selectedFiles: [], // Array of {path, name, size} objects for multi-selection
     viewMode: 'list', // 'list' or 'grid'
     sortBy: 'modified', // 'name', 'modified', 'size'
     sortDirection: 'desc', // 'asc' or 'desc'
     folderHistory: [],
-    filter: ''
+    filter: '',
+    multiSelectMode: true // Enable multi-select by default
   };
+  
+  // Add functions for multi-select operations
+  function toggleFileSelection(filePath, fileName, fileSize) {
+    const fileIndex = serverBrowserState.selectedFiles.findIndex(f => f.path === filePath);
+    
+    if (fileIndex === -1) {
+      // Add file to selection
+      serverBrowserState.selectedFiles.push({ 
+        path: filePath, 
+        name: fileName,
+        size: fileSize
+      });
+    } else {
+      // Remove file from selection
+      serverBrowserState.selectedFiles.splice(fileIndex, 1);
+    }
+    
+    return serverBrowserState.selectedFiles.some(f => f.path === filePath);
+  }
+  
+  function isFileSelected(filePath) {
+    return serverBrowserState.selectedFiles.some(f => f.path === filePath);
+  }
+  
+  function processSelectedFiles() {
+    if (serverBrowserState.selectedFiles.length === 0) {
+      alert('No files selected');
+      return;
+    }
+    
+    // Close modal
+    const modalInstance = bootstrap.Modal.getInstance(modalElement);
+    if (modalInstance) modalInstance.hide();
+    
+    // Show success message
+    if (typeof showMessage === 'function') {
+      showMessage(`Processing ${serverBrowserState.selectedFiles.length} selected file(s)...`, 'info');
+    }
+    
+    // Process files one by one
+    processNextFile(0);
+  }
+  
+  function processNextFile(index) {
+    if (index >= serverBrowserState.selectedFiles.length) {
+      // All files processed
+      if (typeof showMessage === 'function') {
+        showMessage(`All ${serverBrowserState.selectedFiles.length} file(s) processed successfully`, 'success');
+      }
+      return;
+    }
+    
+    const file = serverBrowserState.selectedFiles[index];
+    
+    // Show loading message
+    if (typeof showMessage === 'function') {
+      showMessage(`Processing file ${index + 1}/${serverBrowserState.selectedFiles.length}: ${file.name}...`, 'info');
+    }
+    
+    // Fetch file data from server
+    fetch(`/get_server_file?path=${encodeURIComponent(file.path)}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Process the file
+        if (typeof processData === 'function' && typeof addTrajectory === 'function') {
+          // First process the data to normalize it
+          const processedData = processData(data.data);
+          
+          // Generate a random color for the trajectory
+          const randomColor = Math.random() * 0xffffff;
+          
+          // Add the trajectory to the visualization
+          addTrajectory(processedData, file.name, randomColor);
+          
+          // Update UI elements
+          if (typeof updateTrajectoryList === 'function') {
+            updateTrajectoryList();
+          }
+          
+          if (typeof updateTimeSlider === 'function') {
+            updateTimeSlider();
+          }
+          
+          // Process next file
+          processNextFile(index + 1);
+        } else {
+          console.error('Required visualization functions not found');
+          processNextFile(index + 1);
+        }
+      })
+      .catch(error => {
+        console.error(`Error processing file ${file.name}:`, error);
+        
+        // Show error message
+        if (typeof showMessage === 'function') {
+          showMessage(`Error processing file ${file.name}: ${error.message}`, 'danger');
+        }
+        
+        // Continue with next file
+        processNextFile(index + 1);
+      });
+  }
   
   // Setup direct click handler
   browseButton.addEventListener('click', function(e) {
@@ -88,16 +196,54 @@ document.addEventListener('DOMContentLoaded', function() {
             folderContent += '</div></div>';
           }
           
+          // Add multi-select controls
+          folderContent += `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="toggle-multi-select">
+              <label class="form-check-label" for="toggle-multi-select">
+                Multi-select mode ${serverBrowserState.multiSelectMode ? '(on)' : '(off)'}
+              </label>
+            </div>
+            <button id="process-selected-files" class="btn btn-success btn-sm" ${serverBrowserState.selectedFiles.length === 0 ? 'disabled' : ''}>
+              Process ${serverBrowserState.selectedFiles.length} Selected File(s)
+            </button>
+          </div>`;
+          
           // Generate file listing
           folderContent += '<div><h6>Files</h6>';
           
           if (serverBrowserState.files && serverBrowserState.files.length > 0) {
             folderContent += '<table class="table table-sm table-hover">';
-            folderContent += '<thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody>';
+            folderContent += '<thead><tr>';
+            
+            // Add selection column if multi-select is enabled
+            if (serverBrowserState.multiSelectMode) {
+              folderContent += '<th><input type="checkbox" id="select-all-files" class="form-check-input"></th>';
+            }
+            
+            folderContent += '<th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody>';
             
             for (const file of serverBrowserState.files) {
+              // Check if file is already selected
+              const isSelected = isFileSelected(file.path);
+              
               folderContent += `
-                <tr>
+                <tr ${isSelected ? 'class="table-primary"' : ''}>`;
+                
+              // Add checkbox if multi-select is enabled
+              if (serverBrowserState.multiSelectMode) {
+                folderContent += `
+                  <td>
+                    <input type="checkbox" class="form-check-input file-select-checkbox" 
+                      data-file-path="${file.path}" 
+                      data-file-name="${file.name}"
+                      data-file-size="${file.size}"
+                      ${isSelected ? 'checked' : ''}>
+                  </td>`;
+              }
+              
+              folderContent += `
                   <td>${file.name}</td>
                   <td>${file.size_formatted || formatBytes(file.size)}</td>
                   <td>
@@ -109,6 +255,25 @@ document.addEventListener('DOMContentLoaded', function() {
             folderContent += '</tbody></table>';
           } else {
             folderContent += '<p class="text-muted">No files found in this location.</p>';
+          }
+          
+          // Display currently selected files
+          if (serverBrowserState.selectedFiles.length > 0) {
+            folderContent += '<div class="mt-3 p-2 bg-light rounded">';
+            folderContent += '<h6>Selected Files:</h6>';
+            folderContent += '<ul class="list-group list-group-flush">';
+            
+            for (const file of serverBrowserState.selectedFiles) {
+              folderContent += `
+                <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+                  ${file.name}
+                  <button class="btn btn-sm btn-outline-danger remove-selection" data-file-path="${file.path}">
+                    <i class="fas fa-times"></i> Remove
+                  </button>
+                </li>`;
+            }
+            
+            folderContent += '</ul></div>';
           }
           
           folderContent += '</div>';
