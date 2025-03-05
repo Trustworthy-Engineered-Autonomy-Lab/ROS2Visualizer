@@ -88,6 +88,16 @@ function initScene() {
   directionalLight.position.set(5, 10, 7.5);
   scene.add(directionalLight);
   
+  // Reset house configuration to more visible position and default visibility 
+  houseConfig = {
+    visible: true,
+    position: {
+      x: 0,
+      y: 0,
+      z: 0
+    }
+  };
+  
   // Add 3D house model at the specified coordinates from config
   try {
     console.log("Creating house at:", houseConfig.position);
@@ -97,6 +107,21 @@ function initScene() {
       houseConfig.position.z
     );
     console.log("House model created:", houseModel);
+    
+    // Ensure the house checkbox is checked
+    const houseToggle = document.getElementById('house-toggle');
+    if (houseToggle) {
+      houseToggle.checked = true;
+    }
+    
+    // Update house position input fields
+    const houseXInput = document.getElementById('house-x');
+    const houseYInput = document.getElementById('house-y');
+    const houseZInput = document.getElementById('house-z');
+    
+    if (houseXInput) houseXInput.value = houseConfig.position.x;
+    if (houseYInput) houseYInput.value = houseConfig.position.y;
+    if (houseZInput) houseZInput.value = houseConfig.position.z;
   } catch (error) {
     console.error("Error creating house model:", error);
   }
