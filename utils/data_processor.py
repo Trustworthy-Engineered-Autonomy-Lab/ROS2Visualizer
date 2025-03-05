@@ -369,11 +369,14 @@ def detect_position_columns(df):
     # Potential column name patterns - more comprehensive patterns for better matching
     position_patterns = {
         'position_n': ['n', 'north', 'x', 'pos_n', 'position_north', 'pos_north', 'position_x', 'pos_x', 
-                     'posx', 'nx', 'northx', 'latitude', 'lat', 'posn', 'position n'],
+                     'posx', 'nx', 'northx', 'latitude', 'lat', 'posn', 'position n', 'px', 'col0',
+                     'x_pos', 'xcord', 'xcoord', 'pos x', 'n_pos', 'north_pos'],
         'position_e': ['e', 'east', 'y', 'pos_e', 'position_east', 'pos_east', 'position_y', 'pos_y',
-                     'posy', 'ey', 'easty', 'longitude', 'lon', 'long', 'pose', 'position e'],
+                     'posy', 'ey', 'easty', 'longitude', 'lon', 'long', 'pose', 'position e', 'py', 'col1',
+                     'y_pos', 'ycord', 'ycoord', 'pos y', 'e_pos', 'east_pos'],
         'position_d': ['d', 'down', 'z', 'alt', 'altitude', 'pos_d', 'position_down', 'pos_down', 'position_z', 'pos_z',
-                     'posz', 'dz', 'downz', 'height', 'elev', 'elevation', 'depth', 'posd', 'position d']
+                     'posz', 'dz', 'downz', 'height', 'elev', 'elevation', 'depth', 'posd', 'position d', 'pz', 'col2',
+                     'z_pos', 'zcord', 'zcoord', 'pos z', 'd_pos', 'down_pos', 'h', '-alt', 'up']
     }
     
     # Special case for ROS2 trajectory data: Extract positions at specific column indices if

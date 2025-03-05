@@ -74,10 +74,13 @@
           <div class="control-panel mb-4">
             <h5 class="border-bottom pb-2"><i class="fas fa-file-upload me-2"></i>File Upload</h5>
             <div class="mb-3">
-              <input type="file" class="form-control form-control-sm" id="file-input" multiple accept=".csv,.txt">
+              <input type="file" class="form-control form-control-sm" id="file-input" multiple accept=".csv,.txt,.data,.dat,.tsv,.tab">
             </div>
-            <button id="load-files-btn" class="btn btn-primary btn-sm w-100">
+            <button id="load-files-btn" class="btn btn-primary btn-sm w-100 mb-2">
               <i class="fas fa-upload me-2"></i>Load Files
+            </button>
+            <button id="browse-server-data-btn" class="btn btn-info btn-sm w-100">
+              <i class="fas fa-server me-2"></i>Browse Server Data
             </button>
           </div>
           
@@ -220,6 +223,48 @@
             <div id="upload-progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
           </div>
           <p id="upload-status">Preparing to upload files...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Server data browser modal -->
+  <div class="modal fade" id="serverDataModal" tabindex="-1" aria-labelledby="serverDataModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="serverDataModalLabel">Browse Server Data</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Folder navigation tabs -->
+          <ul class="nav nav-tabs mb-3" id="folderTabs" role="tablist">
+            <!-- Folder tabs will be added dynamically -->
+          </ul>
+          
+          <!-- File listings -->
+          <div class="tab-content" id="folderTabContent">
+            <!-- Tab panes will be added dynamically -->
+          </div>
+          
+          <!-- Loading indicator -->
+          <div id="server-data-loading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading server data...</p>
+          </div>
+          
+          <!-- Error message -->
+          <div id="server-data-error" class="alert alert-danger d-none">
+            Error loading server data. Please try again.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="load-selected-server-files" disabled>
+            Load Selected Files
+          </button>
         </div>
       </div>
     </div>
