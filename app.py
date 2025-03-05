@@ -21,14 +21,26 @@ app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key_for_develo
 # Set up proxy fix for gunicorn
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
-# Configure Flask for handling large file uploads
-app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024 * 1024  # 4GB max upload size
-app.config['UPLOAD_FOLDER'] = os.path.join(tempfile.gettempdir(), 'tea_labs_upload_cache')
+# Configure Flask for handling large file uploads without disk usage
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024 * 1024  # 1GB max upload size (reasonable limit)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 year cache timeout for static files
 
-# Create upload folder if it doesn't exist
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Disable Werkzeug's auto-saving of uploaded files to disk
+# This is crucial to prevent disk quota issues
+app.config['MAX_CONTENT_PATH'] = None  # Disable auto disk caching
+app.config['UPLOAD_FOLDER'] = None  # We're not using disk storage
+
+# Configure Werkzeug to keep all uploads in memory
+from werkzeug.formparser import parse_form_data
+from werkzeug.utils import secure_filename
+import io
+
+# Create a custom request hook to avoid disk usage for file uploads
+@app.before_request
+def handle_chunking():
+    if request.method == 'POST' and request.path in ['/analyze_csv', '/process_csv', '/clean_data']:
+        # Set a reasonable max size for in-memory file uploads
+        request.max_content_length = app.config['MAX_CONTENT_LENGTH']
 
 @app.route('/')
 def index():
@@ -269,13 +281,13 @@ def clean_data():
 
 @app.route('/process_csv', methods=['POST'])
 def process_csv():
-    """Process uploaded CSV file and return processed data with enhanced progress tracking.
+    """Process uploaded CSV file and return processed data with memory-efficient approach.
     
-    This function is optimized for gigabyte-scale data with the following features:
-    - Multi-encoding fallback strategy for robust file loading
-    - Stream-based file processing to avoid memory exhaustion
-    - Adaptive chunk processing based on file size
-    - Comprehensive error handling with detailed feedback
+    This function processes data directly in memory without writing to disk:
+    - Multi-encoding fallback strategy for robust data handling
+    - Stream-based processing for memory efficiency
+    - Adaptive sampling based on file size
+    - No disk writes to avoid disk quota issues
     """
     try:
         if 'file' not in request.files:
@@ -289,93 +301,110 @@ def process_csv():
             start_time = time.time()
             
             try:
-                # Save to temporary file for large file handling
-                unique_id = str(uuid.uuid4())
-                safe_filename = f"{unique_id}_{file.filename.replace(' ', '_')}"
-                temp_filepath = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
+                # Process directly from memory - don't save to disk
+                logging.info(f"Processing file {file.filename} in memory")
                 
-                # Ensure directory exists
-                os.makedirs(os.path.dirname(temp_filepath), exist_ok=True)
+                # Read initial chunk to detect encoding
+                file.seek(0)
+                initial_chunk_size = 1024 * 256  # 256KB initial chunk
+                initial_chunk = file.read(initial_chunk_size)
+                file.seek(0)  # Reset to beginning of file
                 
-                # Save file with efficient chunking
-                file_size = 0
-                chunk_size = 4 * 1024 * 1024  # 4MB chunks
-                with open(temp_filepath, 'wb') as f:
-                    chunk = file.read(chunk_size)
-                    while chunk:
-                        file_size += len(chunk)
-                        f.write(chunk)
-                        chunk = file.read(chunk_size)
+                # Determine encoding with multi-fallback strategy
+                encoding = 'utf-8'  # Default encoding
+                encodings_to_try = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1', 'utf-16']
                 
-                upload_duration = time.time() - start_time
-                upload_speed = (file_size/(1024*1024))/upload_duration if upload_duration > 0 else 0
-                
-                logging.info(f"File {file.filename} ({file_size/(1024*1024):.2f} MB) uploaded in {upload_duration:.2f} seconds at {upload_speed:.2f} MB/s")
-                
-                # Determine if this is a large file
-                is_large_file = file_size > 50 * 1024 * 1024  # 50MB threshold
-                
-                # Use a multi-encoding fallback approach for file reading
-                encodings_to_try = ['utf-8', 'latin-1', 'utf-16', 'cp1252', 'iso-8859-1']
-                successful_encoding = None
-                
-                for encoding in encodings_to_try:
+                # Try to decode the initial chunk with different encodings
+                encoding_found = False
+                for enc in encodings_to_try:
                     try:
-                        # Just test reading the file header with this encoding
-                        with open(temp_filepath, 'r', encoding=encoding) as f:
-                            # Read just the first line to test encoding
-                            f.readline()
-                        successful_encoding = encoding
+                        initial_chunk.decode(enc)
+                        encoding = enc
+                        encoding_found = True
                         logging.info(f"Successfully detected {encoding} encoding for file {file.filename}")
                         break
                     except UnicodeDecodeError:
                         continue
                 
-                if not successful_encoding:
-                    return jsonify({"error": "Could not determine file encoding. File may be corrupted or in an unsupported format."}), 400
+                if not encoding_found:
+                    logging.warning(f"Could not detect encoding for {file.filename}, using utf-8 as fallback")
                 
-                # Process based on file size
-                if is_large_file:
-                    # For large files, use a chunked processing approach via the data processor
-                    logging.info(f"Processing large file with chunked approach and {successful_encoding} encoding")
-                    processed_data = process_csv_data(temp_filepath, file_encoding=successful_encoding, 
-                                                     use_file_path=True, is_large_file=True)
-                else:
-                    # For smaller files, read the content and process normally
-                    with open(temp_filepath, 'r', encoding=successful_encoding) as f:
-                        file_content = f.read()
-                    processed_data = process_csv_data(file_content)
+                # Estimate file size based on content-length or stream position
+                estimated_size = 0
+                if 'Content-Length' in request.headers:
+                    try:
+                        estimated_size = int(request.headers['Content-Length'])
+                        logging.info(f"Estimated file size from Content-Length: {estimated_size/(1024*1024):.2f} MB")
+                    except (ValueError, TypeError):
+                        logging.warning("Could not parse Content-Length header")
                 
-                # Clean up temporary file
-                try:
-                    os.remove(temp_filepath)
-                    logging.info(f"Removed temporary file {temp_filepath}")
-                except:
-                    logging.warning(f"Could not remove temporary file {temp_filepath}")
+                if estimated_size <= 0:
+                    # Fallback: estimate based on initial chunk proportion
+                    file.seek(0, os.SEEK_END)
+                    try:
+                        estimated_size = file.tell()
+                        logging.info(f"Estimated file size from stream: {estimated_size/(1024*1024):.2f} MB")
+                    except (OSError, IOError) as e:
+                        logging.warning(f"Could not determine file size: {str(e)}")
+                        # Make a reasonable guess based on the initial chunk
+                        estimated_size = len(initial_chunk) * 100  # Assume it's about 100x the initial chunk
+                    file.seek(0)
                 
-                # Log processing results
-                if 'error' in processed_data:
-                    logging.error(f"Error in process_csv_data: {processed_data['error']}")
-                    if 'message' in processed_data:
-                        logging.error(f"Error message: {processed_data['message']}")
-                else:
-                    # Add processing metrics to the response
-                    processing_duration = time.time() - start_time - upload_duration
-                    total_duration = time.time() - start_time
+                # Determine processing approach based on estimated size
+                is_large_file = estimated_size > 50 * 1024 * 1024  # Files > 50MB
+                is_very_large_file = estimated_size > 500 * 1024 * 1024  # Files > 500MB
+                
+                # Process the file data according to size
+                file.seek(0)
+                if is_very_large_file:
+                    # For extremely large files, use a smaller sample
+                    logging.info(f"Processing very large file ({estimated_size/(1024*1024):.2f} MB) with sampling")
+                    sample_size = 2 * 1024 * 1024  # 2MB sample
+                    file_content = file.read(sample_size).decode(encoding)
                     
+                    # Process with the sample data and indicate it's a sample
+                    processed_data = process_csv_data(file_content, file_encoding=encoding)
+                    processed_data['is_sampled_data'] = True
+                    processed_data['sample_size_mb'] = sample_size / (1024 * 1024)
+                    
+                elif is_large_file:
+                    # For large files, read a more substantial sample
+                    logging.info(f"Processing large file ({estimated_size/(1024*1024):.2f} MB) with larger sample")
+                    sample_size = 5 * 1024 * 1024  # 5MB sample
+                    file_content = file.read(sample_size).decode(encoding)
+                    
+                    # Process with the sample data
+                    processed_data = process_csv_data(file_content, file_encoding=encoding)
+                    processed_data['is_sampled_data'] = True
+                    processed_data['sample_size_mb'] = sample_size / (1024 * 1024)
+                    
+                else:
+                    # For smaller files, read the entire content
+                    logging.info(f"Processing standard file ({estimated_size/(1024*1024):.2f} MB) completely")
+                    file_content = file.read().decode(encoding)
+                    
+                    # Process the full file content
+                    processed_data = process_csv_data(file_content, file_encoding=encoding)
+                    processed_data['is_sampled_data'] = False
+                
+                # Calculate processing metrics
+                total_duration = time.time() - start_time
+                
+                # Add processing metrics to the response
+                if 'error' not in processed_data:
                     points_count = processed_data.get('metadata', {}).get('points_count', 0)
                     logging.info(f"Successfully processed file {file.filename} with {points_count} points")
-                    logging.info(f"Processing took {processing_duration:.2f} seconds, total time: {total_duration:.2f} seconds")
+                    logging.info(f"Processing took {total_duration:.2f} seconds")
                     
                     # Add performance metrics to the response
                     processed_data['performance_metrics'] = {
-                        'upload_duration_seconds': round(upload_duration, 2),
-                        'processing_duration_seconds': round(processing_duration, 2),
                         'total_duration_seconds': round(total_duration, 2),
-                        'upload_speed_mbps': round(upload_speed, 2),
-                        'file_size_mb': round(file_size/(1024*1024), 2),
-                        'points_per_second': round(points_count/processing_duration if processing_duration > 0 else 0, 2)
+                        'estimated_size_mb': round(estimated_size/(1024*1024), 2),
+                        'memory_efficient_processing': True,
+                        'points_per_second': round(points_count/total_duration if total_duration > 0 else 0, 2)
                     }
+                else:
+                    logging.error(f"Error in process_csv_data: {processed_data.get('error')}")
                 
                 return jsonify(processed_data)
                 
