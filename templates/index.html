@@ -273,14 +273,14 @@
   </div>
   
   <!-- Enhanced Server Data Browser Modal -->
-  <div class="modal fade" id="serverDataModal" tabindex="-1" aria-labelledby="serverDataModalLabel" aria-hidden="true">
+  <div class="modal fade" id="serverDataModal" tabindex="-1" aria-labelledby="serverDataModalLabel" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
         <div class="modal-header bg-dark text-white">
           <h5 class="modal-title" id="serverDataModalLabel">
-            <i class="fas fa-server me-2"></i>Browse Flight Data Files
+            <i class="fas fa-server me-2" aria-hidden="true"></i>Browse Flight Data Files
           </h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="server-modal-close-btn"></button>
         </div>
         <div class="modal-body">
           <!-- Search and filter controls -->

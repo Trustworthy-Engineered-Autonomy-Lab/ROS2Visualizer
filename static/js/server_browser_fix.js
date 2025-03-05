@@ -65,9 +65,28 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    // Close modal
+    // Close modal with proper focus management
     const modalInstance = bootstrap.Modal.getInstance(modalElement);
-    if (modalInstance) modalInstance.hide();
+    if (modalInstance) {
+      // Save reference to the button that should receive focus after closing
+      const focusAfterClose = document.getElementById('browse-server-data-btn');
+      
+      // Set event handler for hidden.bs.modal event
+      modalElement.addEventListener('hidden.bs.modal', function onModalHidden() {
+        // Remove the event listener to avoid multiple registrations
+        modalElement.removeEventListener('hidden.bs.modal', onModalHidden);
+        
+        // Set focus back to the original button to fix accessibility issues
+        if (focusAfterClose) {
+          setTimeout(() => {
+            focusAfterClose.focus();
+          }, 10);
+        }
+      }, { once: true });
+      
+      // Hide the modal
+      modalInstance.hide();
+    }
     
     // Show success message
     if (typeof showMessage === 'function') {
@@ -706,9 +725,28 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(data => {
         console.log('File loaded successfully:', data);
         
-        // Close modal
+        // Close modal with proper focus management
         const modalInstance = bootstrap.Modal.getInstance(modalElement);
-        if (modalInstance) modalInstance.hide();
+        if (modalInstance) {
+          // Save reference to the button that should receive focus after closing
+          const focusAfterClose = document.getElementById('browse-server-data-btn');
+          
+          // Set event handler for hidden.bs.modal event
+          modalElement.addEventListener('hidden.bs.modal', function onModalHidden() {
+            // Remove the event listener to avoid multiple registrations
+            modalElement.removeEventListener('hidden.bs.modal', onModalHidden);
+            
+            // Set focus back to the original button to fix accessibility issues
+            if (focusAfterClose) {
+              setTimeout(() => {
+                focusAfterClose.focus();
+              }, 10);
+            }
+          }, { once: true });
+          
+          // Hide the modal
+          modalInstance.hide();
+        }
         
         // Show success message using the global showMessage function if available
         if (typeof showMessage === 'function') {
