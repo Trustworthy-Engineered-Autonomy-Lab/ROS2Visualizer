@@ -383,16 +383,17 @@
                   </div>
                   
                   <!-- Loading indicator -->
-                  <div id="server-data-loading" class="text-center py-5">
+                  <div id="server-data-loading" class="text-center py-5" aria-live="polite" aria-busy="true">
                     <div class="spinner-border text-primary" role="status">
                       <span class="visually-hidden">Loading...</span>
                     </div>
-                    <p class="mt-2">Loading server data...</p>
+                    <p class="mt-2" id="loading-message">Loading server data...</p>
                   </div>
                   
                   <!-- Error message -->
-                  <div id="server-data-error-container" class="alert alert-danger m-3 d-none">
-                    <p id="server-data-error">Error loading server data. Please try again.</p>
+                  <div id="server-data-error-container" class="alert alert-danger m-3 d-none" role="alert" aria-live="assertive">
+                    <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>
+                    <span id="server-data-error">Error loading server data. Please try again.</span>
                   </div>
                   
                   <!-- Server data content container -->
@@ -435,9 +436,11 @@
                         <div class="card-header bg-dark text-white">Data Sample</div>
                         <div class="card-body">
                           <div class="preview-content" id="preview-data-sample">
-                            <div class="text-center py-3">
-                              <div class="spinner-border text-primary" role="status"></div>
-                              <p class="mt-2">Loading preview...</p>
+                            <div class="text-center py-3" aria-live="polite" aria-busy="true">
+                              <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                              </div>
+                              <p class="mt-2" id="preview-loading-message">Loading preview...</p>
                             </div>
                           </div>
                         </div>

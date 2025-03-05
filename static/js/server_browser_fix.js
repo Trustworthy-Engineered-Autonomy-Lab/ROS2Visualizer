@@ -759,7 +759,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorContainer = document.getElementById('server-data-error-container');
     
     // Show loading indicator
-    if (loadingIndicator) loadingIndicator.classList.remove('d-none');
+    if (loadingIndicator) {
+      loadingIndicator.classList.remove('d-none');
+      // Update loading message for screen readers
+      const loadingMessage = document.getElementById('loading-message');
+      if (loadingMessage) {
+        loadingMessage.textContent = 'Loading data from server. Please wait...';
+      }
+    }
     if (errorContainer) errorContainer.classList.add('d-none');
     
     // Update URL with file parameter
