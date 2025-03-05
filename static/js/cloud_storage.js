@@ -32,9 +32,17 @@ class CloudStorageManager {
         // Check authentication status on page load
         this.checkAuthStatus();
         
-        // Add event listeners
-        document.getElementById('browseGoogleDrive').addEventListener('click', () => this.openFileBrowser('google'));
-        document.getElementById('browseOneDrive').addEventListener('click', () => this.openFileBrowser('microsoft'));
+        // Add event listeners only if elements exist
+        const googleDriveBtn = document.getElementById('browseGoogleDrive');
+        const oneDriveBtn = document.getElementById('browseOneDrive');
+        
+        if (googleDriveBtn) {
+            googleDriveBtn.addEventListener('click', () => this.openFileBrowser('google'));
+        }
+        
+        if (oneDriveBtn) {
+            oneDriveBtn.addEventListener('click', () => this.openFileBrowser('microsoft'));
+        }
         
         if (this.importSelectedBtn) {
             this.importSelectedBtn.addEventListener('click', () => this.importSelectedFiles());
@@ -48,20 +56,29 @@ class CloudStorageManager {
         fetch('/cloud/auth/status')
             .then(response => response.json())
             .then(data => {
-                if (data.google_authenticated) {
-                    document.getElementById('googleDriveStatus').innerHTML = '<span class="badge bg-success">Connected</span>';
-                    document.getElementById('browseGoogleDrive').disabled = false;
-                } else {
-                    document.getElementById('googleDriveStatus').innerHTML = '<span class="badge bg-secondary">Not Connected</span>';
-                    document.getElementById('browseGoogleDrive').disabled = true;
+                const googleDriveStatus = document.getElementById('googleDriveStatus');
+                const browseGoogleDrive = document.getElementById('browseGoogleDrive');
+                const oneDriveStatus = document.getElementById('oneDriveStatus');
+                const browseOneDrive = document.getElementById('browseOneDrive');
+                
+                if (googleDriveStatus && browseGoogleDrive) {
+                    if (data.google_authenticated) {
+                        googleDriveStatus.innerHTML = '<span class="badge bg-success">Connected</span>';
+                        browseGoogleDrive.disabled = false;
+                    } else {
+                        googleDriveStatus.innerHTML = '<span class="badge bg-secondary">Not Connected</span>';
+                        browseGoogleDrive.disabled = true;
+                    }
                 }
                 
-                if (data.microsoft_authenticated) {
-                    document.getElementById('oneDriveStatus').innerHTML = '<span class="badge bg-success">Connected</span>';
-                    document.getElementById('browseOneDrive').disabled = false;
-                } else {
-                    document.getElementById('oneDriveStatus').innerHTML = '<span class="badge bg-secondary">Not Connected</span>';
-                    document.getElementById('browseOneDrive').disabled = true;
+                if (oneDriveStatus && browseOneDrive) {
+                    if (data.microsoft_authenticated) {
+                        oneDriveStatus.innerHTML = '<span class="badge bg-success">Connected</span>';
+                        browseOneDrive.disabled = false;
+                    } else {
+                        oneDriveStatus.innerHTML = '<span class="badge bg-secondary">Not Connected</span>';
+                        browseOneDrive.disabled = true;
+                    }
                 }
             })
             .catch(error => {
