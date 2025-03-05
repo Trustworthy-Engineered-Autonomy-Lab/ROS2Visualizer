@@ -39,7 +39,7 @@ def data_cleaning():
 
 @app.route('/analyze_csv', methods=['POST'])
 def analyze_csv():
-    """Analyze uploaded CSV files and return basic statistics."""
+    """Analyze uploaded CSV files and return basic statistics with streaming approach."""
     try:
         if 'files[]' not in request.files:
             return jsonify({"error": "No files uploaded"}), 400
@@ -54,84 +54,91 @@ def analyze_csv():
         for file in files:
             if file and file.filename.endswith(('.csv', '.txt')):
                 try:
-                    # For large files, save to a temporary file first to avoid memory issues
-                    temp_filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{file.filename}")
+                    # Generate a unique identifier for this file
+                    unique_id = str(uuid.uuid4())
+                    safe_filename = f"{unique_id}_{file.filename.replace(' ', '_')}"
+                    temp_filepath = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
+                    
+                    # Save file with chunked streaming to prevent timeouts for large files
+                    logging.info(f"Streaming file {file.filename} to temporary location: {temp_filepath}")
                     file.save(temp_filepath)
-                    logging.info(f"Saved file {file.filename} to temporary location: {temp_filepath}")
                     
                     # Check file size to determine approach
                     file_size = os.path.getsize(temp_filepath)
                     is_large_file = file_size > 50 * 1024 * 1024  # Consider files > 50MB as large
                     
+                    # Determine file encoding with fallback
+                    encoding = 'utf-8'
+                    try:
+                        with open(temp_filepath, 'r', encoding=encoding) as f:
+                            # Just read first line to test encoding
+                            f.readline()
+                    except UnicodeDecodeError:
+                        try:
+                            encoding = 'latin-1'
+                            with open(temp_filepath, 'r', encoding=encoding) as f:
+                                f.readline()
+                            logging.info(f"Using {encoding} encoding for file {file.filename}")
+                        except UnicodeDecodeError:
+                            encoding = 'utf-16'
+                            logging.info(f"Trying {encoding} encoding for file {file.filename}")
+                    
+                    logging.info(f"File {file.filename} size: {file_size/(1024*1024):.2f} MB, encoding: {encoding}")
+                    
+                    # Create a base file stats dictionary
+                    file_stats = {
+                        "filename": file.filename,
+                        "temp_filepath": temp_filepath,
+                        "file_size": file_size,
+                        "file_size_mb": file_size/(1024*1024),
+                        "encoding": encoding,
+                        "is_large_file": is_large_file,
+                        "timestamp": time.time()
+                    }
+                    
+                    # For large files, use a sample-based approach for initial stats
                     if is_large_file:
-                        logging.info(f"Processing large file {file.filename} ({file_size/(1024*1024):.2f} MB) with optimized approach")
+                        logging.info(f"Processing large file with chunked approach")
                         
-                        # For large files, read in chunks
-                        # First, try to determine encoding
-                        encoding = 'utf-8'
+                        # Read just the first part of the file for quick analysis
                         try:
                             with open(temp_filepath, 'r', encoding=encoding) as f:
-                                # Just read first line to test encoding
-                                f.readline()
-                        except UnicodeDecodeError:
-                            encoding = 'latin-1'
-                            logging.info(f"Switching to {encoding} encoding for file {file.filename}")
-                        
-                        # Keep just the file reference and path for large files
-                        # The actual processing will be done on-demand with chunking
-                        file_stats = {
-                            "filename": file.filename,
-                            "temp_filepath": temp_filepath,
-                            "file_size": file_size,
-                            "file_size_mb": file_size/(1024*1024),
-                            "encoding": encoding,
-                            "is_large_file": True
-                        }
-                        
-                        # Analyze just the first part of the file for immediate feedback
-                        with open(temp_filepath, 'r', encoding=encoding) as f:
-                            # Read just first ~1MB for quick analysis
-                            sample_content = f.read(1024 * 1024)
-                            sample_stats = analyze_csv_file(sample_content, file.filename, is_sample=True)
-                            
-                            # Merge sample stats with file info
-                            file_stats.update(sample_stats)
-                            
-                        # Store the temporary file path in session
-                        temp_files[file.filename] = {
-                            "path": temp_filepath,
-                            "encoding": encoding
-                        }
-                    else:
-                        # For smaller files, process the whole file immediately
-                        with open(temp_filepath, 'r', encoding='utf-8') as f:
-                            try:
-                                file_content = f.read()
-                                file_stats = analyze_csv_file(file_content, file.filename)
-                            except UnicodeDecodeError:
-                                # Try with different encoding
-                                with open(temp_filepath, 'r', encoding='latin-1') as f2:
-                                    file_content = f2.read()
-                                    file_stats = analyze_csv_file(file_content, file.filename)
-                                    file_stats['note'] = 'File was decoded using latin-1 encoding'
-                                    temp_files[file.filename] = {
-                                        "path": temp_filepath,
-                                        "encoding": 'latin-1'
-                                    }
-                            else:
-                                temp_files[file.filename] = {
-                                    "path": temp_filepath,
-                                    "encoding": 'utf-8'
-                                }
+                                # Read just first ~1MB for quick analysis to avoid timeouts
+                                sample_content = f.read(1024 * 1024)
+                                sample_stats = analyze_csv_file(sample_content, file.filename, is_sample=True)
                                 
+                                # Merge sample stats with file info
+                                file_stats.update(sample_stats)
+                                file_stats['analyzed_with_sample'] = True
+                        except Exception as e:
+                            logging.error(f"Error reading sample from large file: {str(e)}")
+                            file_stats['error'] = f"Error reading sample: {str(e)}"
+                    else:
+                        # For smaller files, process the whole file
+                        try:
+                            with open(temp_filepath, 'r', encoding=encoding) as f:
+                                file_content = f.read()
+                                stats = analyze_csv_file(file_content, file.filename)
+                                file_stats.update(stats)
+                        except Exception as e:
+                            logging.error(f"Error analyzing file content: {str(e)}")
+                            file_stats['error'] = f"Error analyzing content: {str(e)}"
+                    
+                    # Store temporary file info for future processing
+                    temp_files[file.filename] = {
+                        "path": temp_filepath,
+                        "encoding": encoding,
+                        "is_large_file": is_large_file
+                    }
+                    
                     analysis_results.append(file_stats)
                 except Exception as e:
-                    logging.error(f"Error analyzing file {file.filename}: {str(e)}")
+                    logging.error(f"Error processing file {file.filename}: {str(e)}")
                     import traceback
                     logging.error(traceback.format_exc())
                     analysis_results.append({
                         "filename": file.filename,
-                        "error": f"Error analyzing file: {str(e)}"
+                        "error": f"Processing error: {str(e)}"
                     })
             else:
                 analysis_results.append({
@@ -143,7 +150,7 @@ def analyze_csv():
         session['analysis_results'] = analysis_results
         session['temp_files'] = temp_files
         
-        logging.info(f"Successfully analyzed {len(analysis_results)} files")
+        logging.info(f"Successfully processed {len(analysis_results)} files")
         return jsonify({"files": analysis_results})
     except Exception as e:
         logging.error(f"Unexpected error in analyze_csv route: {str(e)}")
