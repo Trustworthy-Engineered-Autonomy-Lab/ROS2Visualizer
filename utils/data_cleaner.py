@@ -9,9 +9,11 @@ import os
 import logging
 import math
 import statistics
+import tempfile
+import shutil
 from datetime import datetime
 
-# Install pandas and numpy - these are necessary for processing CSV files
+# Import pandas and numpy - these are necessary for processing CSV files
 import pandas as pd
 import numpy as np
 
@@ -294,11 +296,35 @@ def apply_cleaning_operations(file_info, config, use_temp_file=False):
         'cleaning_results': {}
     }
     
-    # Get file content
-    file_content = file_info.get('content', '')
-    if not file_content:
-        result['error'] = 'File content not available'
-        return result
+    # Check if we're using a temporary file path or content in memory
+    if use_temp_file and 'temp_filepath' in file_info and os.path.exists(file_info['temp_filepath']):
+        # Get content from temp file
+        temp_filepath = file_info['temp_filepath']
+        encoding = file_info.get('encoding', 'utf-8')
+        logging.info(f"Reading file content from temporary file: {temp_filepath} with encoding {encoding}")
+        
+        try:
+            # Read just the first ~1MB for initial processing and detection
+            with open(temp_filepath, 'r', encoding=encoding) as f:
+                file_content = f.read(1024 * 1024)  # Read first MB for analysis
+                
+            # Get file size from the file system
+            file_size_bytes = os.path.getsize(temp_filepath)
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            
+            # Flag that we're using a temp file for chunked processing
+            is_temp_file = True
+        except Exception as e:
+            logging.error(f"Error reading from temp file: {str(e)}")
+            result['error'] = f"Error reading from temporary file: {str(e)}"
+            return result
+    else:
+        # Use content from memory
+        file_content = file_info.get('content', '')
+        if not file_content:
+            result['error'] = 'File content not available'
+            return result
+        is_temp_file = False
     
     try:
         # Check if this is a large file
