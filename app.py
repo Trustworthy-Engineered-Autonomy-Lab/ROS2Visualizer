@@ -532,88 +532,126 @@ def cloud_download_file():
             if not auth_result.get('authenticated', False) and auth_result.get('requires_auth', False):
                 return jsonify(auth_result), 401
         
-        # Download the file
-        temp_filepath, filename = cloud_service.download_file(file_id)
+        # Download and process all selected files
+        processed_files = []
+        error_files = []
         
-        logging.info(f"Downloaded file from {provider}: {filename} to {temp_filepath}")
-        
-        # Check file size to determine processing approach
-        file_size = os.path.getsize(temp_filepath)
-        is_large_file = file_size > 50 * 1024 * 1024  # Consider files > 50MB as large
-        
-        # Determine file encoding with multi-fallback strategy
-        encoding = 'utf-8'
-        encodings_to_try = ['utf-8', 'latin-1', 'utf-16', 'cp1252', 'iso-8859-1']
-        
-        for enc in encodings_to_try:
+        for file_item in files:
             try:
-                with open(temp_filepath, 'r', encoding=enc) as f:
-                    # Just read first line to test encoding
-                    f.readline()
-                encoding = enc
-                logging.info(f"Successfully detected {encoding} encoding for file {filename}")
-                break
-            except UnicodeDecodeError:
-                continue
-        
-        # Create a file info dictionary
-        file_info = {
-            "filename": filename,
-            "temp_filepath": temp_filepath,
-            "file_size": file_size,
-            "file_size_mb": file_size/(1024*1024),
-            "encoding": encoding,
-            "is_large_file": is_large_file,
-            "cloud_provider": provider,
-            "cloud_file_id": file_id,
-            "timestamp": time.time()
-        }
-        
-        # For large files, use a sample-based approach for initial stats
-        if is_large_file:
-            logging.info(f"Processing large cloud file with chunked approach")
-            
-            # Read just the first part of the file for quick analysis
-            try:
-                with open(temp_filepath, 'r', encoding=encoding) as f:
-                    # Read just first ~1MB for quick analysis to avoid timeouts
-                    sample_content = f.read(1024 * 1024)
-                    sample_stats = analyze_csv_file(sample_content, filename, is_sample=True)
+                file_id = file_item['id']
+                file_name = file_item.get('name', 'Unknown')
+                
+                # Download the file
+                temp_filepath, filename = cloud_service.download_file(file_id)
+                
+                logging.info(f"Downloaded file from {provider}: {filename} to {temp_filepath}")
+                
+                # Check file size to determine processing approach
+                file_size = os.path.getsize(temp_filepath)
+                is_large_file = file_size > 50 * 1024 * 1024  # Consider files > 50MB as large
+                
+                # Determine file encoding with multi-fallback strategy
+                encoding = 'utf-8'
+                encodings_to_try = ['utf-8', 'latin-1', 'utf-16', 'cp1252', 'iso-8859-1']
+                
+                for enc in encodings_to_try:
+                    try:
+                        with open(temp_filepath, 'r', encoding=enc) as f:
+                            # Just read first line to test encoding
+                            f.readline()
+                        encoding = enc
+                        logging.info(f"Successfully detected {encoding} encoding for file {filename}")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                
+                # Create a file info dictionary
+                file_info = {
+                    "filename": filename,
+                    "temp_filepath": temp_filepath,
+                    "file_size": file_size,
+                    "file_size_mb": file_size/(1024*1024),
+                    "encoding": encoding,
+                    "is_large_file": is_large_file,
+                    "cloud_provider": provider,
+                    "cloud_file_id": file_id,
+                    "timestamp": time.time()
+                }
+                
+                # Process the file based on size
+                try:
+                    if is_large_file:
+                        logging.info(f"Processing large cloud file with chunked approach")
+                        
+                        # Process the file with our optimized large file processor
+                        processed_data = process_csv_data(temp_filepath, file_encoding=encoding, 
+                                                        use_file_path=True, is_large_file=True)
+                        
+                        # Also get a sample for display in the UI
+                        with open(temp_filepath, 'r', encoding=encoding) as f:
+                            sample_content = f.read(1024 * 1024)  # ~1MB sample
+                            sample_stats = analyze_csv_file(sample_content, filename, is_sample=True)
+                            
+                        # Merge stats with file_info
+                        file_info.update(sample_stats)
+                        file_info['analyzed_with_sample'] = True
+                        file_info['processed_data'] = processed_data
+                    else:
+                        # For smaller files, read content and process normally
+                        with open(temp_filepath, 'r', encoding=encoding) as f:
+                            file_content = f.read()
+                            
+                        # Get stats for the file
+                        stats = analyze_csv_file(file_content, filename)
+                        file_info.update(stats)
+                        
+                        # Process the data for visualization
+                        processed_data = process_csv_data(file_content)
+                        file_info['processed_data'] = processed_data
                     
-                    # Merge sample stats with file info
-                    file_info.update(sample_stats)
-                    file_info['analyzed_with_sample'] = True
+                    # Add to processed files list
+                    processed_files.append(file_info)
+                    
+                except Exception as e:
+                    logging.error(f"Error processing file {filename}: {str(e)}")
+                    import traceback
+                    logging.error(traceback.format_exc())
+                    file_info['error'] = f"Error processing file: {str(e)}"
+                    error_files.append(file_info)
+                
+                # Store file info in session
+                if 'analysis_results' not in session:
+                    session['analysis_results'] = []
+                if 'temp_files' not in session:
+                    session['temp_files'] = {}
+                
+                session['analysis_results'].append(file_info)
+                session['temp_files'][filename] = {
+                    "path": temp_filepath,
+                    "encoding": encoding,
+                    "is_large_file": is_large_file,
+                    "from_cloud": True,
+                    "cloud_provider": provider,
+                    "cloud_file_id": file_id
+                }
             except Exception as e:
-                logging.error(f"Error reading sample from large cloud file: {str(e)}")
-                file_info['error'] = f"Error reading sample: {str(e)}"
-        else:
-            # For smaller files, process the whole file
-            try:
-                with open(temp_filepath, 'r', encoding=encoding) as f:
-                    file_content = f.read()
-                    stats = analyze_csv_file(file_content, filename)
-                    file_info.update(stats)
-            except Exception as e:
-                logging.error(f"Error analyzing cloud file content: {str(e)}")
-                file_info['error'] = f"Error analyzing content: {str(e)}"
+                logging.error(f"Error processing file with ID {file_id}: {str(e)}")
+                import traceback
+                logging.error(traceback.format_exc())
+                error_files.append({
+                    "file_id": file_id, 
+                    "name": file_name,
+                    "error": str(e)
+                })
         
-        # Store file info in session
-        if 'analysis_results' not in session:
-            session['analysis_results'] = []
-        if 'temp_files' not in session:
-            session['temp_files'] = {}
-        
-        session['analysis_results'].append(file_info)
-        session['temp_files'][filename] = {
-            "path": temp_filepath,
-            "encoding": encoding,
-            "is_large_file": is_large_file,
-            "from_cloud": True,
-            "cloud_provider": provider,
-            "cloud_file_id": file_id
-        }
-        
-        return jsonify({"file": file_info})
+        # Return summary of all processed files
+        return jsonify({
+            "processed_files": processed_files,
+            "error_files": error_files,
+            "success_count": len(processed_files),
+            "error_count": len(error_files),
+            "total_count": len(files)
+        })
         
     except Exception as e:
         logging.error(f"Error downloading cloud file: {str(e)}")
