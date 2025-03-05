@@ -8,6 +8,7 @@ let animationState = {
   animationFrameId: null
 };
 let uploadModal;
+let serverDataModal;
 let houseModel = null;
 let houseConfig = {
   visible: true,
@@ -16,6 +17,12 @@ let houseConfig = {
     y: -1010.0,
     z: 10.0
   }
+};
+let serverData = {
+  currentFolder: 'sample_data',
+  folders: [],
+  files: [],
+  selectedFiles: []
 };
 
 // Initialize the application
@@ -40,8 +47,13 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
   document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
   
-  // Initialize modal
+  // Initialize modals
   uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
+  serverDataModal = new bootstrap.Modal(document.getElementById('serverDataModal'));
+  
+  // Server data browser event listener
+  document.getElementById('browse-server-data-btn').addEventListener('click', openServerDataBrowser);
+  document.getElementById('load-selected-server-files').addEventListener('click', loadSelectedServerFiles);
   
   // Handle window resize
   window.addEventListener('resize', onWindowResize);
