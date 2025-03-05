@@ -13,7 +13,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is_large_file=False, csv_content_path=None):
+def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is_large_file=False):
     """
     Process CSV content into a format suitable for visualization.
     Optimized for gigabytes of data with memory-efficient processing.
@@ -34,7 +34,7 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
         # Determine processing approach based on whether we're dealing with a file path or content
         if use_file_path:
             # When processing from a file path, we can use pandas' efficiency for large files
-            file_path = csv_content_path if csv_content_path else csv_content
+            file_path = csv_content
             
             # Get file size for logging and decision making
             import os
@@ -89,8 +89,7 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
                 try:
                     # Handle both file path and content string cases
                     if use_file_path:
-                        file_path = csv_content_path if csv_content_path else csv_content
-                        df_iter = pd.read_csv(file_path, encoding=file_encoding, 
+                        df_iter = pd.read_csv(csv_content, encoding=file_encoding, 
                                              chunksize=chunk_size, low_memory=True)
                     else:
                         df_iter = pd.read_csv(io.StringIO(csv_content), chunksize=chunk_size, 
@@ -110,8 +109,7 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
                 # For headerless files - handle both file path and content string cases
                 try:
                     if use_file_path:
-                        file_path = csv_content_path if csv_content_path else csv_content
-                        df_iter = pd.read_csv(file_path, encoding=file_encoding, 
+                        df_iter = pd.read_csv(csv_content, encoding=file_encoding, 
                                              header=None, chunksize=chunk_size, low_memory=True)
                     else:
                         df_iter = pd.read_csv(io.StringIO(csv_content), 
