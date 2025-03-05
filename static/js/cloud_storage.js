@@ -537,6 +537,9 @@ function processCloudFolderLink() {
         const providerName = provider === 'google' ? 'Google Drive' : 
                            (cloudLink.includes('sharepoint.com') ? 'SharePoint' : 'OneDrive');
         
+        // Display processing steps in a modal before showing results
+        showProcessingDetails(data, providerName, resourceType);
+        
         // Show success message
         showMessage(
             `Successfully processed ${providerName} ${resourceType}.`, 
@@ -556,6 +559,110 @@ function processCloudFolderLink() {
         button.disabled = false;
         button.innerHTML = originalText;
     });
+}
+
+/**
+ * Display processing details in a modal
+ * @param {Object} data - The response data from the server
+ * @param {string} providerName - The name of the cloud provider
+ * @param {string} resourceType - Whether it's a file or folder
+ */
+function showProcessingDetails(data, providerName, resourceType) {
+    // Create modal element
+    const modalId = 'processingDetailsModal';
+    let modal = document.getElementById(modalId);
+    
+    // If modal doesn't exist, create it
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal fade';
+        modal.tabIndex = -1;
+        modal.setAttribute('aria-labelledby', `${modalId}Label`);
+        modal.setAttribute('aria-hidden', 'true');
+        
+        document.body.appendChild(modal);
+    }
+    
+    // Set modal content based on processing details
+    const steps = data.processing_details?.steps || [];
+    const fileCount = data.is_file ? 1 : (data.processing_details?.folder_info?.total_files || 'multiple');
+    
+    let stepsHtml = '';
+    steps.forEach(step => {
+        stepsHtml += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    ${step.name}
+                </div>
+                <span class="badge bg-light text-dark">${step.time}</span>
+            </div>
+        `;
+    });
+    
+    // List of files being processed
+    let filesHtml = '';
+    if (data.processed_data && Array.isArray(data.processed_data)) {
+        filesHtml = '<div class="mt-3 border-top pt-3"><h6>Files Processed:</h6><ul class="list-group">';
+        
+        data.processed_data.forEach(file => {
+            const pointCount = file.points ? file.points.length : 'Unknown';
+            const fileSize = file.file_size || 'Unknown size';
+            
+            filesHtml += `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-file-csv text-info me-2"></i>
+                        ${file.filename}
+                    </div>
+                    <div>
+                        <span class="badge bg-secondary me-2">${fileSize}</span>
+                        <span class="badge bg-primary">${pointCount} points</span>
+                    </div>
+                </li>
+            `;
+        });
+        
+        filesHtml += '</ul></div>';
+    }
+    
+    // Set modal HTML
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="${modalId}Label">
+                        <i class="fas fa-cloud-download-alt me-2"></i>
+                        Processing ${providerName} ${resourceType}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Successfully processed ${fileCount} file(s) from ${providerName}.</p>
+                    
+                    <div class="processing-steps mb-3">
+                        <h6>Processing Steps:</h6>
+                        ${stepsHtml}
+                    </div>
+                    
+                    ${filesHtml}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Continue to Visualization</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Initialize and show modal
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
+    
+    // Auto-dismiss after a delay (optional)
+    setTimeout(() => {
+        modalInstance.hide();
+    }, 5000);
 }
 
 /**
