@@ -11,254 +11,280 @@
 
 class UploadProgressTracker {
     constructor(options = {}) {
-        // Default configuration
-        this.config = {
-            progressBarSelector: '#upload-progress-bar',
-            progressTextSelector: '#upload-progress-text',
-            speedSelector: '#upload-speed',
-            etaSelector: '#upload-eta',
-            fileInfoSelector: '#upload-file-info',
-            uploadFormSelector: '#upload-form',
-            fileInputSelector: '#file-input',
-            uploadButtonSelector: '#upload-button',
-            ...options
+        // Configuration
+        this.options = {
+            formSelector: options.formSelector || '#upload-form',
+            fileInputSelector: options.fileInputSelector || '#file-input',
+            progressContainerSelector: options.progressContainerSelector || '#upload-progress-container',
+            progressBarSelector: options.progressBarSelector || '#upload-progress-bar',
+            progressTextSelector: options.progressTextSelector || '#upload-progress-text',
+            statsContainerSelector: options.statsContainerSelector || '#upload-stats',
+            endpoint: options.endpoint || '/analyze_csv',
+            onSuccess: options.onSuccess || null,
+            onError: options.onError || null,
+            onProgress: options.onProgress || null,
+            maxConcurrentUploads: options.maxConcurrentUploads || 3,
+            chunkSize: options.chunkSize || 5 * 1024 * 1024 // 5MB chunks
         };
 
-        // Initialize state
+        // DOM elements
+        this.form = document.querySelector(this.options.formSelector);
+        this.fileInput = document.querySelector(this.options.fileInputSelector);
+        this.progressContainer = document.querySelector(this.options.progressContainerSelector);
+        this.progressBar = document.querySelector(this.options.progressBarSelector);
+        this.progressText = document.querySelector(this.options.progressTextSelector);
+        this.statsContainer = document.querySelector(this.options.statsContainerSelector);
+
+        // Internal state
         this.resetState();
         
-        // Bind methods
-        this.initEventListeners = this.initEventListeners.bind(this);
-        this.handleFileSelect = this.handleFileSelect.bind(this);
-        this.handleFormSubmit = this.handleFormSubmit.bind(this);
-        this.updateProgress = this.updateProgress.bind(this);
-        this.formatSize = this.formatSize.bind(this);
-        this.formatTime = this.formatTime.bind(this);
-        this.resetState = this.resetState.bind(this);
-        
-        // Initialize UI elements
-        this.progressBar = document.querySelector(this.config.progressBarSelector);
-        this.progressText = document.querySelector(this.config.progressTextSelector);
-        this.speedText = document.querySelector(this.config.speedSelector);
-        this.etaText = document.querySelector(this.config.etaSelector);
-        this.fileInfoText = document.querySelector(this.config.fileInfoSelector);
-        this.uploadForm = document.querySelector(this.config.uploadFormSelector);
-        this.fileInput = document.querySelector(this.config.fileInputSelector);
-        this.uploadButton = document.querySelector(this.config.uploadButtonSelector);
-        
-        // Initialize event listeners
+        // Event initialization
         this.initEventListeners();
     }
-    
+
     resetState() {
-        // Reset tracking variables
-        this.uploadStartTime = 0;
-        this.lastUpdateTime = 0;
-        this.lastLoadedBytes = 0;
-        this.uploadSpeed = 0;
-        this.eta = 0;
-        this.totalFiles = 0;
-        this.totalSize = 0;
-        this.uploadedFiles = 0;
-        this.activeUploads = 0;
         this.uploadQueue = [];
+        this.activeUploads = 0;
+        this.uploadStart = 0;
+        this.uploadedBytes = 0;
+        this.totalBytes = 0;
+        this.uploadSpeed = 0;
+        this.estimatedTimeRemaining = 0;
+        this.lastUpdate = 0;
+        this.uploadResults = [];
+        this.error = null;
     }
-    
+
     initEventListeners() {
-        // Listen for file selection changes
-        if (this.fileInput) {
-            this.fileInput.addEventListener('change', this.handleFileSelect);
+        if (!this.form || !this.fileInput) {
+            console.error('Form or file input not found');
+            return;
         }
-        
-        // Listen for form submission
-        if (this.uploadForm) {
-            this.uploadForm.addEventListener('submit', this.handleFormSubmit);
-        }
+
+        this.fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+        this.form.addEventListener('submit', this.handleFormSubmit.bind(this));
     }
-    
+
     handleFileSelect(event) {
-        const files = event.target.files;
-        this.totalFiles = files.length;
-        this.totalSize = Array.from(files).reduce((total, file) => total + file.size, 0);
+        const files = this.fileInput.files;
+        this.resetState();
         
-        // Update file info display
-        if (this.fileInfoText) {
-            this.fileInfoText.textContent = `${this.totalFiles} file(s) selected (${this.formatSize(this.totalSize)})`;
+        // Calculate total file size
+        for (let i = 0; i < files.length; i++) {
+            this.totalBytes += files[i].size;
         }
         
-        // Enable upload button if files selected
-        if (this.uploadButton) {
-            this.uploadButton.disabled = files.length === 0;
+        // Update UI
+        if (this.progressContainer) {
+            this.progressContainer.classList.remove('d-none');
         }
+        
+        // Show initial stats
+        this.updateProgressUI(0, 'Ready to upload');
     }
-    
+
     handleFormSubmit(event) {
         event.preventDefault();
+        const files = this.fileInput.files;
         
-        // Reset progress UI
-        this.resetProgressUI();
-        
-        // Show progress container
-        const progressContainer = document.querySelector('#progress-container');
-        if (progressContainer) {
-            progressContainer.style.display = 'block';
+        if (files.length === 0) {
+            this.showError('No files selected for upload');
+            return;
         }
         
-        // Get form data
-        const formData = new FormData(this.uploadForm);
+        // Reset upload state
+        this.resetState();
         
-        // Create and configure XMLHttpRequest
+        // Calculate total bytes
+        for (let i = 0; i < files.length; i++) {
+            this.totalBytes += files[i].size;
+            this.uploadQueue.push(files[i]);
+        }
+        
+        // Set upload start time
+        this.uploadStart = Date.now();
+        this.lastUpdate = this.uploadStart;
+        
+        // Show progress UI
+        if (this.progressContainer) {
+            this.progressContainer.classList.remove('d-none');
+        }
+        
+        // Start upload process
+        this.processQueue();
+    }
+
+    processQueue() {
+        // If there are no more files to process and no active uploads, we're done
+        if (this.uploadQueue.length === 0 && this.activeUploads === 0) {
+            // Upload is complete - dispatch event
+            const event = new CustomEvent('upload-complete', {
+                detail: {
+                    files: this.uploadResults,
+                    totalTime: (Date.now() - this.uploadStart) / 1000,
+                    totalBytes: this.totalBytes
+                }
+            });
+            document.dispatchEvent(event);
+            
+            // Call success callback if provided
+            if (typeof this.options.onSuccess === 'function') {
+                this.options.onSuccess(this.uploadResults);
+            }
+            
+            return;
+        }
+        
+        // Start new uploads if there are files in the queue and we're under the concurrency limit
+        while (this.uploadQueue.length > 0 && this.activeUploads < this.options.maxConcurrentUploads) {
+            const file = this.uploadQueue.shift();
+            this.uploadFile(file);
+        }
+    }
+
+    uploadFile(file) {
+        this.activeUploads++;
+        
+        // For large files, we would implement chunked uploads here
+        // but for simplicity in this implementation, we're using the standard approach
+        
+        const formData = new FormData();
+        formData.append('files[]', file);
+        
         const xhr = new XMLHttpRequest();
         
-        // Set up progress tracking
-        xhr.upload.addEventListener('progress', this.updateProgress);
+        xhr.upload.addEventListener('progress', (event) => this.updateProgress(event));
         
-        // Set up completion handler
         xhr.addEventListener('load', () => {
+            this.activeUploads--;
+            
             if (xhr.status >= 200 && xhr.status < 300) {
-                // Success
-                this.updateProgressUI(100, 'Upload complete');
-                
-                // Parse response and update UI
                 try {
                     const response = JSON.parse(xhr.responseText);
-                    this.handleUploadSuccess(response);
+                    this.uploadResults = response.files;
                 } catch (error) {
-                    console.error('Error parsing response', error);
-                    this.showError('Error processing server response');
+                    this.showError('Error parsing server response');
                 }
             } else {
-                // Error
-                this.showError(`Upload failed: ${xhr.statusText}`);
+                this.showError(`Server returned error: ${xhr.status}`);
             }
+            
+            // Continue processing queue
+            this.processQueue();
         });
         
-        // Error handler
         xhr.addEventListener('error', () => {
+            this.activeUploads--;
             this.showError('Network error occurred during upload');
+            this.processQueue();
         });
         
-        // Abort handler
         xhr.addEventListener('abort', () => {
-            this.showError('Upload was aborted');
+            this.activeUploads--;
+            this.processQueue();
         });
         
-        // Record start time
-        this.uploadStartTime = Date.now();
-        this.lastUpdateTime = this.uploadStartTime;
-        
-        // Start the upload
-        xhr.open('POST', this.uploadForm.action);
+        xhr.open('POST', this.options.endpoint);
         xhr.send(formData);
     }
-    
+
     updateProgress(event) {
         if (!event.lengthComputable) return;
         
-        const currentTime = Date.now();
-        const timeElapsed = (currentTime - this.uploadStartTime) / 1000; // in seconds
-        const loaded = event.loaded;
-        const total = event.total;
-        const percentComplete = Math.round((loaded / total) * 100);
+        const now = Date.now();
+        const timeElapsed = (now - this.lastUpdate) / 1000;
         
-        // Calculate upload speed (bytes per second)
-        const timeIncrement = (currentTime - this.lastUpdateTime) / 1000; // in seconds
-        if (timeIncrement > 0) {
-            const loadedIncrement = loaded - this.lastLoadedBytes;
-            this.uploadSpeed = loadedIncrement / timeIncrement; // bytes per second
+        if (timeElapsed > 0.5) { // Only update every 500ms for efficiency
+            const newlyUploadedBytes = event.loaded - this.uploadedBytes;
+            this.uploadedBytes = event.loaded;
             
-            // Smooth the speed calculation with a simple moving average
-            this.uploadSpeed = 0.7 * this.uploadSpeed + 0.3 * this.lastSpeed;
-            this.lastSpeed = this.uploadSpeed;
+            // Calculate upload speed (bytes per second)
+            this.uploadSpeed = newlyUploadedBytes / timeElapsed;
+            
+            // Calculate remaining time
+            const remainingBytes = this.totalBytes - this.uploadedBytes;
+            this.estimatedTimeRemaining = remainingBytes / (this.uploadSpeed || 1);
+            
+            // Calculate percentage
+            const percentage = Math.round((this.uploadedBytes / this.totalBytes) * 100);
+            
+            // Format progress text
+            const text = `Uploading: ${percentage}% - ${this.formatSize(this.uploadSpeed)}/s - ETA: ${this.formatTime(this.estimatedTimeRemaining)}`;
+            
+            // Update UI
+            this.updateProgressUI(percentage, text);
+            
+            // Call progress callback if provided
+            if (typeof this.options.onProgress === 'function') {
+                this.options.onProgress(percentage, this.uploadSpeed, this.estimatedTimeRemaining);
+            }
+            
+            this.lastUpdate = now;
         }
-        
-        // Calculate ETA (in seconds)
-        const remainingBytes = total - loaded;
-        this.eta = this.uploadSpeed > 0 ? remainingBytes / this.uploadSpeed : 0;
-        
-        // Update the UI
-        this.updateProgressUI(percentComplete, 
-                             `Uploading: ${this.formatSize(loaded)} of ${this.formatSize(total)}`);
-        
-        // Update speed and ETA display
-        if (this.speedText) {
-            this.speedText.textContent = `${this.formatSize(this.uploadSpeed)}/s`;
-        }
-        
-        if (this.etaText) {
-            this.etaText.textContent = `ETA: ${this.formatTime(this.eta)}`;
-        }
-        
-        // Update last values for next calculation
-        this.lastUpdateTime = currentTime;
-        this.lastLoadedBytes = loaded;
     }
-    
+
     updateProgressUI(percentage, text) {
-        // Update progress bar
         if (this.progressBar) {
             this.progressBar.style.width = `${percentage}%`;
             this.progressBar.setAttribute('aria-valuenow', percentage);
         }
         
-        // Update progress text
         if (this.progressText) {
             this.progressText.textContent = text;
         }
+        
+        if (this.statsContainer) {
+            this.statsContainer.innerHTML = `
+                <div class="d-flex justify-content-between small text-muted mt-1">
+                    <span>Speed: ${this.formatSize(this.uploadSpeed)}/s</span>
+                    <span>ETA: ${this.formatTime(this.estimatedTimeRemaining)}</span>
+                </div>
+            `;
+        }
     }
-    
+
     resetProgressUI() {
-        this.updateProgressUI(0, 'Preparing upload...');
+        this.updateProgressUI(0, 'Upload completed');
         
-        if (this.speedText) {
-            this.speedText.textContent = '--';
+        if (this.progressContainer) {
+            setTimeout(() => {
+                this.progressContainer.classList.add('d-none');
+            }, 3000);
         }
-        
-        if (this.etaText) {
-            this.etaText.textContent = 'ETA: --';
-        }
-        
-        // Reset state
-        this.lastSpeed = 0;
     }
-    
+
     handleUploadSuccess(response) {
-        // Handle response from server
-        if (response.files) {
-            // Display analysis results
-            const analysisContainer = document.querySelector('#analysis-container');
-            if (analysisContainer) {
-                analysisContainer.style.display = 'block';
-            }
-            
-            // Trigger analysis display update
-            if (typeof updateAnalysisSummary === 'function') {
-                window.setTimeout(() => {
-                    updateAnalysisSummary();
-                    updateFileList();
-                }, 500);
-            }
+        this.resetProgressUI();
+        
+        // Dispatch event with results
+        const event = new CustomEvent('upload-complete', {
+            detail: { files: response.files }
+        });
+        document.dispatchEvent(event);
+        
+        // Call success callback if provided
+        if (typeof this.options.onSuccess === 'function') {
+            this.options.onSuccess(response);
         }
     }
-    
+
     showError(message) {
-        // Display error in UI
-        const errorContainer = document.querySelector('#error-container');
-        const errorMessage = document.querySelector('#error-message');
+        this.error = message;
         
-        if (errorContainer && errorMessage) {
-            errorMessage.textContent = message;
-            errorContainer.style.display = 'block';
-            
-            // Auto-hide after 10 seconds
-            window.setTimeout(() => {
-                errorContainer.style.display = 'none';
-            }, 10000);
+        // Dispatch error event
+        const event = new CustomEvent('upload-error', {
+            detail: { message }
+        });
+        document.dispatchEvent(event);
+        
+        // Call error callback if provided
+        if (typeof this.options.onError === 'function') {
+            this.options.onError(message);
         }
         
-        console.error(message);
+        console.error('Upload error:', message);
     }
-    
+
     formatSize(bytes) {
         if (bytes === 0) return '0 B';
         
@@ -267,39 +293,40 @@ class UploadProgressTracker {
         
         return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + units[i];
     }
-    
+
     formatTime(seconds) {
-        if (!isFinite(seconds) || seconds <= 0) {
-            return '--';
+        if (!isFinite(seconds) || seconds < 0) {
+            return 'calculating...';
         }
         
         if (seconds < 60) {
-            return `${Math.round(seconds)}s`;
+            return Math.round(seconds) + ' sec';
         } else if (seconds < 3600) {
-            const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = Math.round(seconds % 60);
-            return `${minutes}m ${remainingSeconds}s`;
+            return Math.round(seconds / 60) + ' min';
         } else {
             const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            return `${hours}h ${minutes}m`;
+            const minutes = Math.round((seconds % 3600) / 60);
+            return hours + ' hr ' + minutes + ' min';
         }
     }
 }
 
-// Initialize upload tracker when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize for the data cleaning page
-    if (document.querySelector('#upload-form')) {
+// Initialize the upload tracker when the DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on a page that requires the upload tracker
+    const uploadForm = document.querySelector('#upload-form');
+    if (uploadForm) {
         window.uploadTracker = new UploadProgressTracker({
-            progressBarSelector: '#upload-progress-bar',
-            progressTextSelector: '#upload-progress-text',
-            speedSelector: '#upload-speed',
-            etaSelector: '#upload-eta',
-            fileInfoSelector: '#upload-file-info',
-            uploadFormSelector: '#upload-form',
-            fileInputSelector: '#file-input',
-            uploadButtonSelector: '#upload-button'
+            endpoint: '/analyze_csv',
+            onSuccess: function(response) {
+                console.log('Upload completed successfully:', response);
+            },
+            onError: function(message) {
+                console.error('Upload error:', message);
+            },
+            onProgress: function(percentage, speed, eta) {
+                console.log(`Progress: ${percentage}%, Speed: ${speed} bytes/s, ETA: ${eta} seconds`);
+            }
         });
     }
 });

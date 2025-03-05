@@ -232,49 +232,104 @@ document.addEventListener('DOMContentLoaded', function() {
             showAlert('No files to analyze', 'warning');
             return;
         }
-        
-        // Show loading indicator
+
+        // Show loading indicator - Now handled by upload_progress.js
         analysisLoader.classList.remove('d-none');
         
-        // Create form data with files
-        const formData = new FormData();
-        appState.uploadedFiles.forEach(file => {
-            formData.append('files[]', file);
-        });
+        // File upload and analysis is now handled by upload_progress.js
+        // We're using custom events to handle the completion
         
-        // Send to server
-        fetch('/analyze_csv', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        // Set up event listeners for the upload complete event
+        const handleUploadComplete = function(e) {
+            // This will be triggered by upload_progress.js when the upload is complete
+            if (e.detail && e.detail.files) {
+                // Hide loading indicator
+                analysisLoader.classList.add('d-none');
+                
+                // Store analysis results
+                appState.fileAnalysis = e.detail.files;
+                
+                // Update UI with analysis results
+                updateAnalysisSummary();
+                updateFileList();
+                
+                // Show success message
+                showAlert(`Successfully analyzed ${e.detail.files.length} file(s)`, 'success');
+                
+                // Remove this event listener after handling
+                document.removeEventListener('upload-complete', handleUploadComplete);
             }
-            return response.json();
-        })
-        .then(data => {
-            // Hide loading indicator
-            analysisLoader.classList.add('d-none');
-            
-            // Store analysis results
-            appState.fileAnalysis = data.files;
-            
-            // Update UI with analysis results
-            updateAnalysisSummary();
-            updateFileList();
-            
-            // Show success message
-            showAlert(`Successfully analyzed ${data.files.length} file(s)`, 'success');
-        })
-        .catch(error => {
+        };
+        
+        // Set up event listeners for the upload error event
+        const handleUploadError = function(e) {
             // Hide loading indicator
             analysisLoader.classList.add('d-none');
             
             // Show error
-            console.error('Error analyzing files:', error);
-            showAlert(`Error analyzing files: ${error.message}`, 'danger');
-        });
+            console.error('Error analyzing files:', e.detail.message);
+            showAlert(`Error analyzing files: ${e.detail.message}`, 'danger');
+            
+            // Remove this event listener after handling
+            document.removeEventListener('upload-error', handleUploadError);
+        };
+        
+        document.addEventListener('upload-complete', handleUploadComplete);
+        document.addEventListener('upload-error', handleUploadError);
+        
+        // The upload progress tracker (upload_progress.js) handles the actual file upload
+        // It will automatically submit the form and show progress
+        
+        // If uploadTracker exists (initialized in upload_progress.js)
+        if (window.uploadTracker) {
+            // The upload starts by submitting the form
+            const form = document.querySelector('#upload-form');
+            if (form) {
+                // This will be intercepted by upload_progress.js
+                form.dispatchEvent(new Event('submit'));
+            }
+        } else {
+            // Fallback if the upload tracker is not available
+            // Create form data with files
+            const formData = new FormData();
+            appState.uploadedFiles.forEach(file => {
+                formData.append('files[]', file);
+            });
+            
+            // Send to server
+            fetch('/analyze_csv', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading indicator
+                analysisLoader.classList.add('d-none');
+                
+                // Store analysis results
+                appState.fileAnalysis = data.files;
+                
+                // Update UI with analysis results
+                updateAnalysisSummary();
+                updateFileList();
+                
+                // Show success message
+                showAlert(`Successfully analyzed ${data.files.length} file(s)`, 'success');
+            })
+            .catch(error => {
+                // Hide loading indicator
+                analysisLoader.classList.add('d-none');
+                
+                // Show error
+                console.error('Error analyzing files:', error);
+                showAlert(`Error analyzing files: ${error.message}`, 'danger');
+            });
+        }
     }
 
     /**
