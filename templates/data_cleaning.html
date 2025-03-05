@@ -353,6 +353,26 @@
                             </p>
                             
                             <form id="cleaning-config-form">
+                                <!-- Data Sampling Controls -->
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Data Sampling</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="sample-rate" class="form-label">Sample Rate <span class="text-muted">(lower values = more detailed visualization, higher values = better performance)</span></label>
+                                            <div class="d-flex align-items-center">
+                                                <input type="range" class="form-range flex-grow-1 me-2" id="sample-rate-slider" min="1" max="100" step="1" value="50">
+                                                <div class="input-group" style="width: 120px;">
+                                                    <input type="number" class="form-control" id="sample-rate" name="sample_rate" min="1" max="1000" value="50">
+                                                    <span class="input-group-text">points</span>
+                                                </div>
+                                            </div>
+                                            <div class="form-text" id="sampling-description">Using every 50th data point (2.00% of data)</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <div class="accordion" id="cleaningAccordion">
                                     <!-- 2.1 File Size Filtering -->
                                     <div class="accordion-item">

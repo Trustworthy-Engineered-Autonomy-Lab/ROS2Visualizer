@@ -189,6 +189,17 @@ def clean_data():
         config = request.json
         if not config:
             return jsonify({"error": "No cleaning configuration provided"}), 400
+            
+        # Ensure sample_rate is properly handled (default to 1 if not provided)
+        if 'sample_rate' not in config:
+            config['sample_rate'] = 1
+        else:
+            # Ensure sample_rate is an integer and at least 1
+            try:
+                config['sample_rate'] = max(1, int(config['sample_rate']))
+            except (ValueError, TypeError):
+                config['sample_rate'] = 1
+                logging.warning("Invalid sample_rate value, defaulting to 1")
         
         # Get files info from session
         analysis_results = session['analysis_results']
