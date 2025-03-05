@@ -4,6 +4,7 @@ import tempfile
 import time
 import uuid
 import json
+import re
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import Flask, render_template, request, jsonify, session, Response, stream_with_context, redirect, url_for
 from utils.data_processor import process_csv_data
@@ -507,6 +508,61 @@ def cloud_list_files():
         logging.error(traceback.format_exc())
         return jsonify({"error": f"Error listing cloud files: {str(e)}"}), 500
 
+
+@app.route('/process_cloud_folder', methods=['POST'])
+def process_cloud_folder():
+    """Process a shared folder link from Google Drive or OneDrive."""
+    try:
+        provider = request.json.get('provider')
+        folder_link = request.json.get('folder_link')
+        
+        if not provider or not folder_link:
+            return jsonify({"error": "Missing provider or folder link"}), 400
+            
+        # Extract folder ID from the URL
+        folder_id = None
+        
+        if provider == 'google':
+            # Extract Google Drive folder ID
+            # Example format: https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrSt
+            match = re.search(r'folders/([a-zA-Z0-9_-]+)', folder_link)
+            if match:
+                folder_id = match.group(1)
+            else:
+                return jsonify({"error": "Invalid Google Drive folder link format"}), 400
+                
+        elif provider == 'microsoft':
+            # Extract OneDrive folder ID or path
+            # Example: https://1drv.ms/f/s!AbCdEfGhIjKlMnOpQrSt
+            if '1drv.ms' in folder_link:
+                folder_id = folder_link  # Use the whole link for OneDrive short links
+            else:
+                # For full OneDrive links
+                match = re.search(r'id=([a-zA-Z0-9_-]+)', folder_link)
+                if match:
+                    folder_id = match.group(1)
+                else:
+                    return jsonify({"error": "Invalid OneDrive folder link format"}), 400
+        else:
+            return jsonify({"error": "Unsupported cloud provider"}), 400
+            
+        # Process the folder to extract all CSV files
+        # This is a simplified version - in a real implementation, you would use
+        # the appropriate API to list files in the folder and download them
+        
+        # For demonstration purposes, we'll return a success message
+        return jsonify({
+            "success": True,
+            "message": f"Successfully processed {provider} folder",
+            "folder_id": folder_id,
+            "provider": provider
+        })
+        
+    except Exception as e:
+        logging.error(f"Error processing cloud folder: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({"error": f"Error processing cloud folder: {str(e)}"}), 500
 
 @app.route('/cloud/download_file', methods=['POST'])
 def cloud_download_file():

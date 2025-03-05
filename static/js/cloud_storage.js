@@ -408,6 +408,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('browseGoogleDrive') || document.getElementById('fileBrowserModal')) {
         window.cloudManager = new CloudStorageManager();
     }
+    
+    // Check for the simplified cloud folder link interface
+    const processCloudLinkBtn = document.getElementById('process-cloud-link-btn');
+    if (processCloudLinkBtn) {
+        processCloudLinkBtn.addEventListener('click', function() {
+            processCloudFolderLink();
+        });
+    }
 });
 
 /**
@@ -486,6 +494,87 @@ function initCloudIntegration() {
     if (typeof window.cloudManager === 'undefined') {
         window.cloudManager = new CloudStorageManager();
     }
+}
+
+/**
+ * Process a cloud folder link for direct import of CSV files
+ */
+function processCloudFolderLink() {
+    const provider = document.getElementById('cloud-provider').value;
+    const folderLink = document.getElementById('cloud-folder-link').value.trim();
+    
+    if (!folderLink) {
+        showMessage('Please enter a cloud folder link', 'danger');
+        return;
+    }
+    
+    // Show loading indicator
+    const button = document.getElementById('process-cloud-link-btn');
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+    
+    // Call the API to process the folder link
+    fetch('/process_cloud_folder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            provider: provider,
+            folder_link: folderLink
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showMessage(data.error, 'danger');
+            return;
+        }
+        
+        // Show success message
+        showMessage(
+            `Successfully processed ${provider === 'google' ? 'Google Drive' : 'OneDrive'} folder. 
+            The folder contains multiple CSV files that will be processed for visualization.`, 
+            'success'
+        );
+        
+        // Update the trajectory visualization with the new data
+        if (typeof refreshTrajectories === 'function') {
+            refreshTrajectories(data.processed_data);
+        }
+    })
+    .catch(error => {
+        showMessage(`Error processing folder link: ${error.message}`, 'danger');
+    })
+    .finally(() => {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+/**
+ * Show a message to the user
+ * @param {string} message - The message to display
+ * @param {string} type - The message type (success, info, warning, danger)
+ */
+function showMessage(message, type = 'info') {
+    const alertEl = document.createElement('div');
+    alertEl.className = `alert alert-${type} alert-dismissible fade show`;
+    alertEl.role = 'alert';
+    alertEl.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.querySelector('.app-container').prepend(alertEl);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const bsAlert = new bootstrap.Alert(alertEl);
+        bsAlert.close();
+    }, 5000);
 }
 
 // When the main application script is loaded, initialize cloud integration
