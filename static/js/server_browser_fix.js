@@ -317,11 +317,31 @@ document.addEventListener('DOMContentLoaded', function() {
           alert(`File loaded successfully: ${filePath.split('/').pop()}`);
         }
         
-        // Process data for visualization if the global function exists
-        if (typeof processData === 'function') {
-          processData(data);
+        // Process data for visualization if the global functions exist
+        if (typeof processData === 'function' && typeof addTrajectory === 'function') {
+          // First process the data to normalize it
+          const processedData = processData(data.data);
+          
+          // Generate a random color for the trajectory
+          const randomColor = Math.random() * 0xffffff;
+          
+          // Extract file name from the path
+          const fileName = filePath.split('/').pop();
+          
+          // Add the trajectory to the visualization
+          addTrajectory(processedData, fileName, randomColor);
+          
+          // Update UI elements if needed
+          if (typeof updateTrajectoryList === 'function') {
+            updateTrajectoryList();
+          }
+          
+          // Update slider range if needed
+          if (typeof updateTimeSlider === 'function') {
+            updateTimeSlider();
+          }
         } else {
-          console.error('processData function not found - cannot visualize the data');
+          console.error('Required visualization functions not found - cannot visualize the data');
         }
       })
       .catch(error => {
