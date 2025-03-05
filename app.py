@@ -60,7 +60,7 @@ def process_csv():
                     try:
                         # Process the file using the file path option
                         processed_data = process_csv_data("", use_file_path=True, file_encoding='utf-8', 
-                                                        is_large_file=True, csv_content=temp_path)
+                                                        is_large_file=True, csv_content_path=temp_path)
                     finally:
                         # Always clean up the temporary file
                         if os.path.exists(temp_path):
@@ -84,7 +84,7 @@ def process_csv():
                     
                     try:
                         processed_data = process_csv_data("", use_file_path=True, file_encoding='latin-1', 
-                                                        is_large_file=True, csv_content=temp_path)
+                                                        is_large_file=True, csv_content_path=temp_path)
                     finally:
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
