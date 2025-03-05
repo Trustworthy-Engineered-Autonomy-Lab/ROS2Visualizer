@@ -300,6 +300,95 @@ document.addEventListener('DOMContentLoaded', function() {
                 navigateToFolder(folderName);
               });
             });
+            
+            // Add event listeners for multi-select functionality
+            
+            // Toggle multi-select mode
+            const toggleMultiSelect = contentContainer.querySelector('#toggle-multi-select');
+            if (toggleMultiSelect) {
+              toggleMultiSelect.checked = serverBrowserState.multiSelectMode;
+              toggleMultiSelect.addEventListener('change', function() {
+                serverBrowserState.multiSelectMode = this.checked;
+                // Re-render the UI
+                navigateToFolder(serverBrowserState.currentFolder);
+              });
+            }
+            
+            // Process selected files button
+            const processButton = contentContainer.querySelector('#process-selected-files');
+            if (processButton) {
+              processButton.addEventListener('click', function() {
+                processSelectedFiles();
+              });
+            }
+            
+            // Select all files checkbox
+            const selectAllFiles = contentContainer.querySelector('#select-all-files');
+            if (selectAllFiles) {
+              selectAllFiles.addEventListener('change', function() {
+                const isChecked = this.checked;
+                const fileCheckboxes = contentContainer.querySelectorAll('.file-select-checkbox');
+                
+                fileCheckboxes.forEach(checkbox => {
+                  const filePath = checkbox.getAttribute('data-file-path');
+                  const fileName = checkbox.getAttribute('data-file-name');
+                  const fileSize = checkbox.getAttribute('data-file-size');
+                  
+                  checkbox.checked = isChecked;
+                  
+                  if (isChecked && !isFileSelected(filePath)) {
+                    toggleFileSelection(filePath, fileName, fileSize);
+                  } else if (!isChecked && isFileSelected(filePath)) {
+                    toggleFileSelection(filePath, fileName, fileSize);
+                  }
+                });
+                
+                // Update UI by reloading the folder
+                navigateToFolder(serverBrowserState.currentFolder);
+              });
+            }
+            
+            // Individual file checkboxes
+            const fileCheckboxes = contentContainer.querySelectorAll('.file-select-checkbox');
+            fileCheckboxes.forEach(checkbox => {
+              checkbox.addEventListener('change', function() {
+                const filePath = this.getAttribute('data-file-path');
+                const fileName = this.getAttribute('data-file-name');
+                const fileSize = this.getAttribute('data-file-size');
+                
+                toggleFileSelection(filePath, fileName, fileSize);
+                
+                // Update UI (highlight row)
+                const row = this.closest('tr');
+                if (row) {
+                  if (this.checked) {
+                    row.classList.add('table-primary');
+                  } else {
+                    row.classList.remove('table-primary');
+                  }
+                }
+                
+                // Update process button state
+                if (processButton) {
+                  processButton.disabled = serverBrowserState.selectedFiles.length === 0;
+                  processButton.textContent = `Process ${serverBrowserState.selectedFiles.length} Selected File(s)`;
+                }
+              });
+            });
+            
+            // Remove selection buttons
+            const removeSelectionButtons = contentContainer.querySelectorAll('.remove-selection');
+            removeSelectionButtons.forEach(button => {
+              button.addEventListener('click', function() {
+                const filePath = this.getAttribute('data-file-path');
+                
+                // Remove from selection
+                toggleFileSelection(filePath);
+                
+                // Update UI by reloading the folder
+                navigateToFolder(serverBrowserState.currentFolder);
+              });
+            });
           }
           
           // Hide loading indicator
@@ -373,16 +462,54 @@ document.addEventListener('DOMContentLoaded', function() {
           folderContent += '</div></div>';
         }
         
+        // Add multi-select controls
+        folderContent += `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="toggle-multi-select">
+            <label class="form-check-label" for="toggle-multi-select">
+              Multi-select mode ${serverBrowserState.multiSelectMode ? '(on)' : '(off)'}
+            </label>
+          </div>
+          <button id="process-selected-files" class="btn btn-success btn-sm" ${serverBrowserState.selectedFiles.length === 0 ? 'disabled' : ''}>
+            Process ${serverBrowserState.selectedFiles.length} Selected File(s)
+          </button>
+        </div>`;
+        
         // Generate file listing
         folderContent += '<div><h6>Files</h6>';
         
         if (serverBrowserState.files && serverBrowserState.files.length > 0) {
           folderContent += '<table class="table table-sm table-hover">';
-          folderContent += '<thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody>';
+          folderContent += '<thead><tr>';
+          
+          // Add selection column if multi-select is enabled
+          if (serverBrowserState.multiSelectMode) {
+            folderContent += '<th><input type="checkbox" id="select-all-files" class="form-check-input"></th>';
+          }
+          
+          folderContent += '<th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody>';
           
           for (const file of serverBrowserState.files) {
+            // Check if file is already selected
+            const isSelected = isFileSelected(file.path);
+            
             folderContent += `
-              <tr>
+              <tr ${isSelected ? 'class="table-primary"' : ''}>`;
+              
+            // Add checkbox if multi-select is enabled
+            if (serverBrowserState.multiSelectMode) {
+              folderContent += `
+                <td>
+                  <input type="checkbox" class="form-check-input file-select-checkbox" 
+                    data-file-path="${file.path}" 
+                    data-file-name="${file.name}"
+                    data-file-size="${file.size}"
+                    ${isSelected ? 'checked' : ''}>
+                </td>`;
+            }
+            
+            folderContent += `
                 <td>${file.name}</td>
                 <td>${file.size_formatted || formatBytes(file.size)}</td>
                 <td>
@@ -394,6 +521,25 @@ document.addEventListener('DOMContentLoaded', function() {
           folderContent += '</tbody></table>';
         } else {
           folderContent += '<p class="text-muted">No files found in this location.</p>';
+        }
+        
+        // Display currently selected files
+        if (serverBrowserState.selectedFiles.length > 0) {
+          folderContent += '<div class="mt-3 p-2 bg-light rounded">';
+          folderContent += '<h6>Selected Files:</h6>';
+          folderContent += '<ul class="list-group list-group-flush">';
+          
+          for (const file of serverBrowserState.selectedFiles) {
+            folderContent += `
+              <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+                ${file.name}
+                <button class="btn btn-sm btn-outline-danger remove-selection" data-file-path="${file.path}">
+                  <i class="fas fa-times"></i> Remove
+                </button>
+              </li>`;
+          }
+          
+          folderContent += '</ul></div>';
         }
         
         folderContent += '</div>';
@@ -428,6 +574,95 @@ document.addEventListener('DOMContentLoaded', function() {
               e.preventDefault();
               const folderName = this.getAttribute('data-folder');
               navigateToFolder(folderName);
+            });
+          });
+          
+          // Add event listeners for multi-select functionality
+          
+          // Toggle multi-select mode
+          const toggleMultiSelect = contentContainer.querySelector('#toggle-multi-select');
+          if (toggleMultiSelect) {
+            toggleMultiSelect.checked = serverBrowserState.multiSelectMode;
+            toggleMultiSelect.addEventListener('change', function() {
+              serverBrowserState.multiSelectMode = this.checked;
+              // Re-render to show/hide checkboxes
+              navigateToFolder(serverBrowserState.currentFolder);
+            });
+          }
+          
+          // Process selected files button
+          const processButton = contentContainer.querySelector('#process-selected-files');
+          if (processButton) {
+            processButton.addEventListener('click', function() {
+              processSelectedFiles();
+            });
+          }
+          
+          // Select all files checkbox
+          const selectAllFiles = contentContainer.querySelector('#select-all-files');
+          if (selectAllFiles) {
+            selectAllFiles.addEventListener('change', function() {
+              const isChecked = this.checked;
+              const fileCheckboxes = contentContainer.querySelectorAll('.file-select-checkbox');
+              
+              fileCheckboxes.forEach(checkbox => {
+                const filePath = checkbox.getAttribute('data-file-path');
+                const fileName = checkbox.getAttribute('data-file-name');
+                const fileSize = checkbox.getAttribute('data-file-size');
+                
+                checkbox.checked = isChecked;
+                
+                if (isChecked && !isFileSelected(filePath)) {
+                  toggleFileSelection(filePath, fileName, fileSize);
+                } else if (!isChecked && isFileSelected(filePath)) {
+                  toggleFileSelection(filePath, fileName, fileSize);
+                }
+              });
+              
+              // Update UI by reloading the folder
+              navigateToFolder(serverBrowserState.currentFolder);
+            });
+          }
+          
+          // Individual file checkboxes
+          const fileCheckboxes = contentContainer.querySelectorAll('.file-select-checkbox');
+          fileCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+              const filePath = this.getAttribute('data-file-path');
+              const fileName = this.getAttribute('data-file-name');
+              const fileSize = this.getAttribute('data-file-size');
+              
+              toggleFileSelection(filePath, fileName, fileSize);
+              
+              // Update UI (highlight row)
+              const row = this.closest('tr');
+              if (row) {
+                if (this.checked) {
+                  row.classList.add('table-primary');
+                } else {
+                  row.classList.remove('table-primary');
+                }
+              }
+              
+              // Update process button state
+              if (processButton) {
+                processButton.disabled = serverBrowserState.selectedFiles.length === 0;
+                processButton.textContent = `Process ${serverBrowserState.selectedFiles.length} Selected File(s)`;
+              }
+            });
+          });
+          
+          // Remove selection buttons
+          const removeSelectionButtons = contentContainer.querySelectorAll('.remove-selection');
+          removeSelectionButtons.forEach(button => {
+            button.addEventListener('click', function() {
+              const filePath = this.getAttribute('data-file-path');
+              
+              // Remove from selection
+              toggleFileSelection(filePath);
+              
+              // Update UI by reloading the folder
+              navigateToFolder(serverBrowserState.currentFolder);
             });
           });
         }
