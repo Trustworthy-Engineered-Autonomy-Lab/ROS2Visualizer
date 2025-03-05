@@ -1437,28 +1437,63 @@ function refreshTrajectories(processedData) {
 
 // SERVER DATA BROWSING FUNCTIONS
 
+// Enhanced Server Data Browser
+// --------------------------
+// Global state for server data browser
+const serverDataBrowser = {
+  currentFolder: 'sample_data',
+  folders: [],
+  files: [],
+  selectedFiles: [],
+  viewMode: 'list', // 'list' or 'grid'
+  sortOption: 'date-desc',
+  searchQuery: '',
+  currentFilePreview: null
+};
+
 // Open the server data browser with cross-browser compatibility
 function openServerDataBrowser() {
-  // Reset selected files
-  serverData.selectedFiles = [];
+  // Reset state
+  serverDataBrowser.selectedFiles = [];
+  serverDataBrowser.searchQuery = '';
+  serverDataBrowser.currentFilePreview = null;
   
-  // Get UI elements with null checks for resilience
+  // Get UI elements with null checks
   const loadingIndicator = document.getElementById('server-data-loading');
   const errorDisplay = document.getElementById('server-data-error');
   const folderTabs = document.getElementById('folderTabs');
-  const folderTabContent = document.getElementById('folderTabContent');
+  const fileListContainer = document.getElementById('file-list-container');
+  const fileGridContainer = document.getElementById('file-grid-container');
+  const fileGrid = document.getElementById('file-grid');
+  const emptyFolderMessage = document.getElementById('empty-folder-message');
+  const filePreviewPanel = document.getElementById('file-preview-panel');
+  const selectedFilesList = document.getElementById('selected-files-list');
   const loadButton = document.getElementById('load-selected-server-files');
+  const searchInput = document.getElementById('server-data-search');
+  const sortSelect = document.getElementById('server-data-sort');
+  const breadcrumb = document.getElementById('current-folder-breadcrumb');
+  const fileCountDisplay = document.getElementById('file-count-display');
   
-  // Show loading indicator
+  // Reset UI
   if (loadingIndicator) loadingIndicator.classList.remove('d-none');
   if (errorDisplay) errorDisplay.classList.add('d-none');
-  
-  // Clear existing content
   if (folderTabs) folderTabs.innerHTML = '';
-  if (folderTabContent) folderTabContent.innerHTML = '';
+  if (fileListContainer) fileListContainer.innerHTML = '';
+  if (fileGrid) fileGrid.innerHTML = '';
+  if (emptyFolderMessage) emptyFolderMessage.classList.add('d-none');
+  if (filePreviewPanel) filePreviewPanel.classList.add('d-none');
+  if (searchInput) searchInput.value = '';
+  if (breadcrumb) breadcrumb.textContent = 'Loading...';
+  if (selectedFilesList) {
+    selectedFilesList.innerHTML = `<p class="text-muted text-center mb-0">No files selected. Select files from the list below.</p>`;
+  }
+  if (fileCountDisplay) fileCountDisplay.textContent = '0 files available';
   
   // Disable load button
   if (loadButton) loadButton.disabled = true;
+  
+  // Setup event listeners if they don't exist yet
+  setupDataBrowserEventListeners();
   
   // Show modal with error handling
   try {
@@ -1468,79 +1503,36 @@ function openServerDataBrowser() {
     showMessage("Opening server data browser, please wait...", "info");
   }
   
-  // Select data loading method based on browser support
-  if (browserSupport.fetch) {
-    // Modern browsers - use fetch API
-    fetch('/browse_data')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Error fetching server data (${response.status}): ${response.statusText}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        processServerData(data);
-      })
-      .catch(error => {
-        handleServerDataError(error);
-      });
-  } else {
-    // Legacy browsers - use XMLHttpRequest
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', '/browse_data', true);
-    
-    xhr.onload = function() {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          processServerData(data);
-        } catch (error) {
-          handleServerDataError(new Error('Error parsing server response: ' + error.message));
-        }
-      } else {
-        handleServerDataError(new Error(`Server error (${xhr.status}): ${xhr.statusText}`));
-      }
-    };
-    
-    xhr.onerror = function() {
-      handleServerDataError(new Error('Network error occurred'));
-    };
-    
-    xhr.ontimeout = function() {
-      handleServerDataError(new Error('Request timed out'));
-    };
-    
-    xhr.timeout = 30000; // 30 seconds
-    
-    // Send request with error handling
-    try {
-      xhr.send();
-    } catch (error) {
-      handleServerDataError(new Error('Error sending request: ' + error.message));
-    }
-  }
+  // Fetch server data with appropriate method
+  fetchServerData('/browse_data')
+    .then(processServerData)
+    .catch(handleServerDataError);
   
   // Helper function to process server data
   function processServerData(data) {
     // Store server data with fallback defaults
-    serverData.currentFolder = data.current_folder || 'default';
-    serverData.folders = data.folders || [];
-    serverData.files = data.files || [];
+    serverDataBrowser.currentFolder = data.current_folder || 'sample_data';
+    serverDataBrowser.folders = data.folders || [];
+    serverDataBrowser.files = data.files || [];
     
-    // Render folder tabs
-    try {
-      renderFolderTabs();
-    } catch (error) {
-      console.error('Error rendering folder tabs:', error);
-      showMessage('Error displaying folder structure', 'warning');
+    // Update breadcrumb
+    if (breadcrumb) {
+      breadcrumb.textContent = serverDataBrowser.currentFolder.replace('_', ' ');
     }
     
-    // Render file list
+    // Update file count display
+    if (fileCountDisplay) {
+      const fileCount = serverDataBrowser.files.length;
+      fileCountDisplay.textContent = `${fileCount} file${fileCount !== 1 ? 's' : ''} available`;
+    }
+    
+    // Render UI components
     try {
+      renderFolderTabs();
       renderFileList();
     } catch (error) {
-      console.error('Error rendering file list:', error);
-      showMessage('Error displaying file list', 'warning');
+      console.error('Error rendering server data browser:', error);
+      showMessage('Error displaying file browser UI', 'warning');
     }
     
     // Hide loading indicator
@@ -1564,238 +1556,691 @@ function openServerDataBrowser() {
   }
 }
 
+// Set up event listeners for the data browser if they don't exist yet
+function setupDataBrowserEventListeners() {
+  // Only set up once
+  if (window.dataBrowserListenersInitialized) return;
+  
+  // Search input
+  const searchInput = document.getElementById('server-data-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      serverDataBrowser.searchQuery = this.value.trim().toLowerCase();
+      renderFileList(); // Re-render with filter
+    });
+  }
+  
+  // Sort select
+  const sortSelect = document.getElementById('server-data-sort');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', function() {
+      serverDataBrowser.sortOption = this.value;
+      renderFileList(); // Re-render with new sort order
+    });
+  }
+  
+  // View mode toggles
+  const listViewBtn = document.getElementById('view-mode-list');
+  const gridViewBtn = document.getElementById('view-mode-grid');
+  
+  if (listViewBtn) {
+    listViewBtn.addEventListener('click', function() {
+      if (serverDataBrowser.viewMode !== 'list') {
+        serverDataBrowser.viewMode = 'list';
+        this.classList.add('active');
+        if (gridViewBtn) gridViewBtn.classList.remove('active');
+        // Toggle containers
+        const listContainer = document.getElementById('file-list-container');
+        const gridContainer = document.getElementById('file-grid-container');
+        if (listContainer) listContainer.classList.remove('d-none');
+        if (gridContainer) gridContainer.classList.add('d-none');
+      }
+    });
+  }
+  
+  if (gridViewBtn) {
+    gridViewBtn.addEventListener('click', function() {
+      if (serverDataBrowser.viewMode !== 'grid') {
+        serverDataBrowser.viewMode = 'grid';
+        this.classList.add('active');
+        if (listViewBtn) listViewBtn.classList.remove('active');
+        // Toggle containers
+        const listContainer = document.getElementById('file-list-container');
+        const gridContainer = document.getElementById('file-grid-container');
+        if (listContainer) listContainer.classList.add('d-none');
+        if (gridContainer) gridContainer.classList.remove('d-none');
+      }
+    });
+  }
+  
+  // Home folder link
+  const folderHome = document.getElementById('folder-home');
+  if (folderHome) {
+    folderHome.addEventListener('click', function(e) {
+      e.preventDefault();
+      // Reset to default folder
+      if (serverDataBrowser.currentFolder !== 'sample_data') {
+        changeFolder('sample_data');
+      }
+    });
+  }
+  
+  // Close preview button
+  const closePreview = document.getElementById('close-preview');
+  if (closePreview) {
+    closePreview.addEventListener('click', function() {
+      const previewPanel = document.getElementById('file-preview-panel');
+      if (previewPanel) previewPanel.classList.add('d-none');
+      serverDataBrowser.currentFilePreview = null;
+    });
+  }
+  
+  // Mark as initialized
+  window.dataBrowserListenersInitialized = true;
+}
+
+// Fetch server data with cross-browser compatibility
+function fetchServerData(url) {
+  return new Promise((resolve, reject) => {
+    if (browserSupport.fetch) {
+      // Modern browsers - use fetch API
+      fetch(url)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Error fetching server data (${response.status}): ${response.statusText}`);
+          }
+          return response.json();
+        })
+        .then(resolve)
+        .catch(reject);
+    } else {
+      // Legacy browsers - use XMLHttpRequest
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve(data);
+          } catch (error) {
+            reject(new Error('Error parsing server response: ' + error.message));
+          }
+        } else {
+          reject(new Error(`Server error (${xhr.status}): ${xhr.statusText}`));
+        }
+      };
+      
+      xhr.onerror = function() {
+        reject(new Error('Network error occurred'));
+      };
+      
+      xhr.ontimeout = function() {
+        reject(new Error('Request timed out'));
+      };
+      
+      xhr.timeout = 30000; // 30 seconds
+      
+      // Send request with error handling
+      try {
+        xhr.send();
+      } catch (error) {
+        reject(new Error('Error sending request: ' + error.message));
+      }
+    }
+  });
+}
+
 // Render folder tabs
 function renderFolderTabs() {
   const tabsContainer = document.getElementById('folderTabs');
+  if (!tabsContainer) return;
+  
   tabsContainer.innerHTML = '';
   
-  serverData.folders.forEach((folder, index) => {
-    const isActive = folder === serverData.currentFolder;
+  serverDataBrowser.folders.forEach((folder) => {
+    const isActive = folder === serverDataBrowser.currentFolder;
     
     const tabItem = document.createElement('li');
     tabItem.className = 'nav-item';
-    tabItem.innerHTML = `
-      <button class="nav-link ${isActive ? 'active' : ''}" 
-              id="tab-${folder}" 
-              data-bs-toggle="tab" 
-              data-bs-target="#pane-${folder}" 
-              type="button" 
-              role="tab" 
-              aria-controls="pane-${folder}" 
-              aria-selected="${isActive ? 'true' : 'false'}">
-        ${folder.replace('_', ' ')}
-      </button>
-    `;
+    
+    const tabLink = document.createElement('button');
+    tabLink.className = `nav-link ${isActive ? 'active' : ''}`;
+    tabLink.textContent = folder.replace('_', ' ');
+    
+    // Add folder icon
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-folder me-2';
+    tabLink.prepend(icon);
     
     // Add event listener
-    tabItem.querySelector('button').addEventListener('click', () => {
+    tabLink.addEventListener('click', () => {
       changeFolder(folder);
     });
     
+    tabItem.appendChild(tabLink);
     tabsContainer.appendChild(tabItem);
   });
 }
 
 // Change folder with cross-browser compatibility
 function changeFolder(folder) {
-  if (!folder || folder === serverData.currentFolder) {
+  if (!folder || folder === serverDataBrowser.currentFolder) {
     return;
   }
   
-  // Get UI elements with null checks for resilience
+  // Get UI elements with null checks
   const loadingIndicator = document.getElementById('server-data-loading');
   const errorDisplay = document.getElementById('server-data-error');
+  const breadcrumb = document.getElementById('current-folder-breadcrumb');
+  const filePreviewPanel = document.getElementById('file-preview-panel');
+  
+  // Hide any open preview
+  if (filePreviewPanel) filePreviewPanel.classList.add('d-none');
+  serverDataBrowser.currentFilePreview = null;
   
   // Show loading indicator
   if (loadingIndicator) loadingIndicator.classList.remove('d-none');
   if (errorDisplay) errorDisplay.classList.add('d-none');
   
-  // Handle folder data loading based on browser support
-  if (browserSupport.fetch) {
-    // Modern browsers - use fetch API
-    fetch(`/browse_data?folder=${encodeURIComponent(folder)}`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Error fetching folder data (${response.status}): ${response.statusText}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        processFolderData(data);
-      })
-      .catch(error => {
-        handleFolderError(error);
-      });
-  } else {
-    // Legacy browsers - use XMLHttpRequest
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', `/browse_data?folder=${encodeURIComponent(folder)}`, true);
-    
-    xhr.onload = function() {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          processFolderData(data);
-        } catch (error) {
-          handleFolderError(new Error('Error parsing folder response: ' + error.message));
-        }
-      } else {
-        handleFolderError(new Error(`Server error (${xhr.status}): ${xhr.statusText}`));
+  // Update breadcrumb
+  if (breadcrumb) breadcrumb.textContent = 'Loading...';
+  
+  // Fetch data for the folder
+  fetchServerData(`/browse_data?folder=${encodeURIComponent(folder)}`)
+    .then(data => {
+      // Update browser state
+      serverDataBrowser.currentFolder = data.current_folder || folder;
+      serverDataBrowser.files = data.files || [];
+      
+      // Update breadcrumb
+      if (breadcrumb) {
+        breadcrumb.textContent = serverDataBrowser.currentFolder.replace('_', ' ');
       }
-    };
-    
-    xhr.onerror = function() {
-      handleFolderError(new Error('Network error occurred'));
-    };
-    
-    xhr.ontimeout = function() {
-      handleFolderError(new Error('Request timed out'));
-    };
-    
-    xhr.timeout = 30000; // 30 seconds
-    
-    // Send request with error handling
-    try {
-      xhr.send();
-    } catch (error) {
-      handleFolderError(new Error('Error sending folder request: ' + error.message));
-    }
-  }
-  
-  // Helper function to process folder data
-  function processFolderData(data) {
-    // Update server data with fallback defaults
-    serverData.currentFolder = data.current_folder || folder;
-    serverData.files = data.files || [];
-    
-    // Render file list with error handling
-    try {
+      
+      // Update file count
+      const fileCountDisplay = document.getElementById('file-count-display');
+      if (fileCountDisplay) {
+        const fileCount = serverDataBrowser.files.length;
+        fileCountDisplay.textContent = `${fileCount} file${fileCount !== 1 ? 's' : ''} available`;
+      }
+      
+      // Update UI
+      renderFolderTabs();
       renderFileList();
-    } catch (error) {
-      console.error('Error rendering file list:', error);
-      showMessage('Error displaying file list for folder: ' + folder, 'warning');
-    }
-    
-    // Hide loading indicator
-    if (loadingIndicator) loadingIndicator.classList.add('d-none');
-  }
-  
-  // Helper function to handle folder errors
-  function handleFolderError(error) {
-    console.error('Error changing folder:', error);
-    
-    // Update UI to show error
-    if (loadingIndicator) loadingIndicator.classList.add('d-none');
-    
-    if (errorDisplay) {
-      errorDisplay.classList.remove('d-none');
-      errorDisplay.textContent = 'Error loading folder data: ' + (error.message || 'Unknown error');
-    }
-    
-    // Show a toast message as well
-    showMessage('Error loading folder: ' + folder + ' - ' + (error.message || 'Unknown error'), 'danger');
-  }
+      
+      // Hide loading indicator
+      if (loadingIndicator) loadingIndicator.classList.add('d-none');
+    })
+    .catch(error => {
+      console.error('Error changing folder:', error);
+      
+      // Update UI to show error
+      if (loadingIndicator) loadingIndicator.classList.add('d-none');
+      
+      if (errorDisplay) {
+        errorDisplay.classList.remove('d-none');
+        errorDisplay.textContent = 'Error loading folder data: ' + (error.message || 'Unknown error');
+      }
+      
+      // Show a toast message
+      showMessage('Error loading folder: ' + folder + ' - ' + (error.message || 'Unknown error'), 'danger');
+      
+      // Update breadcrumb back to the current folder
+      if (breadcrumb) {
+        breadcrumb.textContent = serverDataBrowser.currentFolder.replace('_', ' ');
+      }
+    });
 }
 
-// Render file list
-function renderFileList() {
-  const tabContent = document.getElementById('folderTabContent');
-  tabContent.innerHTML = '';
+// Filter files based on search query
+function filterFiles(files) {
+  if (!serverDataBrowser.searchQuery) {
+    return files;
+  }
   
-  // Create tab pane for each folder
-  serverData.folders.forEach(folder => {
-    const isActive = folder === serverData.currentFolder;
+  return files.filter(file => 
+    file.name.toLowerCase().includes(serverDataBrowser.searchQuery)
+  );
+}
+
+// Sort files based on current sort option
+function sortFiles(files) {
+  const sortOption = serverDataBrowser.sortOption;
+  
+  return [...files].sort((a, b) => {
+    switch (sortOption) {
+      case 'name-asc':
+        return a.name.localeCompare(b.name);
+      case 'name-desc':
+        return b.name.localeCompare(a.name);
+      case 'date-desc':
+        return b.modified - a.modified;
+      case 'date-asc':
+        return a.modified - b.modified;
+      case 'size-desc':
+        return b.size - a.size;
+      case 'size-asc':
+        return a.size - b.size;
+      default:
+        return 0;
+    }
+  });
+}
+
+// Render file list based on current view mode
+function renderFileList() {
+  // Filter and sort files
+  const filteredFiles = filterFiles(serverDataBrowser.files);
+  const sortedFiles = sortFiles(filteredFiles);
+  
+  // Show empty state if no files
+  const emptyFolderMessage = document.getElementById('empty-folder-message');
+  if (emptyFolderMessage) {
+    if (sortedFiles.length === 0) {
+      emptyFolderMessage.classList.remove('d-none');
+    } else {
+      emptyFolderMessage.classList.add('d-none');
+    }
+  }
+  
+  // Update UI based on view mode
+  if (serverDataBrowser.viewMode === 'grid') {
+    renderGridView(sortedFiles);
+  } else {
+    renderListView(sortedFiles);
+  }
+  
+  // Update selected files list
+  updateSelectedFilesList();
+}
+
+// Render list view of files
+function renderListView(files) {
+  const container = document.getElementById('file-list-container');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (files.length === 0) {
+    return;
+  }
+  
+  // Create table
+  const table = document.createElement('table');
+  table.className = 'table table-hover mb-0';
+  
+  // Create header
+  const thead = document.createElement('thead');
+  thead.innerHTML = `
+    <tr>
+      <th width="40px"><i class="fas fa-check-square" title="Select"></i></th>
+      <th>Name</th>
+      <th width="100px">Size</th>
+      <th width="120px">Actions</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+  
+  // Create body
+  const tbody = document.createElement('tbody');
+  
+  // Add each file
+  files.forEach(file => {
+    const isSelected = serverDataBrowser.selectedFiles.some(sf => sf.path === file.path);
     
-    const pane = document.createElement('div');
-    pane.className = `tab-pane fade ${isActive ? 'show active' : ''}`;
-    pane.id = `pane-${folder}`;
-    pane.setAttribute('role', 'tabpanel');
-    pane.setAttribute('aria-labelledby', `tab-${folder}`);
+    const row = document.createElement('tr');
+    row.className = `file-row ${isSelected ? 'selected' : ''}`;
+    row.dataset.path = file.path;
     
-    // Only populate the active pane
-    if (isActive) {
-      // Create table for files
-      if (serverData.files.length > 0) {
-        const table = document.createElement('table');
-        table.className = 'table table-hover';
-        
-        // Create table header
-        const thead = document.createElement('thead');
-        thead.innerHTML = `
-          <tr>
-            <th>Select</th>
-            <th>Name</th>
-            <th>Size</th>
-            <th>Actions</th>
-          </tr>
-        `;
-        table.appendChild(thead);
-        
-        // Create table body
-        const tbody = document.createElement('tbody');
-        
-        // Add files
-        serverData.files.forEach(file => {
-          const tr = document.createElement('tr');
-          
-          // Check if file is already selected
-          const isSelected = serverData.selectedFiles.some(sf => sf.path === file.path);
-          
-          tr.innerHTML = `
-            <td>
-              <div class="form-check">
-                <input class="form-check-input file-checkbox" type="checkbox" value="${file.path}" id="check-${file.path}" ${isSelected ? 'checked' : ''}>
-              </div>
-            </td>
-            <td>${file.name}</td>
-            <td>${file.size_formatted}</td>
-            <td>
-              <button class="btn btn-sm btn-primary view-file-btn" data-path="${file.path}">
-                <i class="fas fa-eye"></i> Quick View
-              </button>
-            </td>
-          `;
-          
-          // Add event listener for checkbox
-          tr.querySelector('.file-checkbox').addEventListener('change', (e) => {
-            toggleFileSelection(file, e.target.checked);
-          });
-          
-          // Add event listener for view button
-          tr.querySelector('.view-file-btn').addEventListener('click', () => {
-            viewServerFile(file.path);
-          });
-          
-          tbody.appendChild(tr);
-        });
-        
-        table.appendChild(tbody);
-        pane.appendChild(table);
-      } else {
-        // Show no files message
-        const noFiles = document.createElement('div');
-        noFiles.className = 'alert alert-info';
-        noFiles.textContent = 'No files found in this folder.';
-        pane.appendChild(noFiles);
-      }
+    // Highlight search terms if present
+    let fileName = file.name;
+    if (serverDataBrowser.searchQuery) {
+      const query = serverDataBrowser.searchQuery;
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      fileName = fileName.replace(regex, '<span class="highlight-match">$1</span>');
     }
     
-    tabContent.appendChild(pane);
+    row.innerHTML = `
+      <td>
+        <div class="form-check">
+          <input class="form-check-input file-checkbox" type="checkbox" value="${file.path}" 
+                 id="check-${file.path.replace(/[^\w]/g, '-')}" ${isSelected ? 'checked' : ''}>
+        </div>
+      </td>
+      <td>
+        <i class="fas fa-file-csv text-primary me-2"></i>${fileName}
+      </td>
+      <td>${file.size_formatted || formatValue(file.size || 0, 'B')}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary view-file-btn" data-path="${file.path}">
+          <i class="fas fa-eye"></i> Preview
+        </button>
+      </td>
+    `;
+    
+    // Add event listeners
+    const checkbox = row.querySelector('.file-checkbox');
+    if (checkbox) {
+      checkbox.addEventListener('change', (e) => {
+        toggleFileSelection(file, e.target.checked);
+        row.classList.toggle('selected', e.target.checked);
+      });
+    }
+    
+    const viewBtn = row.querySelector('.view-file-btn');
+    if (viewBtn) {
+      viewBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Don't trigger row click
+        previewFile(file);
+      });
+    }
+    
+    // Row click event (toggle selection)
+    row.addEventListener('click', (e) => {
+      // Skip if clicking on checkbox or button
+      if (e.target.type === 'checkbox' || e.target.tagName === 'BUTTON' || 
+          e.target.parentElement.tagName === 'BUTTON' || e.target.tagName === 'I') {
+        return;
+      }
+      
+      // Toggle checkbox
+      if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        toggleFileSelection(file, checkbox.checked);
+        row.classList.toggle('selected', checkbox.checked);
+      }
+    });
+    
+    tbody.appendChild(row);
   });
+  
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
+// Render grid view of files
+function renderGridView(files) {
+  const container = document.getElementById('file-grid');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (files.length === 0) {
+    return;
+  }
+  
+  // Add each file as a card
+  files.forEach(file => {
+    const isSelected = serverDataBrowser.selectedFiles.some(sf => sf.path === file.path);
+    
+    // Highlight search terms if present
+    let fileName = file.name;
+    if (serverDataBrowser.searchQuery) {
+      const query = serverDataBrowser.searchQuery;
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      fileName = fileName.replace(regex, '<span class="highlight-match">$1</span>');
+    }
+    
+    const card = document.createElement('div');
+    card.className = 'col-md-3 col-sm-4 col-6';
+    
+    card.innerHTML = `
+      <div class="card file-grid-item ${isSelected ? 'selected' : ''}">
+        <div class="card-body text-center p-3">
+          <div class="form-check position-absolute" style="top: 10px; right: 10px;">
+            <input class="form-check-input file-checkbox" type="checkbox" value="${file.path}" 
+                   id="grid-check-${file.path.replace(/[^\w]/g, '-')}" ${isSelected ? 'checked' : ''}>
+          </div>
+          <div class="file-icon text-primary">
+            <i class="fas fa-file-csv"></i>
+          </div>
+          <div class="small text-truncate" title="${file.name}">${fileName}</div>
+          <div class="small text-muted">${file.size_formatted || formatValue(file.size || 0, 'B')}</div>
+          <button class="btn btn-sm btn-outline-primary mt-2 view-file-btn" data-path="${file.path}">
+            <i class="fas fa-eye"></i> Preview
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Add event listeners
+    const cardElement = card.querySelector('.file-grid-item');
+    const checkbox = card.querySelector('.file-checkbox');
+    
+    if (checkbox) {
+      checkbox.addEventListener('change', (e) => {
+        toggleFileSelection(file, e.target.checked);
+        if (cardElement) cardElement.classList.toggle('selected', e.target.checked);
+      });
+    }
+    
+    const viewBtn = card.querySelector('.view-file-btn');
+    if (viewBtn) {
+      viewBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Don't trigger card click
+        previewFile(file);
+      });
+    }
+    
+    // Card click event (toggle selection)
+    if (cardElement) {
+      cardElement.addEventListener('click', (e) => {
+        // Skip if clicking on checkbox or button
+        if (e.target.type === 'checkbox' || e.target.tagName === 'BUTTON' || 
+            e.target.parentElement.tagName === 'BUTTON' || e.target.tagName === 'I') {
+          return;
+        }
+        
+        // Toggle checkbox
+        if (checkbox) {
+          checkbox.checked = !checkbox.checked;
+          toggleFileSelection(file, checkbox.checked);
+          cardElement.classList.toggle('selected', checkbox.checked);
+        }
+      });
+    }
+    
+    container.appendChild(card);
+  });
+}
+
+// Update the selected files list UI
+function updateSelectedFilesList() {
+  const container = document.getElementById('selected-files-list');
+  const countElement = document.getElementById('selected-files-count');
+  const loadButton = document.getElementById('load-selected-server-files');
+  
+  if (container) {
+    if (serverDataBrowser.selectedFiles.length === 0) {
+      container.innerHTML = `<p class="text-muted text-center mb-0">No files selected. Select files from the list below.</p>`;
+    } else {
+      container.innerHTML = '';
+      
+      serverDataBrowser.selectedFiles.forEach(file => {
+        const badge = document.createElement('span');
+        badge.className = 'selected-file-badge';
+        badge.innerHTML = `
+          <i class="fas fa-file-csv text-primary me-1"></i> ${file.name}
+          <i class="fas fa-times-circle remove-selected" data-path="${file.path}"></i>
+        `;
+        
+        // Add event listener to remove button
+        const removeBtn = badge.querySelector('.remove-selected');
+        if (removeBtn) {
+          removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeFileSelection(file);
+          });
+        }
+        
+        container.appendChild(badge);
+      });
+    }
+  }
+  
+  // Update count
+  if (countElement) {
+    countElement.textContent = `Selected: ${serverDataBrowser.selectedFiles.length} files`;
+  }
+  
+  // Update load button state
+  if (loadButton) {
+    loadButton.disabled = serverDataBrowser.selectedFiles.length === 0;
+  }
 }
 
 // Toggle file selection
 function toggleFileSelection(file, isSelected) {
+  if (!file || !file.path) return;
+  
   if (isSelected) {
-    // Add file to selected files
-    serverData.selectedFiles.push(file);
+    // Check if already in the array
+    if (!serverDataBrowser.selectedFiles.some(f => f.path === file.path)) {
+      serverDataBrowser.selectedFiles.push(file);
+    }
   } else {
-    // Remove file from selected files
-    serverData.selectedFiles = serverData.selectedFiles.filter(f => f.path !== file.path);
+    // Remove from array
+    serverDataBrowser.selectedFiles = serverDataBrowser.selectedFiles.filter(f => f.path !== file.path);
   }
   
-  // Update load button state
-  document.getElementById('load-selected-server-files').disabled = serverData.selectedFiles.length === 0;
+  // Update UI
+  updateSelectedFilesList();
+  
+  // Update all checkboxes with the same path
+  const checkboxes = document.querySelectorAll(`.file-checkbox[value="${file.path}"]`);
+  checkboxes.forEach(cb => {
+    cb.checked = isSelected;
+    
+    // Update parent row/card styling
+    const row = cb.closest('.file-row');
+    if (row) row.classList.toggle('selected', isSelected);
+    
+    const card = cb.closest('.file-grid-item');
+    if (card) card.classList.toggle('selected', isSelected);
+  });
+}
+
+// Remove file selection
+function removeFileSelection(file) {
+  toggleFileSelection(file, false);
+}
+
+// Preview a file
+function previewFile(file) {
+  if (!file || !file.path) return;
+  
+  // Set current preview
+  serverDataBrowser.currentFilePreview = file;
+  
+  // Update preview panel UI
+  const previewPanel = document.getElementById('file-preview-panel');
+  const previewFileName = document.getElementById('preview-file-name');
+  const previewInfoName = document.getElementById('preview-info-name');
+  const previewInfoSize = document.getElementById('preview-info-size');
+  const previewInfoType = document.getElementById('preview-info-type');
+  const previewInfoPoints = document.getElementById('preview-info-points');
+  const previewInfoModified = document.getElementById('preview-info-modified');
+  const previewDataSample = document.getElementById('preview-data-sample');
+  
+  // Show panel and update basic info
+  if (previewPanel) previewPanel.classList.remove('d-none');
+  if (previewFileName) previewFileName.textContent = file.name;
+  if (previewInfoName) previewInfoName.textContent = file.name;
+  if (previewInfoSize) previewInfoSize.textContent = file.size_formatted || formatValue(file.size || 0, 'B');
+  if (previewInfoType) previewInfoType.textContent = getFileExtension(file.name).toUpperCase() || 'Unknown';
+  if (previewInfoModified) {
+    const date = new Date(file.modified * 1000);
+    previewInfoModified.textContent = date.toLocaleString();
+  }
+  
+  // Show loading state for data
+  if (previewDataSample) {
+    previewDataSample.innerHTML = `
+      <div class="text-center py-3">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2">Loading preview...</p>
+      </div>
+    `;
+  }
+  
+  // Fetch preview data
+  fetchServerData(`/get_server_file?path=${encodeURIComponent(file.path)}`)
+    .then(data => {
+      // Update points count
+      if (previewInfoPoints && data.metadata && data.metadata.points_count) {
+        previewInfoPoints.textContent = `${data.metadata.points_count} / ${data.metadata.original_count || 'N/A'}`;
+      } else if (previewInfoPoints) {
+        previewInfoPoints.textContent = data.data ? data.data.length.toString() : '0';
+      }
+      
+      // Show data sample
+      if (previewDataSample && data.data) {
+        // Show only first 10 records
+        const sampleData = data.data.slice(0, 10);
+        
+        if (sampleData.length > 0) {
+          // Get all unique keys from the data
+          const allKeys = new Set();
+          sampleData.forEach(item => {
+            Object.keys(item).forEach(key => allKeys.add(key));
+          });
+          
+          // Convert to array and sort
+          const keys = Array.from(allKeys).sort();
+          
+          // Create table
+          let tableHtml = '<table class="table table-sm table-striped">';
+          
+          // Table header
+          tableHtml += '<thead><tr>';
+          keys.forEach(key => {
+            tableHtml += `<th>${key}</th>`;
+          });
+          tableHtml += '</tr></thead>';
+          
+          // Table body
+          tableHtml += '<tbody>';
+          sampleData.forEach(item => {
+            tableHtml += '<tr>';
+            keys.forEach(key => {
+              tableHtml += `<td>${item[key] !== undefined ? item[key] : '-'}</td>`;
+            });
+            tableHtml += '</tr>';
+          });
+          tableHtml += '</tbody></table>';
+          
+          // Add note if there's more data
+          if (data.data.length > 10) {
+            tableHtml += `<p class="text-muted small mt-2">Showing 10 of ${data.data.length} records.</p>`;
+          }
+          
+          previewDataSample.innerHTML = tableHtml;
+        } else {
+          previewDataSample.innerHTML = '<div class="alert alert-info">No data available for preview.</div>';
+        }
+      } else if (previewDataSample) {
+        previewDataSample.innerHTML = '<div class="alert alert-warning">Unable to load preview data.</div>';
+      }
+    })
+    .catch(error => {
+      console.error('Error loading file preview:', error);
+      
+      if (previewDataSample) {
+        previewDataSample.innerHTML = `<div class="alert alert-danger">
+          Error loading preview: ${error.message || 'Unknown error'}
+        </div>`;
+      }
+      
+      if (previewInfoPoints) {
+        previewInfoPoints.textContent = 'Error';
+      }
+    });
+}
+
+// Get file extension
+function getFileExtension(filename) {
+  return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 2) || '';
 }
 
 // View server file data with cross-browser compatibility
@@ -1929,10 +2374,10 @@ function viewServerFile(filePath) {
   }
 }
 
-// Load selected server files with cross-browser compatibility
+// Load selected server files for visualization
 function loadSelectedServerFiles() {
   // Validate selection
-  if (!serverData.selectedFiles || serverData.selectedFiles.length === 0) {
+  if (!serverDataBrowser.selectedFiles || serverDataBrowser.selectedFiles.length === 0) {
     showMessage('No files selected', 'warning');
     return;
   }
@@ -1957,7 +2402,7 @@ function loadSelectedServerFiles() {
   
   // Update UI with null checks
   if (progressBar) progressBar.style.width = '0%';
-  if (statusText) statusText.textContent = 'Preparing to process files...';
+  if (statusText) statusText.textContent = 'Preparing to visualize flight data...';
   
   // Reset any existing trajectories
   clearTrajectories();
@@ -1968,7 +2413,7 @@ function loadSelectedServerFiles() {
   const colors = [0x0088ff, 0xff8800, 0x88ff00, 0xff0088, 0x00ff88, 0x8800ff];
   
   // Make a copy of selected files to avoid issues if the modal is reopened
-  const filesToProcess = [...serverData.selectedFiles];
+  const filesToProcess = [...serverDataBrowser.selectedFiles];
   const totalFiles = filesToProcess.length;
   
   // Process files sequentially to avoid overwhelming the server
@@ -1993,143 +2438,65 @@ function loadSelectedServerFiles() {
       progressBar.style.width = `${(index / totalFiles) * 100}%`;
     }
     
-    // Load file with appropriate method based on browser support
-    if (browserSupport.fetch) {
-      // Modern browsers - use fetch API
-      fetchFile(file, index)
-        .then(data => {
-          handleFileSuccess(data, file, index);
-          processNextFile(index + 1);
-        })
-        .catch(error => {
-          handleFileError(error, file);
-          processNextFile(index + 1);
-        });
-    } else {
-      // Legacy browsers - use XMLHttpRequest
-      loadFileWithXHR(file, index)
-        .then(data => {
-          handleFileSuccess(data, file, index);
-          processNextFile(index + 1);
-        })
-        .catch(error => {
-          handleFileError(error, file);
-          processNextFile(index + 1);
-        });
-    }
-  }
-  
-  // Fetch file using modern fetch API
-  function fetchFile(file, index) {
-    return new Promise((resolve, reject) => {
-      fetch(`/get_server_file?path=${encodeURIComponent(file.path)}`)
-        .then(response => {
-          if (!response.ok) {
-            return response.json()
-              .then(err => { throw new Error(err.error || `Server error (${response.status})`) })
-              .catch(e => { throw new Error(`Server error (${response.status}): ${response.statusText}`) });
+    // Fetch file data
+    fetchServerData(`/get_server_file?path=${encodeURIComponent(file.path)}`)
+      .then(data => {
+        processedCount++;
+        
+        // Update progress UI
+        if (progressBar) {
+          progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
+        }
+        
+        // Check if we have data points
+        if (!data.data || data.data.length === 0) {
+          throw new Error('No valid data points found in file');
+        }
+        
+        try {
+          // Log metadata
+          console.log(`File ${file.name || 'unknown'} metadata:`, data.metadata);
+          
+          // Add trajectory to scene
+          addTrajectory(data.data, file.name || `File ${index + 1}`, colors[index % colors.length]);
+          
+          // Update status
+          if (statusText) {
+            statusText.textContent = `Processed ${processedCount} of ${totalFiles} files`;
+            if (data.metadata && data.metadata.points_count) {
+              statusText.textContent += ` (${data.metadata.points_count} points from ${data.metadata.original_count || 'unknown'} total)`;
+            }
           }
-          return response.json();
-        })
-        .then(resolve)
-        .catch(reject);
-    });
-  }
-  
-  // Load file using legacy XMLHttpRequest
-  function loadFileWithXHR(file, index) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', `/get_server_file?path=${encodeURIComponent(file.path)}`, true);
-      
-      xhr.onload = function() {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            resolve(data);
-          } catch (error) {
-            reject(new Error('Error parsing file data: ' + error.message));
-          }
-        } else {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            reject(new Error(response.error || `Server error (${xhr.status}): ${xhr.statusText}`));
-          } catch (e) {
-            reject(new Error(`Server error (${xhr.status}): ${xhr.statusText}`));
+        } catch (error) {
+          console.error("Error adding trajectory:", error);
+          failedCount++;
+          if (statusText) {
+            statusText.textContent = `Error visualizing ${file.name || 'file'}: ${error.message || 'Unknown error'}`;
           }
         }
-      };
-      
-      xhr.onerror = function() {
-        reject(new Error('Network error occurred'));
-      };
-      
-      xhr.ontimeout = function() {
-        reject(new Error('Request timed out'));
-      };
-      
-      xhr.timeout = 60000; // 60 seconds for potentially large files
-      
-      // Send request with error handling
-      try {
-        xhr.send();
-      } catch (error) {
-        reject(new Error('Error sending request: ' + error.message));
-      }
-    });
-  }
-  
-  // Handle successful file processing
-  function handleFileSuccess(data, file, index) {
-    processedCount++;
-    
-    // Update progress UI
-    if (progressBar) {
-      progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
-    }
-    
-    // Check if we have data points
-    if (!data.data || data.data.length === 0) {
-      handleFileError(new Error('No valid data points found in file'), file);
-      return;
-    }
-    
-    try {
-      // Log metadata
-      console.log(`File ${file.name || 'unknown'} metadata:`, data.metadata);
-      
-      // Add trajectory to scene
-      addTrajectory(data.data, file.name || `File ${index + 1}`, colors[index % colors.length]);
-      
-      // Update status with null checks
-      if (statusText) {
-        statusText.textContent = `Processed ${processedCount} of ${totalFiles} files`;
-        if (data.metadata && data.metadata.points_count) {
-          statusText.textContent += ` (${data.metadata.points_count} points from ${data.metadata.original_count || 'unknown'} total)`;
+        
+        // Process next file
+        processNextFile(index + 1);
+      })
+      .catch(error => {
+        console.error("Error processing file:", error);
+        
+        // Update status
+        if (statusText) {
+          statusText.textContent = `Error processing ${file.name || 'file'}: ${error.message || 'Unknown error'}`;
         }
-      }
-    } catch (error) {
-      console.error("Error adding trajectory:", error);
-      handleFileError(new Error('Error visualizing file: ' + error.message), file);
-    }
-  }
-  
-  // Handle file loading errors
-  function handleFileError(error, file) {
-    failedCount++;
-    console.error("Error processing file:", error);
-    
-    // Update status with null checks
-    if (statusText) {
-      statusText.textContent = `Error processing ${file.name || 'file'}: ${error.message || 'Unknown error'}`;
-    }
-    
-    processedCount++;
-    
-    // Update progress even if there's an error
-    if (progressBar) {
-      progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
-    }
+        
+        processedCount++;
+        failedCount++;
+        
+        // Update progress even if there's an error
+        if (progressBar) {
+          progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
+        }
+        
+        // Continue with next file
+        processNextFile(index + 1);
+      });
   }
   
   // Finish processing and update UI
@@ -2147,12 +2514,19 @@ function loadSelectedServerFiles() {
       updateTimeSlider();
       
       // Show completion message
+      const successCount = processedCount - failedCount;
       if (failedCount > 0) {
-        showMessage(`Loaded ${processedCount - failedCount} of ${totalFiles} trajectories (${failedCount} failed)`, 
-                    failedCount === totalFiles ? "danger" : "warning");
+        if (successCount > 0) {
+          showMessage(`Visualized ${successCount} of ${totalFiles} flight trajectories. ${failedCount} file(s) had errors.`, "warning");
+        } else {
+          showMessage(`Failed to visualize all ${totalFiles} files. Please check file format and try again.`, "danger");
+        }
       } else {
-        showMessage(`Successfully loaded ${totalFiles} trajectories`, "success");
+        showMessage(`Successfully visualized ${totalFiles} flight trajectories`, "success");
       }
+      
+      // Clear selection in data browser
+      serverDataBrowser.selectedFiles = [];
     }, 500);
   }
 }

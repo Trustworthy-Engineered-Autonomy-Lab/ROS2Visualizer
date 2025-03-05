@@ -123,6 +123,95 @@ html, body {
   color: var(--bs-gray-600) !important;
 }
 
+/* Server Data Browser Styling */
+.file-view-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+#file-list-container table {
+  margin-bottom: 0;
+}
+
+#file-list-container .file-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+#file-list-container .file-row:hover {
+  background-color: var(--bs-gray-200);
+}
+
+#file-list-container .file-row.selected {
+  background-color: var(--bs-primary-bg-subtle);
+}
+
+/* Grid view styling */
+.file-grid-item {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.file-grid-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.file-grid-item.selected {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 2px var(--bs-primary);
+}
+
+.file-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Selected files list styling */
+#selected-files-list {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.selected-file-badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background-color: var(--bs-primary-bg-subtle);
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.selected-file-badge .remove-selected {
+  margin-left: 0.5rem;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.selected-file-badge .remove-selected:hover {
+  opacity: 1;
+}
+
+/* File preview styling */
+.preview-content {
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 0.875rem;
+  background-color: var(--bs-gray-100);
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+}
+
+/* Search highlight styling */
+.highlight-match {
+  background-color: rgba(255, 255, 0, 0.3);
+  padding: 0 0.2rem;
+  border-radius: 0.2rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .sidebar {
@@ -136,5 +225,17 @@ html, body {
   
   #charts-container {
     height: 150px;
+  }
+  
+  .file-view-container {
+    max-height: 300px;
+  }
+  
+  #selected-files-list {
+    max-height: 80px;
+  }
+  
+  .preview-content {
+    max-height: 200px;
   }
 }

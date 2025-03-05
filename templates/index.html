@@ -272,43 +272,192 @@
     </div>
   </div>
   
-  <!-- Server data browser modal -->
+  <!-- Enhanced Server Data Browser Modal -->
   <div class="modal fade" id="serverDataModal" tabindex="-1" aria-labelledby="serverDataModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="serverDataModalLabel">Browse Server Data</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title" id="serverDataModalLabel">
+            <i class="fas fa-server me-2"></i>Browse Flight Data Files
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <!-- Folder navigation tabs -->
-          <ul class="nav nav-tabs mb-3" id="folderTabs" role="tablist">
-            <!-- Folder tabs will be added dynamically -->
-          </ul>
+          <!-- Search and filter controls -->
+          <div class="row mb-3 align-items-center">
+            <div class="col-md-6 mb-2 mb-md-0">
+              <div class="input-group">
+                <span class="input-group-text bg-dark text-white border-dark">
+                  <i class="fas fa-search"></i>
+                </span>
+                <input type="text" class="form-control border-dark" id="server-data-search" 
+                       placeholder="Search files by name...">
+              </div>
+            </div>
+            <div class="col-md-3 mb-2 mb-md-0">
+              <select id="server-data-sort" class="form-select border-dark">
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="date-desc" selected>Date (Newest)</option>
+                <option value="date-asc">Date (Oldest)</option>
+                <option value="size-desc">Size (Largest)</option>
+                <option value="size-asc">Size (Smallest)</option>
+              </select>
+            </div>
+            <div class="col-md-3 text-end mb-2 mb-md-0">
+              <div class="btn-group" role="group">
+                <button type="button" id="view-mode-list" class="btn btn-outline-dark active">
+                  <i class="fas fa-list"></i>
+                </button>
+                <button type="button" id="view-mode-grid" class="btn btn-outline-dark">
+                  <i class="fas fa-th"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Folder navigation breadcrumb and tabs -->
+          <div class="row mb-3">
+            <div class="col-12">
+              <nav aria-label="Data folder navigation">
+                <ol class="breadcrumb px-3 py-2 rounded bg-light">
+                  <li class="breadcrumb-item"><a href="#" id="folder-home"><i class="fas fa-home"></i> Home</a></li>
+                  <li class="breadcrumb-item active" id="current-folder-breadcrumb">sample_data</li>
+                </ol>
+              </nav>
+            </div>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-12">
+              <ul class="nav nav-pills" id="folderTabs" role="tablist">
+                <!-- Folder tabs will be added dynamically -->
+              </ul>
+            </div>
+          </div>
+          
+          <!-- Selected files summary -->
+          <div class="row mb-3">
+            <div class="col-12">
+              <div class="card border-dark">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-check-square me-2"></i>Selected Files</span>
+                  <span id="selected-files-count" class="badge bg-light text-dark">Selected: 0 files</span>
+                </div>
+                <div class="card-body p-2" id="selected-files-list">
+                  <p class="text-muted text-center mb-0">No files selected. Select files from the list below.</p>
+                </div>
+              </div>
+            </div>
+          </div>
           
           <!-- File listings -->
-          <div class="tab-content" id="folderTabContent">
-            <!-- Tab panes will be added dynamically -->
-          </div>
-          
-          <!-- Loading indicator -->
-          <div id="server-data-loading" class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Loading...</span>
+          <div class="row">
+            <div class="col-12">
+              <div class="card border-dark">
+                <div class="card-header bg-dark text-white">
+                  <i class="fas fa-file-csv me-2"></i>Available Files
+                </div>
+                <div class="card-body p-0">
+                  <div class="tab-content" id="folderTabContent">
+                    <!-- Tab panes will be added dynamically -->
+                  </div>
+                  
+                  <!-- List view container (default) -->
+                  <div id="file-list-container" class="file-view-container">
+                    <!-- Files will be listed here in table format -->
+                  </div>
+                  
+                  <!-- Grid view container (hidden initially) -->
+                  <div id="file-grid-container" class="file-view-container d-none">
+                    <div class="row g-3 p-3" id="file-grid">
+                      <!-- Files will be shown here as cards -->
+                    </div>
+                  </div>
+                  
+                  <!-- Empty state message -->
+                  <div id="empty-folder-message" class="text-center py-5 d-none">
+                    <i class="fas fa-folder-open text-muted mb-3" style="font-size: 3rem;"></i>
+                    <p class="text-muted">This folder is empty.</p>
+                    <p class="text-muted small">Upload files or select a different folder.</p>
+                  </div>
+                  
+                  <!-- Loading indicator -->
+                  <div id="server-data-loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading server data...</p>
+                  </div>
+                  
+                  <!-- Error message -->
+                  <div id="server-data-error" class="alert alert-danger m-3 d-none">
+                    Error loading server data. Please try again.
+                  </div>
+                </div>
+              </div>
             </div>
-            <p class="mt-2">Loading server data...</p>
           </div>
           
-          <!-- Error message -->
-          <div id="server-data-error" class="alert alert-danger d-none">
-            Error loading server data. Please try again.
+          <!-- File preview panel (appears when clicking Quick View) -->
+          <div class="row mt-3 d-none" id="file-preview-panel">
+            <div class="col-12">
+              <div class="card border-primary">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                  <span id="preview-file-name">File Preview</span>
+                  <button type="button" class="btn-close btn-close-white" id="close-preview"></button>
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-4">
+                      <div class="card mb-3">
+                        <div class="card-header bg-dark text-white">File Info</div>
+                        <div class="card-body p-0">
+                          <table class="table table-sm mb-0">
+                            <tbody id="preview-file-info">
+                              <tr><td>Name:</td><td id="preview-info-name">-</td></tr>
+                              <tr><td>Size:</td><td id="preview-info-size">-</td></tr>
+                              <tr><td>Type:</td><td id="preview-info-type">-</td></tr>
+                              <tr><td>Data Points:</td><td id="preview-info-points">-</td></tr>
+                              <tr><td>Modified:</td><td id="preview-info-modified">-</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-8">
+                      <div class="card">
+                        <div class="card-header bg-dark text-white">Data Sample</div>
+                        <div class="card-body">
+                          <div class="preview-content" id="preview-data-sample">
+                            <div class="text-center py-3">
+                              <div class="spinner-border text-primary" role="status"></div>
+                              <p class="mt-2">Loading preview...</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" id="load-selected-server-files" disabled>
-            Load Selected Files
-          </button>
+        <div class="modal-footer bg-light">
+          <div class="d-flex w-100 justify-content-between align-items-center">
+            <div>
+              <span class="text-muted" id="file-count-display">0 files available</span>
+            </div>
+            <div>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-1"></i>Cancel
+              </button>
+              <button type="button" class="btn btn-success" id="load-selected-server-files" disabled>
+                <i class="fas fa-chart-line me-1"></i>Visualize Selected Files
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
