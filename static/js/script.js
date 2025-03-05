@@ -319,7 +319,7 @@ function initCharts() {
   }, {responsive: true});
 }
 
-// Handle file upload
+// Handle file upload - entirely client-side processing
 function handleFileUpload() {
   const fileInput = document.getElementById('file-input');
   const files = fileInput.files;
@@ -339,66 +339,125 @@ function handleFileUpload() {
   
   // Process each file
   let processedCount = 0;
+  const totalFiles = files.length;
   const colors = [0x0088ff, 0xff8800, 0x88ff00, 0xff0088, 0x00ff88, 0x8800ff];
   
-  // Use server-side processing for large files and to handle Unix timestamps
+  // Process files completely client-side
   Array.from(files).forEach((file, index) => {
+    console.log(`Processing file ${index + 1}/${totalFiles}: ${file.name}`);
     statusText.textContent = `Processing file: ${file.name}`;
-    progressBar.style.width = `${(index / files.length) * 100}%`;
+    progressBar.style.width = `${(index / totalFiles) * 100}%`;
     
-    // Create form data for file upload
-    const formData = new FormData();
-    formData.append('file', file);
+    // Use FileReader to read the file content in the browser
+    const reader = new FileReader();
     
-    // Send file to server for processing
-    fetch('/process_csv', {
-      method: 'POST',
-      body: formData
-    })
-    .then(response => {
-      if (!response.ok) {
-        return response.json().then(err => { throw new Error(err.error || 'Server error') });
-      }
-      return response.json();
-    })
-    .then(data => {
-      processedCount++;
-      progressBar.style.width = `${(processedCount / files.length) * 100}%`;
-      
-      // Check if we have data points
-      if (!data.data || data.data.length === 0) {
-        throw new Error('No valid data points found in file');
-      }
-      
-      // Log metadata
-      console.log(`File ${file.name} metadata:`, data.metadata);
-      
-      // Add trajectory to scene
-      addTrajectory(data.data, file.name, colors[index % colors.length]);
-      
-      // Update status
-      statusText.textContent = `Processed ${processedCount} of ${files.length} files`;
-      statusText.textContent += ` (${data.metadata.points_count} points from ${data.metadata.original_count} total)`;
-      
-      // If all files are processed, close modal and update UI
-      if (processedCount === files.length) {
-        setTimeout(() => {
-          uploadModal.hide();
-          updateTrajectoryList();
-          updateTimeSlider();
-          showMessage(`Successfully loaded ${files.length} trajectories`, "success");
-        }, 500);
-      }
-    })
-    .catch(error => {
-      console.error("Error processing file:", error);
-      statusText.textContent = `Error processing ${file.name}: ${error.message}`;
-      processedCount++;
-      
+    reader.onload = function(e) {
+      try {
+        const fileContent = e.target.result;
+        console.log(`File ${file.name} loaded into memory, size: ${Math.round(fileContent.length / 1024)} KB`);
+        
+        // Process the CSV content in the browser
+        const processedData = processCSVInBrowser(fileContent, file.name);
+        
+        processedCount++;
+        progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
+        
+        // Check if we have data points
+        if (!processedData || !processedData.points || processedData.points.length === 0) {
+          showMessage(`No valid data points found in file: ${file.name}`, "warning");
+          return;
+        }
+        
+        // Log processed data
+        console.log(`File ${file.name} processed, found ${processedData.points.length} points`);
+        
+        // Add trajectory to scene
+        addTrajectory(processedData, file.name, colors[index % colors.length]);
+        
+        // Update status
+        statusText.textContent = `Processed ${processedCount} of ${totalFiles} files`;
+        statusText.textContent += ` (${processedData.points.length} points)`;
+        
+        // If all files are processed, close modal and update UI
+        if (processedCount === totalFiles) {
+          setTimeout(() => {
+            uploadModal.hide();
+            updateTrajectoryList();
+            updateTimeSlider();
+            showMessage(`Successfully loaded ${totalFiles} trajectories`, "success");
+          }, 500);
+        }
+      } catch (error) {
+        console.error("Error processing file:", error);
+        statusText.textContent = `Error processing ${file.name}: ${error.message}`;
+        processedCount++;
+        
       // Update progress even if there's an error
-      progressBar.style.width = `${(processedCount / files.length) * 100}%`;
-    });
+      progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
+    };
+    
+    reader.onerror = function() {
+      console.error("FileReader error for file:", file.name);
+      statusText.textContent = `Error reading ${file.name}`;
+      processedCount++;
+      progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
+    };
+    
+    // Read the file as text
+    reader.readAsText(file);
   });
+}
+
+// Process CSV in browser
+function processCSVInBrowser(csvContent, filename) {
+  console.log(`Processing CSV file: ${filename}`);
+  
+  // Parse CSV content
+  const lines = csvContent.split(/\r\n|\n/);
+  
+  // Extract headers
+  const headers = lines[0].split(',').map(header => header.trim());
+  
+  // Parse data rows
+  const rawData = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue; // Skip empty lines
+    
+    const values = line.split(',');
+    if (values.length !== headers.length) {
+      console.warn(`Line ${i} has ${values.length} values, expected ${headers.length}, skipping`);
+      continue;
+    }
+    
+    const row = {};
+    headers.forEach((header, index) => {
+      row[header] = values[index];
+    });
+    
+    rawData.push(row);
+  }
+  
+  console.log(`Parsed ${rawData.length} data rows from CSV`);
+  
+  // Process the data
+  const processedData = processData(rawData);
+  
+  // Format data for visualization
+  const points = [];
+  processedData.forEach(point => {
+    points.push(point);
+  });
+  
+  return {
+    points: points,
+    metadata: {
+      filename: filename,
+      row_count: rawData.length,
+      header_count: headers.length,
+      headers: headers
+    }
+  };
 }
 
 // Process parsed CSV data
@@ -470,7 +529,14 @@ function processData(rawData) {
 }
 
 // Add trajectory to scene
-function addTrajectory(data, name, color) {
+function addTrajectory(processedData, name, color) {
+  // For client-side processed data, we need to use the points array
+  const data = processedData.points || processedData.data || [];
+  
+  if (!data || data.length === 0) {
+    console.error('No valid data points provided to addTrajectory');
+    return;
+  }
   // Enhanced altitude scaling to make flights appear at proper depths
   const altitudeScaleFactor = 1.8; // Amplify vertical movements
   
