@@ -1,140 +1,393 @@
-/* General app layout */
-html, body {
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
+/* TEA Lab Flight Trajectory Visualizer - Enhanced Styles */
+
+:root {
+  --primary-color: #2a9d8f;
+  --secondary-color: #264653;
+  --accent-color: #e9c46a;
+  --success-color: #4CAF50;
+  --info-color: #2196F3;
+  --warning-color: #ff9800;
+  --danger-color: #f44336;
+  --dark-bg: #1a1a1a;
+  --card-bg: #2c2c2c;
+  --light-text: #f5f5f5;
+  --muted-text: #aaaaaa;
+  --border-radius: 8px;
+  --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
 
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--dark-bg);
+  color: var(--light-text);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* App Container */
 .app-container {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
-/* Sidebar styling */
+/* Sidebar */
 .sidebar {
-  background-color: var(--bs-gray-900);
-  height: 100%;
+  background-color: var(--secondary-color);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 100vh;
   overflow-y: auto;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
-.sidebar .container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-}
-
-/* Main content area */
-.content-area {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 3D visualization container */
-#visualization-container {
-  flex: 1; 
+  box-shadow: var(--box-shadow);
   position: relative;
-  background-color: var(--bs-gray-800);
-  overflow: hidden;
 }
 
-/* 2D charts container */
-#charts-container {
-  height: 250px;
-  background-color: var(--bs-gray-800);
-  overflow: hidden;
+.sidebar::-webkit-scrollbar {
+  width: 8px;
 }
 
-.chart {
-  height: 100%;
-  background-color: var(--bs-gray-900);
-  border-radius: 0.25rem;
-  overflow: hidden;
+.sidebar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
 }
 
-/* TEA Lab styling */
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+/* Content Area */
+.content-area {
+  background-color: var(--dark-bg);
+  max-height: 100vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* TEA Lab Branding */
 .tea-lab-logo {
-  transition: transform 0.3s ease;
+  filter: drop-shadow(0 0 10px rgba(42, 157, 143, 0.5));
+  transition: all 0.3s ease;
 }
+
 .tea-lab-logo:hover {
   transform: scale(1.05);
+  filter: drop-shadow(0 0 15px rgba(42, 157, 143, 0.8));
 }
 
-/* Control panel styling */
+/* Control Panels */
 .control-panel {
-  background-color: var(--bs-gray-800);
-  border-radius: 0.25rem;
+  background-color: var(--card-bg);
+  border-radius: var(--border-radius);
   padding: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--box-shadow);
+  transition: transform 0.2s ease-in-out;
+}
+
+.control-panel:hover {
+  transform: translateY(-2px);
 }
 
 .control-panel h5 {
-  margin-top: 0;
-  color: var(--bs-info);
+  color: var(--primary-color);
+  font-weight: 600;
+  margin-bottom: 1rem;
 }
 
-/* Time display */
-.time-display {
-  font-family: monospace;
-  font-weight: bold;
+.control-panel .border-bottom {
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Trajectory list styling */
-.trajectory-item {
-  display: flex;
-  align-items: center;
-  padding: 0.5rem;
-  margin-bottom: 0.25rem;
-  background-color: var(--bs-gray-800);
-  border-radius: 0.25rem;
+/* Buttons */
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
-.color-box {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  margin: 0 0.5rem;
+.btn-primary:hover {
+  background-color: #238b7e;
+  border-color: #238b7e;
 }
 
-/* Data table styling */
-#data-table {
-  font-size: 0.9rem;
+.btn-outline-primary {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
-#data-table td:first-child {
-  font-weight: bold;
-  color: var(--bs-light);
+.btn-outline-primary:hover {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
-/* View controls */
+/* Visualization Container */
+#visualization-container {
+  background-color: #1e1e1e;
+  border-radius: var(--border-radius);
+  height: 65vh;
+  position: relative;
+  box-shadow: var(--box-shadow);
+  overflow: hidden;
+}
+
+/* View Controls */
 .view-controls {
   opacity: 0.7;
-  transition: opacity 0.3s;
+  transition: opacity 0.2s ease;
 }
 
 .view-controls:hover {
   opacity: 1;
 }
 
-/* Footer styling */
-.text-muted {
-  color: var(--bs-gray-600) !important;
+/* Charts Container */
+#charts-container {
+  margin-top: 1rem;
+}
+
+.chart {
+  background-color: var(--card-bg);
+  border-radius: var(--border-radius);
+  height: 28vh;
+  box-shadow: var(--box-shadow);
+  padding: 0.5rem;
+}
+
+/* Trajectory List */
+#trajectory-list {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+#trajectory-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#trajectory-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+#trajectory-list::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 3px;
+}
+
+.trajectory-item {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: var(--border-radius);
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.trajectory-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.trajectory-color {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+/* Time Control */
+#time-slider {
+  height: 8px;
+  cursor: pointer;
+}
+
+#time-slider::-webkit-slider-thumb {
+  background: var(--primary-color);
+  width: 16px;
+  height: 16px;
+}
+
+.time-display {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: var(--accent-color);
+}
+
+/* Data Display */
+.data-display {
+  background-color: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  box-shadow: var(--box-shadow);
+}
+
+.data-display h5 {
+  color: var(--primary-color);
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.data-display table {
+  margin-bottom: 0;
+}
+
+/* File Upload Animation */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+#file-input:focus + label {
+  animation: pulse 1.5s infinite;
+}
+
+/* Loading Animations */
+.loading-animation {
+  display: inline-block;
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+}
+
+.loading-animation div {
+  position: absolute;
+  border: 4px solid var(--primary-color);
+  opacity: 1;
+  border-radius: 50%;
+  animation: loading-animation 1s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.loading-animation div:nth-child(2) {
+  animation-delay: -0.5s;
+}
+
+@keyframes loading-animation {
+  0% {
+    top: 36px;
+    left: 36px;
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  100% {
+    top: 0px;
+    left: 0px;
+    width: 72px;
+    height: 72px;
+    opacity: 0;
+  }
+}
+
+/* Footer */
+.footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1rem;
+  color: var(--muted-text);
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .sidebar {
     height: auto;
-    max-height: 40vh;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
   
-  .content-area {
-    height: 60vh;
+  #visualization-container {
+    height: 50vh;
   }
   
-  #charts-container {
-    height: 150px;
+  .chart {
+    height: 35vh;
+    margin-bottom: 1rem;
   }
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Upload modal styling */
+.modal-content {
+  background-color: var(--card-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.progress {
+  height: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+}
+
+.progress-bar {
+  background-color: var(--primary-color);
+}
+
+/* Enhanced 3D elements */
+.axis-label {
+  color: var(--accent-color);
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+/* File placeholder styling */
+.file-placeholder {
+  border: 2px dashed rgba(42, 157, 143, 0.5);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.file-placeholder:hover {
+  border-color: var(--primary-color);
+  background-color: rgba(42, 157, 143, 0.1);
+}
+
+.file-placeholder i {
+  font-size: 2.5rem;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+/* Custom tooltips */
+.custom-tooltip {
+  position: absolute;
+  background-color: var(--card-bg);
+  color: var(--light-text);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  box-shadow: var(--box-shadow);
+}
+
+.has-tooltip:hover + .custom-tooltip {
+  opacity: 1;
+}
+
+/* Highlight current data point */
+.current-point {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--accent-color);
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  box-shadow: 0 0 10px rgba(233, 196, 106, 0.8);
 }
