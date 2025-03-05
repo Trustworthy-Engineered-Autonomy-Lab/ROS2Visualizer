@@ -497,14 +497,14 @@ function initCloudIntegration() {
 }
 
 /**
- * Process a cloud folder link for direct import of CSV files
+ * Process a cloud file or folder link for direct import of CSV files
  */
 function processCloudFolderLink() {
     const provider = document.getElementById('cloud-provider').value;
-    const folderLink = document.getElementById('cloud-folder-link').value.trim();
+    const cloudLink = document.getElementById('cloud-folder-link').value.trim();
     
-    if (!folderLink) {
-        showMessage('Please enter a cloud folder link', 'danger');
+    if (!cloudLink) {
+        showMessage('Please enter a cloud file or folder link', 'danger');
         return;
     }
     
@@ -514,7 +514,7 @@ function processCloudFolderLink() {
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
     
-    // Call the API to process the folder link
+    // Call the API to process the cloud link
     fetch('/process_cloud_folder', {
         method: 'POST',
         headers: {
@@ -522,7 +522,7 @@ function processCloudFolderLink() {
         },
         body: JSON.stringify({
             provider: provider,
-            folder_link: folderLink
+            folder_link: cloudLink
         })
     })
     .then(response => response.json())
@@ -532,10 +532,14 @@ function processCloudFolderLink() {
             return;
         }
         
+        // Determine if this is a file or folder and what cloud provider
+        const resourceType = data.is_file ? 'file' : 'folder';
+        const providerName = provider === 'google' ? 'Google Drive' : 
+                           (cloudLink.includes('sharepoint.com') ? 'SharePoint' : 'OneDrive');
+        
         // Show success message
         showMessage(
-            `Successfully processed ${provider === 'google' ? 'Google Drive' : 'OneDrive'} folder. 
-            The folder contains multiple CSV files that will be processed for visualization.`, 
+            `Successfully processed ${providerName} ${resourceType}.`, 
             'success'
         );
         
@@ -545,7 +549,7 @@ function processCloudFolderLink() {
         }
     })
     .catch(error => {
-        showMessage(`Error processing folder link: ${error.message}`, 'danger');
+        showMessage(`Error processing cloud link: ${error.message}`, 'danger');
     })
     .finally(() => {
         // Reset button state

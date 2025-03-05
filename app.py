@@ -547,7 +547,7 @@ def process_cloud_folder():
                 return jsonify({"error": "Unsupported Google Drive link format. Use folder or direct file links."}), 400
                 
         elif provider == 'microsoft':
-            # Handle OneDrive links
+            # Handle OneDrive/SharePoint links
             if '1drv.ms/f' in cloud_link:
                 # OneDrive folder short link
                 resource_id = cloud_link
@@ -556,8 +556,32 @@ def process_cloud_folder():
                 # OneDrive file short link
                 resource_id = cloud_link
                 is_file = True
+            elif 'sharepoint.com' in cloud_link:
+                # SharePoint link format
+                # Check if it's a file (ends with .csv, .txt, etc.)
+                logging.info(f"Processing SharePoint link: {cloud_link}")
+                
+                # Extract filename from the URL if possible
+                filename_match = re.search(r'/([^/]+\.(csv|txt|xlsx|xls))(?:\?|$)', cloud_link)
+                if filename_match:
+                    # It's likely a file
+                    is_file = True
+                    filename = filename_match.group(1)
+                    logging.info(f"Detected SharePoint file: {filename}")
+                else:
+                    # If we can't extract a filename, check for common folder patterns
+                    if '/Documents/' in cloud_link or '/Shared%20Documents/' in cloud_link:
+                        is_file = False
+                        logging.info("Detected SharePoint folder")
+                    else:
+                        # If we can't determine, default to file if it has 'csf' parameter
+                        is_file = 'csf=1' in cloud_link
+                        logging.info(f"Assuming SharePoint {'file' if is_file else 'folder'} based on URL pattern")
+                
+                # Use the full URL as the resource ID for SharePoint
+                resource_id = cloud_link
             else:
-                # For full OneDrive links
+                # For standard OneDrive links
                 if '/folders/' in cloud_link:
                     match = re.search(r'id=([a-zA-Z0-9_-]+)', cloud_link)
                     if match:
