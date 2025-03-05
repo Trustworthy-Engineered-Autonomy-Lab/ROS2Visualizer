@@ -36,9 +36,9 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('reset-view-btn').addEventListener('click', resetView);
   document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
   
-  // House controls - commented out as we're using a sphere instead
-  // document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
-  // document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
+  // House controls
+  document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
+  document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
   
   // Initialize modal
   uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
@@ -80,19 +80,6 @@ function initScene() {
   const axesHelper = new THREE.AxesHelper(200);
   scene.add(axesHelper);
   
-  // Add transparent red sphere (50m radius)
-  const sphereGeometry = new THREE.SphereGeometry(50, 32, 32);
-  const sphereMaterial = new THREE.MeshBasicMaterial({
-    color: 0xff0000,        // Red color
-    transparent: true,      // Enable transparency
-    opacity: 0.3,           // 30% opacity
-    wireframe: false,       // Solid surface
-    side: THREE.DoubleSide  // Render both inside and outside
-  });
-  const redSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-  redSphere.position.set(0, 0, 0); // Position at origin
-  scene.add(redSphere);
-  
   // Add lighting
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
@@ -101,18 +88,18 @@ function initScene() {
   directionalLight.position.set(5, 10, 7.5);
   scene.add(directionalLight);
   
-  // Commented out house model - using sphere instead
-  // try {
-  //   console.log("Creating house at:", houseConfig.position);
-  //   houseModel = addHouseModel(
-  //     houseConfig.position.x, 
-  //     houseConfig.position.y, 
-  //     houseConfig.position.z
-  //   );
-  //   console.log("House model created:", houseModel);
-  // } catch (error) {
-  //   console.error("Error creating house model:", error);
-  // }
+  // Add 3D house model at the specified coordinates from config
+  try {
+    console.log("Creating house at:", houseConfig.position);
+    houseModel = addHouseModel(
+      houseConfig.position.x, 
+      houseConfig.position.y, 
+      houseConfig.position.z
+    );
+    console.log("House model created:", houseModel);
+  } catch (error) {
+    console.error("Error creating house model:", error);
+  }
   
   // Add text labels for axes
   addAxisLabels();
