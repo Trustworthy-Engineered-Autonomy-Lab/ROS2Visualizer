@@ -8,6 +8,15 @@ let animationState = {
   animationFrameId: null
 };
 let uploadModal;
+let houseModel = null;
+let houseConfig = {
+  visible: true,
+  position: {
+    x: 0.0,
+    y: -1010.0,
+    z: 10.0
+  }
+};
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -26,6 +35,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('playback-speed').addEventListener('change', handlePlaybackSpeedChange);
   document.getElementById('reset-view-btn').addEventListener('click', resetView);
   document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
+  
+  // House controls
+  document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
+  document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
   
   // Initialize modal
   uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
@@ -75,8 +88,12 @@ function initScene() {
   directionalLight.position.set(5, 10, 7.5);
   scene.add(directionalLight);
   
-  // Add 3D house model at the specified coordinates
-  addHouseModel(0.0, -1010.0, 10.0);
+  // Add 3D house model at the specified coordinates from config
+  houseModel = addHouseModel(
+    houseConfig.position.x, 
+    houseConfig.position.y, 
+    houseConfig.position.z
+  );
   
   // Add text labels for axes
   addAxisLabels();

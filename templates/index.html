@@ -115,6 +115,30 @@
             </table>
           </div>
           
+          <!-- House Controls -->
+          <div class="control-panel mb-4">
+            <h5 class="border-bottom pb-2"><i class="fas fa-home me-2"></i>3D House</h5>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="house-toggle" checked>
+              <label class="form-check-label" for="house-toggle">Show House</label>
+            </div>
+            <div class="mb-3">
+              <label for="house-x" class="form-label">X Position (East):</label>
+              <input type="number" class="form-control form-control-sm" id="house-x" value="0.0">
+            </div>
+            <div class="mb-3">
+              <label for="house-y" class="form-label">Y Position (North):</label>
+              <input type="number" class="form-control form-control-sm" id="house-y" value="-1010.0">
+            </div>
+            <div class="mb-3">
+              <label for="house-z" class="form-label">Z Position (Alt):</label>
+              <input type="number" class="form-control form-control-sm" id="house-z" value="10.0">
+            </div>
+            <button id="update-house-btn" class="btn btn-primary btn-sm w-100">
+              <i class="fas fa-sync-alt me-2"></i>Update House Position
+            </button>
+          </div>
+          
           <!-- TEA Lab Footer -->
           <div class="mt-auto pt-3 border-top text-center small text-muted">
             <p>© 2025 TEA Lab - Trustworthy Engineered Autonomy</p>
