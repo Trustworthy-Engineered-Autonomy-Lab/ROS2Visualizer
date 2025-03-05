@@ -70,22 +70,47 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Enable upload button when files are selected
-        fileInput.addEventListener('change', () => {
+        fileInput.addEventListener('change', function() {
+            console.log("File input change detected");
+            // Get direct reference to the button
             const uploadButton = document.getElementById('upload-button');
-            uploadButton.disabled = fileInput.files.length === 0;
+            if (uploadButton) {
+                uploadButton.disabled = this.files.length === 0;
+                console.log("Upload button disabled:", uploadButton.disabled);
+            } else {
+                console.error("Upload button not found");
+            }
             
             // Update file info text
             const fileInfoText = document.getElementById('upload-file-info');
-            if (fileInput.files.length > 0) {
-                fileInfoText.textContent = `${fileInput.files.length} file(s) selected. Click 'Upload Files' to begin processing.`;
-                fileInfoText.classList.remove('text-muted');
-                fileInfoText.classList.add('text-success');
-            } else {
-                fileInfoText.textContent = 'No files selected';
-                fileInfoText.classList.remove('text-success');
-                fileInfoText.classList.add('text-muted');
+            if (fileInfoText) {
+                if (this.files.length > 0) {
+                    // Calculate total size
+                    let totalSize = 0;
+                    for (let i = 0; i < this.files.length; i++) {
+                        totalSize += this.files[i].size;
+                    }
+                    // Format file size
+                    const formattedSize = formatFileSize(totalSize);
+                    
+                    fileInfoText.textContent = `${this.files.length} file(s) selected (${formattedSize}). Click 'Upload Files' to begin processing.`;
+                    fileInfoText.classList.remove('text-muted');
+                    fileInfoText.classList.add('text-success');
+                } else {
+                    fileInfoText.textContent = 'No files selected';
+                    fileInfoText.classList.remove('text-success');
+                    fileInfoText.classList.add('text-muted');
+                }
             }
         });
+        
+        // Helper function to format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + units[i];
+        }
         
         // Navigation buttons
         analyzeBackBtn.addEventListener('click', () => navigateToStep('upload'));
