@@ -340,11 +340,11 @@
           <div class="row mb-3">
             <div class="col-12">
               <div class="card border-dark">
-                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                  <span><i class="fas fa-check-square me-2"></i>Selected Files</span>
-                  <span id="selected-files-count" class="badge bg-light text-dark">Selected: 0 files</span>
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center" id="selected-files-header">
+                  <h4 class="h6 mb-0"><i class="fas fa-check-square me-2" aria-hidden="true"></i>Selected Files</h4>
+                  <span id="selected-files-count" class="badge bg-light text-dark" aria-live="polite">Selected: 0 files</span>
                 </div>
-                <div class="card-body p-2" id="selected-files-list">
+                <div class="card-body p-2" id="selected-files-list" role="region" aria-labelledby="selected-files-header" aria-live="polite">
                   <p class="text-muted text-center mb-0">No files selected. Select files from the list below.</p>
                 </div>
               </div>
@@ -355,8 +355,8 @@
           <div class="row">
             <div class="col-12">
               <div class="card border-dark">
-                <div class="card-header bg-dark text-white">
-                  <i class="fas fa-file-csv me-2"></i>Available Files
+                <div class="card-header bg-dark text-white" id="available-files-header">
+                  <h4 class="h6 mb-0"><i class="fas fa-file-csv me-2" aria-hidden="true"></i>Available Files</h4>
                 </div>
                 <div class="card-body p-0">
                   <div class="tab-content" id="folderTabContent">
@@ -376,10 +376,10 @@
                   </div>
                   
                   <!-- Empty state message -->
-                  <div id="empty-folder-message" class="text-center py-5 d-none">
-                    <i class="fas fa-folder-open text-muted mb-3" style="font-size: 3rem;"></i>
-                    <p class="text-muted">This folder is empty.</p>
-                    <p class="text-muted small">Upload files or select a different folder.</p>
+                  <div id="empty-folder-message" class="text-center py-5 d-none" aria-live="polite">
+                    <i class="fas fa-folder-open text-muted mb-3" style="font-size: 3rem;" aria-hidden="true"></i>
+                    <h5>This folder is empty</h5>
+                    <p class="text-muted small">No files are available in this folder. Please select a different folder or upload files.</p>
                   </div>
                   
                   <!-- Loading indicator -->
@@ -406,26 +406,41 @@
           </div>
           
           <!-- File preview panel (appears when clicking Quick View) -->
-          <div class="row mt-3 d-none" id="file-preview-panel">
+          <div class="row mt-3 d-none" id="file-preview-panel" role="region" aria-label="File preview">
             <div class="col-12">
               <div class="card border-primary">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                  <span id="preview-file-name">File Preview</span>
-                  <button type="button" class="btn-close btn-close-white" id="close-preview"></button>
+                  <h4 class="h6 mb-0" id="preview-file-name">File Preview</h4>
+                  <button type="button" class="btn-close btn-close-white" id="close-preview" aria-label="Close preview"></button>
                 </div>
                 <div class="card-body">
                   <div class="row">
                     <div class="col-md-4">
                       <div class="card mb-3">
-                        <div class="card-header bg-dark text-white">File Info</div>
+                        <div class="card-header bg-dark text-white" id="file-info-header">File Information</div>
                         <div class="card-body p-0">
-                          <table class="table table-sm mb-0">
+                          <table class="table table-sm mb-0" aria-labelledby="file-info-header" role="grid">
                             <tbody id="preview-file-info">
-                              <tr><td>Name:</td><td id="preview-info-name">-</td></tr>
-                              <tr><td>Size:</td><td id="preview-info-size">-</td></tr>
-                              <tr><td>Type:</td><td id="preview-info-type">-</td></tr>
-                              <tr><td>Data Points:</td><td id="preview-info-points">-</td></tr>
-                              <tr><td>Modified:</td><td id="preview-info-modified">-</td></tr>
+                              <tr role="row">
+                                <th scope="row" id="label-name">Name:</th>
+                                <td headers="label-name" id="preview-info-name">-</td>
+                              </tr>
+                              <tr role="row">
+                                <th scope="row" id="label-size">Size:</th>
+                                <td headers="label-size" id="preview-info-size">-</td>
+                              </tr>
+                              <tr role="row">
+                                <th scope="row" id="label-type">Type:</th>
+                                <td headers="label-type" id="preview-info-type">-</td>
+                              </tr>
+                              <tr role="row">
+                                <th scope="row" id="label-points">Data Points:</th>
+                                <td headers="label-points" id="preview-info-points">-</td>
+                              </tr>
+                              <tr role="row">
+                                <th scope="row" id="label-modified">Modified:</th>
+                                <td headers="label-modified" id="preview-info-modified">-</td>
+                              </tr>
                             </tbody>
                           </table>
                         </div>
@@ -433,9 +448,9 @@
                     </div>
                     <div class="col-md-8">
                       <div class="card">
-                        <div class="card-header bg-dark text-white">Data Sample</div>
+                        <div class="card-header bg-dark text-white" id="data-sample-header">Data Sample</div>
                         <div class="card-body">
-                          <div class="preview-content" id="preview-data-sample">
+                          <div class="preview-content" id="preview-data-sample" aria-labelledby="data-sample-header">
                             <div class="text-center py-3" aria-live="polite" aria-busy="true">
                               <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Loading...</span>
