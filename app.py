@@ -547,14 +547,43 @@ def process_cloud_folder():
                 
         elif provider == 'microsoft':
             # Handle OneDrive/SharePoint links
-            if '1drv.ms/f' in cloud_link:
-                # OneDrive folder short link
-                resource_id = cloud_link
-                is_file = False
-            elif '1drv.ms/u' in cloud_link:
-                # OneDrive file short link
-                resource_id = cloud_link
-                is_file = True
+            if '1drv.ms' in cloud_link:
+                # OneDrive short link format (1drv.ms)
+                logging.info(f"Processing OneDrive short link: {cloud_link}")
+                
+                # Handle different short link formats
+                if '1drv.ms/f/' in cloud_link:
+                    # OneDrive folder short link (old format)
+                    resource_id = cloud_link
+                    is_file = False
+                elif '1drv.ms/u/' in cloud_link:
+                    # OneDrive file short link (old format)
+                    resource_id = cloud_link
+                    is_file = True
+                elif '1drv.ms/x/s!' in cloud_link or '1drv.ms/b/s!' in cloud_link:
+                    # Excel or generic file format with s! pattern
+                    resource_id = cloud_link
+                    is_file = True
+                    logging.info("Detected OneDrive Excel file short link")
+                elif '1drv.ms/f/s!' in cloud_link:
+                    # Folder format with s! pattern
+                    resource_id = cloud_link
+                    is_file = False
+                    logging.info("Detected OneDrive folder short link with s! pattern")
+                else:
+                    # For any other 1drv.ms links, check for file extensions in the URL
+                    file_ext_match = re.search(r'[^/]+\.(csv|txt|xlsx|xls|docx|pdf)(?:\?|$)', cloud_link)
+                    if file_ext_match:
+                        resource_id = cloud_link
+                        is_file = True
+                        logging.info(f"Detected OneDrive file with extension: {file_ext_match.group(1)}")
+                    else:
+                        # Default assumption for 1drv.ms links
+                        resource_id = cloud_link
+                        is_file = True
+                        logging.info("Assuming OneDrive short link is a file (default)")
+                        
+                logging.info(f"Treating OneDrive short link as a {'file' if is_file else 'folder'}")
             elif 'sharepoint.com' in cloud_link:
                 # SharePoint link format
                 logging.info(f"Processing SharePoint link: {cloud_link}")
