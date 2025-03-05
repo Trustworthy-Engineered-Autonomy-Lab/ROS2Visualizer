@@ -217,13 +217,30 @@ def clean_data():
                         file_info['temp_filepath'] = temp_filepath
                         file_info['encoding'] = encoding
                         
-                        # Apply cleaning operations with temp file info
+                        # Get sample rate from the config (default to 50 if not provided)
+                        sample_rate = int(config.get('sample_rate', 50))
+                        logging.info(f"Using sample rate of 1/{sample_rate} datapoints for cleaning")
+                        
+                        # Apply cleaning operations with temp file info and sample rate
                         cleaned_data = apply_cleaning_operations(file_info, config, use_temp_file=True)
+                        
+                        # Pass the sample rate to the data processor after cleaning
+                        if 'sample_rate' not in config:
+                            config['sample_rate'] = sample_rate
                     else:
                         # For smaller files, read the whole content and process normally
                         with open(temp_filepath, 'r', encoding=encoding) as f:
                             file_content = f.read()
                             file_info['content'] = file_content
+                            
+                            # Get sample rate from the config (default to 50 if not provided)
+                            sample_rate = int(config.get('sample_rate', 50))
+                            logging.info(f"Using sample rate of 1/{sample_rate} datapoints for cleaning")
+                            
+                            # Pass the sample rate to the config
+                            if 'sample_rate' not in config:
+                                config['sample_rate'] = sample_rate
+                                
                             cleaned_data = apply_cleaning_operations(file_info, config)
                 else:
                     # If we don't have a temp file, try to use content from file_info
@@ -312,16 +329,21 @@ def process_csv():
                     return jsonify({"error": "Could not determine file encoding. File may be corrupted or in an unsupported format."}), 400
                 
                 # Process based on file size
+                # Get sample rate from request (default to 50 if not provided)
+                sample_rate = int(request.form.get('sample_rate', 50))
+                logging.info(f"Using sample rate of 1/{sample_rate} datapoints")
+                
                 if is_large_file:
                     # For large files, use a chunked processing approach via the data processor
                     logging.info(f"Processing large file with chunked approach and {successful_encoding} encoding")
                     processed_data = process_csv_data(temp_filepath, file_encoding=successful_encoding, 
-                                                     use_file_path=True, is_large_file=True)
+                                                     use_file_path=True, is_large_file=True,
+                                                     sample_rate=sample_rate)
                 else:
                     # For smaller files, read the content and process normally
                     with open(temp_filepath, 'r', encoding=successful_encoding) as f:
                         file_content = f.read()
-                    processed_data = process_csv_data(file_content)
+                    processed_data = process_csv_data(file_content, sample_rate=sample_rate)
                 
                 # Clean up temporary file
                 try:
