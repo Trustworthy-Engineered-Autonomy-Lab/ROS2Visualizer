@@ -1437,54 +1437,131 @@ function refreshTrajectories(processedData) {
 
 // SERVER DATA BROWSING FUNCTIONS
 
-// Open the server data browser
+// Open the server data browser with cross-browser compatibility
 function openServerDataBrowser() {
   // Reset selected files
   serverData.selectedFiles = [];
   
+  // Get UI elements with null checks for resilience
+  const loadingIndicator = document.getElementById('server-data-loading');
+  const errorDisplay = document.getElementById('server-data-error');
+  const folderTabs = document.getElementById('folderTabs');
+  const folderTabContent = document.getElementById('folderTabContent');
+  const loadButton = document.getElementById('load-selected-server-files');
+  
   // Show loading indicator
-  document.getElementById('server-data-loading').classList.remove('d-none');
-  document.getElementById('server-data-error').classList.add('d-none');
+  if (loadingIndicator) loadingIndicator.classList.remove('d-none');
+  if (errorDisplay) errorDisplay.classList.add('d-none');
   
   // Clear existing content
-  document.getElementById('folderTabs').innerHTML = '';
-  document.getElementById('folderTabContent').innerHTML = '';
+  if (folderTabs) folderTabs.innerHTML = '';
+  if (folderTabContent) folderTabContent.innerHTML = '';
   
   // Disable load button
-  document.getElementById('load-selected-server-files').disabled = true;
+  if (loadButton) loadButton.disabled = true;
   
-  // Show modal
-  serverDataModal.show();
+  // Show modal with error handling
+  try {
+    serverDataModal.show();
+  } catch (error) {
+    console.error("Error showing modal:", error);
+    showMessage("Opening server data browser, please wait...", "info");
+  }
   
-  // Fetch data from server
-  fetch('/browse_data')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Error fetching server data');
+  // Select data loading method based on browser support
+  if (browserSupport.fetch) {
+    // Modern browsers - use fetch API
+    fetch('/browse_data')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Error fetching server data (${response.status}): ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        processServerData(data);
+      })
+      .catch(error => {
+        handleServerDataError(error);
+      });
+  } else {
+    // Legacy browsers - use XMLHttpRequest
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '/browse_data', true);
+    
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          processServerData(data);
+        } catch (error) {
+          handleServerDataError(new Error('Error parsing server response: ' + error.message));
+        }
+      } else {
+        handleServerDataError(new Error(`Server error (${xhr.status}): ${xhr.statusText}`));
       }
-      return response.json();
-    })
-    .then(data => {
-      // Store server data
-      serverData.currentFolder = data.current_folder;
-      serverData.folders = data.folders;
-      serverData.files = data.files;
-      
-      // Render folder tabs
+    };
+    
+    xhr.onerror = function() {
+      handleServerDataError(new Error('Network error occurred'));
+    };
+    
+    xhr.ontimeout = function() {
+      handleServerDataError(new Error('Request timed out'));
+    };
+    
+    xhr.timeout = 30000; // 30 seconds
+    
+    // Send request with error handling
+    try {
+      xhr.send();
+    } catch (error) {
+      handleServerDataError(new Error('Error sending request: ' + error.message));
+    }
+  }
+  
+  // Helper function to process server data
+  function processServerData(data) {
+    // Store server data with fallback defaults
+    serverData.currentFolder = data.current_folder || 'default';
+    serverData.folders = data.folders || [];
+    serverData.files = data.files || [];
+    
+    // Render folder tabs
+    try {
       renderFolderTabs();
-      
-      // Render file list
+    } catch (error) {
+      console.error('Error rendering folder tabs:', error);
+      showMessage('Error displaying folder structure', 'warning');
+    }
+    
+    // Render file list
+    try {
       renderFileList();
-      
-      // Hide loading indicator
-      document.getElementById('server-data-loading').classList.add('d-none');
-    })
-    .catch(error => {
-      console.error('Error loading server data:', error);
-      document.getElementById('server-data-loading').classList.add('d-none');
-      document.getElementById('server-data-error').classList.remove('d-none');
-      document.getElementById('server-data-error').textContent = 'Error loading server data: ' + error.message;
-    });
+    } catch (error) {
+      console.error('Error rendering file list:', error);
+      showMessage('Error displaying file list', 'warning');
+    }
+    
+    // Hide loading indicator
+    if (loadingIndicator) loadingIndicator.classList.add('d-none');
+  }
+  
+  // Helper function to handle errors
+  function handleServerDataError(error) {
+    console.error('Error loading server data:', error);
+    
+    // Update UI to show error
+    if (loadingIndicator) loadingIndicator.classList.add('d-none');
+    
+    if (errorDisplay) {
+      errorDisplay.classList.remove('d-none');
+      errorDisplay.textContent = 'Error loading server data: ' + (error.message || 'Unknown error');
+    }
+    
+    // Show a toast message as well
+    showMessage('Error loading server data: ' + (error.message || 'Unknown error'), 'danger');
+  }
 }
 
 // Render folder tabs
@@ -1519,41 +1596,105 @@ function renderFolderTabs() {
   });
 }
 
-// Change folder
+// Change folder with cross-browser compatibility
 function changeFolder(folder) {
-  if (folder === serverData.currentFolder) {
+  if (!folder || folder === serverData.currentFolder) {
     return;
   }
   
-  // Show loading indicator
-  document.getElementById('server-data-loading').classList.remove('d-none');
-  document.getElementById('server-data-error').classList.add('d-none');
+  // Get UI elements with null checks for resilience
+  const loadingIndicator = document.getElementById('server-data-loading');
+  const errorDisplay = document.getElementById('server-data-error');
   
-  // Fetch data for the new folder
-  fetch(`/browse_data?folder=${folder}`)
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Error fetching folder data');
+  // Show loading indicator
+  if (loadingIndicator) loadingIndicator.classList.remove('d-none');
+  if (errorDisplay) errorDisplay.classList.add('d-none');
+  
+  // Handle folder data loading based on browser support
+  if (browserSupport.fetch) {
+    // Modern browsers - use fetch API
+    fetch(`/browse_data?folder=${encodeURIComponent(folder)}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Error fetching folder data (${response.status}): ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        processFolderData(data);
+      })
+      .catch(error => {
+        handleFolderError(error);
+      });
+  } else {
+    // Legacy browsers - use XMLHttpRequest
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', `/browse_data?folder=${encodeURIComponent(folder)}`, true);
+    
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          processFolderData(data);
+        } catch (error) {
+          handleFolderError(new Error('Error parsing folder response: ' + error.message));
+        }
+      } else {
+        handleFolderError(new Error(`Server error (${xhr.status}): ${xhr.statusText}`));
       }
-      return response.json();
-    })
-    .then(data => {
-      // Update server data
-      serverData.currentFolder = data.current_folder;
-      serverData.files = data.files;
-      
-      // Render file list
+    };
+    
+    xhr.onerror = function() {
+      handleFolderError(new Error('Network error occurred'));
+    };
+    
+    xhr.ontimeout = function() {
+      handleFolderError(new Error('Request timed out'));
+    };
+    
+    xhr.timeout = 30000; // 30 seconds
+    
+    // Send request with error handling
+    try {
+      xhr.send();
+    } catch (error) {
+      handleFolderError(new Error('Error sending folder request: ' + error.message));
+    }
+  }
+  
+  // Helper function to process folder data
+  function processFolderData(data) {
+    // Update server data with fallback defaults
+    serverData.currentFolder = data.current_folder || folder;
+    serverData.files = data.files || [];
+    
+    // Render file list with error handling
+    try {
       renderFileList();
-      
-      // Hide loading indicator
-      document.getElementById('server-data-loading').classList.add('d-none');
-    })
-    .catch(error => {
-      console.error('Error changing folder:', error);
-      document.getElementById('server-data-loading').classList.add('d-none');
-      document.getElementById('server-data-error').classList.remove('d-none');
-      document.getElementById('server-data-error').textContent = 'Error loading folder data: ' + error.message;
-    });
+    } catch (error) {
+      console.error('Error rendering file list:', error);
+      showMessage('Error displaying file list for folder: ' + folder, 'warning');
+    }
+    
+    // Hide loading indicator
+    if (loadingIndicator) loadingIndicator.classList.add('d-none');
+  }
+  
+  // Helper function to handle folder errors
+  function handleFolderError(error) {
+    console.error('Error changing folder:', error);
+    
+    // Update UI to show error
+    if (loadingIndicator) loadingIndicator.classList.add('d-none');
+    
+    if (errorDisplay) {
+      errorDisplay.classList.remove('d-none');
+      errorDisplay.textContent = 'Error loading folder data: ' + (error.message || 'Unknown error');
+    }
+    
+    // Show a toast message as well
+    showMessage('Error loading folder: ' + folder + ' - ' + (error.message || 'Unknown error'), 'danger');
+  }
 }
 
 // Render file list
@@ -1657,123 +1798,361 @@ function toggleFileSelection(file, isSelected) {
   document.getElementById('load-selected-server-files').disabled = serverData.selectedFiles.length === 0;
 }
 
-// View server file data
+// View server file data with cross-browser compatibility
 function viewServerFile(filePath) {
-  // Show loading in the modal
-  serverDataModal.hide();
-  uploadModal.show();
-  
-  const progressBar = document.getElementById('upload-progress');
-  const statusText = document.getElementById('upload-status');
-  
-  progressBar.style.width = '0%';
-  statusText.textContent = `Loading file preview...`;
-  
-  // Fetch file from server
-  fetch(`/get_server_file?path=${filePath}`)
-    .then(response => {
-      if (!response.ok) {
-        return response.json().then(err => { throw new Error(err.error || 'Server error') });
-      }
-      return response.json();
-    })
-    .then(data => {
-      progressBar.style.width = '100%';
-      statusText.textContent = `File preview loaded successfully! Found ${data.data.length} data points.`;
-      
-      // Hide modal after a brief delay
-      setTimeout(() => {
-        uploadModal.hide();
-        serverDataModal.show();
-      }, 2000);
-    })
-    .catch(error => {
-      console.error("Error previewing file:", error);
-      progressBar.style.width = '100%';
-      statusText.textContent = `Error loading file preview: ${error.message}`;
-      
-      // Show error message
-      setTimeout(() => {
-        uploadModal.hide();
-        serverDataModal.show();
-        showMessage(`Error previewing file: ${error.message}`, 'danger');
-      }, 2000);
-    });
-}
-
-// Load selected server files
-function loadSelectedServerFiles() {
-  if (serverData.selectedFiles.length === 0) {
-    showMessage('No files selected', 'warning');
+  if (!filePath) {
+    showMessage("Invalid file path", "warning");
     return;
   }
   
-  // Close the modal
-  serverDataModal.hide();
-  
-  // Show upload modal for progress indication
-  uploadModal.show();
+  // Get UI elements with null checks for resilience
   const progressBar = document.getElementById('upload-progress');
   const statusText = document.getElementById('upload-status');
   
-  // Reset any existing trajectories
-  clearTrajectories();
+  // Show loading in the modal with error handling
+  try {
+    serverDataModal.hide();
+  } catch (error) {
+    console.error("Error hiding server data modal:", error);
+  }
   
-  // Process each selected file
-  let processedCount = 0;
-  const colors = [0x0088ff, 0xff8800, 0x88ff00, 0xff0088, 0x00ff88, 0x8800ff];
+  try {
+    uploadModal.show();
+  } catch (error) {
+    console.error("Error showing upload modal:", error);
+    showMessage("Loading file preview...", "info");
+  }
   
-  // Make a copy of selected files to avoid issues if the modal is reopened
-  const filesToProcess = [...serverData.selectedFiles];
+  // Update progress UI with null checks
+  if (progressBar) progressBar.style.width = '0%';
+  if (statusText) statusText.textContent = `Loading file preview...`;
   
-  filesToProcess.forEach((file, index) => {
-    statusText.textContent = `Processing file: ${file.name}`;
-    progressBar.style.width = `${(index / filesToProcess.length) * 100}%`;
-    
-    // Fetch and process the file from server
-    fetch(`/get_server_file?path=${file.path}`)
+  // Handle file fetching based on browser support
+  if (browserSupport.fetch) {
+    // Modern browsers - use fetch API
+    fetch(`/get_server_file?path=${encodeURIComponent(filePath)}`)
       .then(response => {
         if (!response.ok) {
-          return response.json().then(err => { throw new Error(err.error || 'Server error') });
+          return response.json()
+            .then(err => { throw new Error(err.error || `Server error (${response.status})`) })
+            .catch(e => { throw new Error(`Server error (${response.status}): ${response.statusText}`) });
         }
         return response.json();
       })
       .then(data => {
-        processedCount++;
-        progressBar.style.width = `${(processedCount / filesToProcess.length) * 100}%`;
-        
-        // Check if we have data points
-        if (!data.data || data.data.length === 0) {
-          throw new Error('No valid data points found in file');
-        }
-        
-        // Log metadata
-        console.log(`File ${file.name} metadata:`, data.metadata);
-        
-        // Add trajectory to scene
-        addTrajectory(data.data, file.name, colors[index % colors.length]);
-        
-        // Update status
-        statusText.textContent = `Processed ${processedCount} of ${filesToProcess.length} files`;
-        statusText.textContent += ` (${data.metadata.points_count} points from ${data.metadata.original_count} total)`;
-        
-        // If all files are processed, close modal and update UI
-        if (processedCount === filesToProcess.length) {
-          setTimeout(() => {
-            uploadModal.hide();
-            updateTrajectoryList();
-            updateTimeSlider();
-            showMessage(`Successfully loaded ${filesToProcess.length} trajectories`, "success");
-          }, 500);
-        }
+        handleFilePreviewSuccess(data);
       })
       .catch(error => {
-        console.error("Error processing file:", error);
-        statusText.textContent = `Error processing ${file.name}: ${error.message}`;
-        processedCount++;
-        
-        // Update progress even if there's an error
-        progressBar.style.width = `${(processedCount / filesToProcess.length) * 100}%`;
+        handleFilePreviewError(error);
       });
-  });
+  } else {
+    // Legacy browsers - use XMLHttpRequest
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', `/get_server_file?path=${encodeURIComponent(filePath)}`, true);
+    
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          handleFilePreviewSuccess(data);
+        } catch (error) {
+          handleFilePreviewError(new Error('Error parsing file data: ' + error.message));
+        }
+      } else {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          handleFilePreviewError(new Error(response.error || `Server error (${xhr.status}): ${xhr.statusText}`));
+        } catch (e) {
+          handleFilePreviewError(new Error(`Server error (${xhr.status}): ${xhr.statusText}`));
+        }
+      }
+    };
+    
+    xhr.onerror = function() {
+      handleFilePreviewError(new Error('Network error occurred'));
+    };
+    
+    xhr.ontimeout = function() {
+      handleFilePreviewError(new Error('Request timed out'));
+    };
+    
+    xhr.timeout = 60000; // 60 seconds for potentially large files
+    
+    // Send request with error handling
+    try {
+      xhr.send();
+    } catch (error) {
+      handleFilePreviewError(new Error('Error sending request: ' + error.message));
+    }
+  }
+  
+  // Helper function to handle successful file preview
+  function handleFilePreviewSuccess(data) {
+    // Update progress UI
+    if (progressBar) progressBar.style.width = '100%';
+    if (statusText) {
+      statusText.textContent = `File preview loaded successfully! Found ${data.data ? data.data.length : 0} data points.`;
+    }
+    
+    // Hide modal after a brief delay
+    setTimeout(() => {
+      try {
+        uploadModal.hide();
+        serverDataModal.show();
+      } catch (error) {
+        console.error("Error switching modals:", error);
+      }
+    }, 2000);
+  }
+  
+  // Helper function to handle file preview errors
+  function handleFilePreviewError(error) {
+    console.error("Error previewing file:", error);
+    
+    // Update progress UI
+    if (progressBar) progressBar.style.width = '100%';
+    if (statusText) {
+      statusText.textContent = `Error loading file preview: ${error.message || 'Unknown error'}`;
+    }
+    
+    // Show error message after a brief delay
+    setTimeout(() => {
+      try {
+        uploadModal.hide();
+        serverDataModal.show();
+      } catch (error) {
+        console.error("Error switching modals:", error);
+      }
+      
+      showMessage(`Error previewing file: ${error.message || 'Unknown error'}`, 'danger');
+    }, 2000);
+  }
+}
+
+// Load selected server files with cross-browser compatibility
+function loadSelectedServerFiles() {
+  // Validate selection
+  if (!serverData.selectedFiles || serverData.selectedFiles.length === 0) {
+    showMessage('No files selected', 'warning');
+    return;
+  }
+  
+  // Get UI elements with null checks for resilience
+  const progressBar = document.getElementById('upload-progress');
+  const statusText = document.getElementById('upload-status');
+  
+  // Close/show modals with error handling
+  try {
+    serverDataModal.hide();
+  } catch (error) {
+    console.error("Error hiding server data modal:", error);
+  }
+  
+  try {
+    uploadModal.show();
+  } catch (error) {
+    console.error("Error showing upload modal:", error);
+    showMessage("Processing files, please wait...", "info");
+  }
+  
+  // Update UI with null checks
+  if (progressBar) progressBar.style.width = '0%';
+  if (statusText) statusText.textContent = 'Preparing to process files...';
+  
+  // Reset any existing trajectories
+  clearTrajectories();
+  
+  // Initialize processing variables
+  let processedCount = 0;
+  let failedCount = 0;
+  const colors = [0x0088ff, 0xff8800, 0x88ff00, 0xff0088, 0x00ff88, 0x8800ff];
+  
+  // Make a copy of selected files to avoid issues if the modal is reopened
+  const filesToProcess = [...serverData.selectedFiles];
+  const totalFiles = filesToProcess.length;
+  
+  // Process files sequentially to avoid overwhelming the server
+  processNextFile(0);
+  
+  // Process files one at a time
+  function processNextFile(index) {
+    // All files processed
+    if (index >= totalFiles) {
+      finishProcessing();
+      return;
+    }
+    
+    const file = filesToProcess[index];
+    
+    // Update status
+    if (statusText) {
+      statusText.textContent = `Processing file ${index + 1} of ${totalFiles}: ${file.name || 'Unknown file'}`;
+    }
+    
+    if (progressBar) {
+      progressBar.style.width = `${(index / totalFiles) * 100}%`;
+    }
+    
+    // Load file with appropriate method based on browser support
+    if (browserSupport.fetch) {
+      // Modern browsers - use fetch API
+      fetchFile(file, index)
+        .then(data => {
+          handleFileSuccess(data, file, index);
+          processNextFile(index + 1);
+        })
+        .catch(error => {
+          handleFileError(error, file);
+          processNextFile(index + 1);
+        });
+    } else {
+      // Legacy browsers - use XMLHttpRequest
+      loadFileWithXHR(file, index)
+        .then(data => {
+          handleFileSuccess(data, file, index);
+          processNextFile(index + 1);
+        })
+        .catch(error => {
+          handleFileError(error, file);
+          processNextFile(index + 1);
+        });
+    }
+  }
+  
+  // Fetch file using modern fetch API
+  function fetchFile(file, index) {
+    return new Promise((resolve, reject) => {
+      fetch(`/get_server_file?path=${encodeURIComponent(file.path)}`)
+        .then(response => {
+          if (!response.ok) {
+            return response.json()
+              .then(err => { throw new Error(err.error || `Server error (${response.status})`) })
+              .catch(e => { throw new Error(`Server error (${response.status}): ${response.statusText}`) });
+          }
+          return response.json();
+        })
+        .then(resolve)
+        .catch(reject);
+    });
+  }
+  
+  // Load file using legacy XMLHttpRequest
+  function loadFileWithXHR(file, index) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', `/get_server_file?path=${encodeURIComponent(file.path)}`, true);
+      
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve(data);
+          } catch (error) {
+            reject(new Error('Error parsing file data: ' + error.message));
+          }
+        } else {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            reject(new Error(response.error || `Server error (${xhr.status}): ${xhr.statusText}`));
+          } catch (e) {
+            reject(new Error(`Server error (${xhr.status}): ${xhr.statusText}`));
+          }
+        }
+      };
+      
+      xhr.onerror = function() {
+        reject(new Error('Network error occurred'));
+      };
+      
+      xhr.ontimeout = function() {
+        reject(new Error('Request timed out'));
+      };
+      
+      xhr.timeout = 60000; // 60 seconds for potentially large files
+      
+      // Send request with error handling
+      try {
+        xhr.send();
+      } catch (error) {
+        reject(new Error('Error sending request: ' + error.message));
+      }
+    });
+  }
+  
+  // Handle successful file processing
+  function handleFileSuccess(data, file, index) {
+    processedCount++;
+    
+    // Update progress UI
+    if (progressBar) {
+      progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
+    }
+    
+    // Check if we have data points
+    if (!data.data || data.data.length === 0) {
+      handleFileError(new Error('No valid data points found in file'), file);
+      return;
+    }
+    
+    try {
+      // Log metadata
+      console.log(`File ${file.name || 'unknown'} metadata:`, data.metadata);
+      
+      // Add trajectory to scene
+      addTrajectory(data.data, file.name || `File ${index + 1}`, colors[index % colors.length]);
+      
+      // Update status with null checks
+      if (statusText) {
+        statusText.textContent = `Processed ${processedCount} of ${totalFiles} files`;
+        if (data.metadata && data.metadata.points_count) {
+          statusText.textContent += ` (${data.metadata.points_count} points from ${data.metadata.original_count || 'unknown'} total)`;
+        }
+      }
+    } catch (error) {
+      console.error("Error adding trajectory:", error);
+      handleFileError(new Error('Error visualizing file: ' + error.message), file);
+    }
+  }
+  
+  // Handle file loading errors
+  function handleFileError(error, file) {
+    failedCount++;
+    console.error("Error processing file:", error);
+    
+    // Update status with null checks
+    if (statusText) {
+      statusText.textContent = `Error processing ${file.name || 'file'}: ${error.message || 'Unknown error'}`;
+    }
+    
+    processedCount++;
+    
+    // Update progress even if there's an error
+    if (progressBar) {
+      progressBar.style.width = `${(processedCount / totalFiles) * 100}%`;
+    }
+  }
+  
+  // Finish processing and update UI
+  function finishProcessing() {
+    // Hide modal after a brief delay
+    setTimeout(() => {
+      try {
+        uploadModal.hide();
+      } catch (error) {
+        console.error("Error hiding modal:", error);
+      }
+      
+      // Update UI
+      updateTrajectoryList();
+      updateTimeSlider();
+      
+      // Show completion message
+      if (failedCount > 0) {
+        showMessage(`Loaded ${processedCount - failedCount} of ${totalFiles} trajectories (${failedCount} failed)`, 
+                    failedCount === totalFiles ? "danger" : "warning");
+      } else {
+        showMessage(`Successfully loaded ${totalFiles} trajectories`, "success");
+      }
+    }, 500);
+  }
 }
