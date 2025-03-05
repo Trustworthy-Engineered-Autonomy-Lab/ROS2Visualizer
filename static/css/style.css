@@ -1,468 +1,126 @@
-/* Modern Flight Trajectory Visualizer Styling
-   TEA Lab - 2025 */
-
-:root {
-  --primary-color: #2a9d8f;
-  --secondary-color: #135e76;
-  --accent-color: #e76f51;
-  --dark-bg: #121212;
-  --dark-panel: #1e1e1e;
-  --dark-panel-highlight: #2c2c2c;
-  --text-primary: rgba(255, 255, 255, 0.9);
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --glow-color: rgba(42, 157, 143, 0.6);
-  --chart-bg: rgba(18, 18, 18, 0.7);
-  --transition-speed: 0.3s;
-}
-
-/* General app layout - modern dark theme */
+/* General app layout */
 html, body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--dark-bg);
-  color: var(--text-primary);
-  scrollbar-width: thin;
-  scrollbar-color: var(--primary-color) var(--dark-bg);
-}
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--dark-bg);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--primary-color);
-  border-radius: 4px;
 }
 
 .app-container {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: radial-gradient(circle at center, #181818 0%, #121212 100%);
 }
 
-/* Modern sidebar with glass-morphism effect */
+/* Sidebar styling */
 .sidebar {
-  background-color: var(--dark-panel);
+  background-color: var(--bs-gray-900);
   height: 100%;
   overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  position: relative;
-  z-index: 100;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 .sidebar .container {
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  padding-top: 1.5rem;
-  padding-bottom: 1.5rem;
 }
 
-/* Animated gradient border for panels */
-@keyframes gradient-border {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Main content area with subtle grid */
+/* Main content area */
 .content-area {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-image: 
-    linear-gradient(rgba(42, 157, 143, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(42, 157, 143, 0.03) 1px, transparent 1px);
-  background-size: 20px 20px;
-  position: relative;
 }
 
-/* 3D visualization container with glow effect */
+/* 3D visualization container */
 #visualization-container {
   flex: 1; 
   position: relative;
-  background-color: var(--dark-bg);
+  background-color: var(--bs-gray-800);
   overflow: hidden;
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.3);
-  transition: all var(--transition-speed) ease;
 }
 
-#visualization-container:before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(to right, 
-    transparent, 
-    rgba(42, 157, 143, 0.5), 
-    transparent
-  );
-}
-
-/* 2D charts container with glass effect */
+/* 2D charts container */
 #charts-container {
   height: 250px;
-  background-color: var(--chart-bg);
+  background-color: var(--bs-gray-800);
   overflow: hidden;
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 10px 5px;
 }
 
 .chart {
   height: 100%;
-  background-color: rgba(30, 30, 30, 0.5);
-  border-radius: 8px;
+  background-color: var(--bs-gray-900);
+  border-radius: 0.25rem;
   overflow: hidden;
-  transition: transform var(--transition-speed);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.chart:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-}
-
-/* TEA Lab styling with animated effects */
+/* TEA Lab styling */
 .tea-lab-logo {
-  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  filter: drop-shadow(0 0 8px rgba(42, 157, 143, 0.3));
+  transition: transform 0.3s ease;
 }
-
 .tea-lab-logo:hover {
-  transform: scale(1.08) rotate(5deg);
-  filter: drop-shadow(0 0 12px rgba(42, 157, 143, 0.6));
+  transform: scale(1.05);
 }
 
-/* Modern control panel styling */
+/* Control panel styling */
 .control-panel {
-  background-color: var(--dark-panel);
-  border-radius: 8px;
-  padding: 1.2rem;
-  margin-bottom: 1.2rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  transition: all var(--transition-speed);
-  position: relative;
-  overflow: hidden;
-}
-
-.control-panel:hover {
-  background-color: var(--dark-panel-highlight);
-  border-color: rgba(42, 157, 143, 0.2);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-}
-
-/* Subtle indicator light effect on hover */
-.control-panel:after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin: 8px;
-  background-color: var(--primary-color);
-  opacity: 0;
-  transition: opacity var(--transition-speed);
-  box-shadow: 0 0 8px var(--glow-color);
-}
-
-.control-panel:hover:after {
-  opacity: 1;
+  background-color: var(--bs-gray-800);
+  border-radius: 0.25rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
 }
 
 .control-panel h5 {
   margin-top: 0;
-  color: var(--primary-color);
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
+  color: var(--bs-info);
 }
 
-.control-panel h5 i {
-  margin-right: 8px;
-  opacity: 0.9;
-}
-
-/* Enhance form controls */
-.form-control, .form-select, .form-check-input {
-  background-color: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-  transition: all var(--transition-speed);
-}
-
-.form-control:focus, .form-select:focus {
-  background-color: rgba(0, 0, 0, 0.3);
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.25);
-}
-
-.form-control::placeholder {
-  color: rgba(255, 255, 255, 0.4);
-}
-
-/* Switch toggle animation */
-.form-check-input:checked {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-.form-switch .form-check-input {
-  transition: background-position 0.15s ease-in-out, 
-              background-color var(--transition-speed), 
-              border-color var(--transition-speed),
-              box-shadow var(--transition-speed);
-}
-
-.form-switch .form-check-input:focus {
-  box-shadow: 0 0 0 3px var(--glow-color);
-}
-
-/* Button styling */
-.btn {
-  padding: 0.4rem 1rem;
-  border-radius: 6px;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-primary {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-.btn-primary:hover {
-  background-color: #238c7f;
-  border-color: #238c7f;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.btn-primary:focus {
-  box-shadow: 0 0 0 3px var(--glow-color);
-}
-
-.btn-primary:active {
-  transform: translateY(1px);
-}
-
-/* Time display with modern monospace font */
+/* Time display */
 .time-display {
-  font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  background-color: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-  letter-spacing: 0.5px;
-  padding: 4px 8px;
-  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+  font-family: monospace;
+  font-weight: bold;
 }
 
-/* Animated play/pause buttons */
-#play-btn, #pause-btn {
-  transition: all 0.2s ease;
-}
-
-#play-btn:hover, #pause-btn:hover {
-  transform: scale(1.1);
-}
-
-/* Enhanced slider */
-.form-range {
-  height: 6px;
-}
-
-.form-range::-webkit-slider-thumb {
-  background: var(--primary-color);
-  box-shadow: 0 0 5px rgba(42, 157, 143, 0.5);
-  transition: all var(--transition-speed);
-}
-
-.form-range::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-.form-range::-webkit-slider-runnable-track {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-/* Trajectory list styling with animations */
+/* Trajectory list styling */
 .trajectory-item {
   display: flex;
   align-items: center;
-  padding: 0.8rem;
-  margin-bottom: 0.4rem;
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all var(--transition-speed);
-}
-
-.trajectory-item:hover {
-  background-color: rgba(42, 157, 143, 0.15);
-  transform: translateX(3px);
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  background-color: var(--bs-gray-800);
+  border-radius: 0.25rem;
 }
 
 .color-box {
   width: 16px;
   height: 16px;
-  border-radius: 4px;
-  margin: 0 0.6rem;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-  transition: all var(--transition-speed);
+  border-radius: 3px;
+  margin: 0 0.5rem;
 }
 
-.trajectory-item:hover .color-box {
-  transform: scale(1.2) rotate(10deg);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
-}
-
-/* Modern data table styling */
+/* Data table styling */
 #data-table {
   font-size: 0.9rem;
-  background-color: transparent;
-  border-collapse: separate;
-  border-spacing: 0 2px;
-}
-
-#data-table td {
-  padding: 6px 8px;
-  border-top: none;
-  transition: all var(--transition-speed);
 }
 
 #data-table td:first-child {
-  font-weight: 600;
-  color: var(--text-secondary);
-  border-radius: 4px 0 0 4px;
-  letter-spacing: 0.3px;
-  padding-left: 12px;
+  font-weight: bold;
+  color: var(--bs-light);
 }
 
-#data-table td:last-child {
-  border-radius: 0 4px 4px 0;
-  text-align: right;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--text-primary);
-}
-
-#data-table tr:hover td {
-  background-color: rgba(42, 157, 143, 0.1);
-}
-
-/* View controls with animated icons */
+/* View controls */
 .view-controls {
-  opacity: 0.6;
-  transition: all 0.3s ease;
-  z-index: 100;
+  opacity: 0.7;
+  transition: opacity 0.3s;
 }
 
 .view-controls:hover {
   opacity: 1;
-  transform: scale(1.05);
 }
 
-.view-controls button {
-  background-color: rgba(30, 30, 30, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-}
-
-.view-controls button:hover {
-  background-color: var(--primary-color);
-}
-
-.view-controls button:hover i {
-  transform: rotate(15deg);
-}
-
-.view-controls i {
-  transition: transform 0.3s ease;
-}
-
-/* Footer styling with subtle animation */
-.sidebar .text-muted {
-  color: rgba(255, 255, 255, 0.5) !important;
-  font-size: 0.85rem;
-  transition: all var(--transition-speed);
-}
-
-.sidebar .text-muted:hover {
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-/* Loading animation for visualization */
-@keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
-}
-
-.loading-indicator {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: var(--primary-color);
-  animation: pulse 2s infinite;
-  z-index: 50;
-}
-
-/* Alert messages with slide-in animation */
-@keyframes slide-in-top {
-  0% { transform: translateY(-20px) translateX(-50%); opacity: 0; }
-  100% { transform: translateY(0) translateX(-50%); opacity: 1; }
-}
-
-.alert {
-  animation: slide-in-top 0.3s forwards;
-  border: none;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-
-/* Modal styling */
-.modal-content {
-  background-color: var(--dark-panel);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.modal-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+/* Footer styling */
+.text-muted {
+  color: var(--bs-gray-600) !important;
 }
 
 /* Responsive adjustments */
@@ -479,34 +137,4 @@ html, body {
   #charts-container {
     height: 150px;
   }
-  
-  .control-panel {
-    padding: 0.8rem;
-    margin-bottom: 0.8rem;
-  }
-  
-  .control-panel h5 {
-    font-size: 0.9rem;
-  }
-}
-
-/* Theme background animation */
-@keyframes background-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Loading spinner */
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(42, 157, 143, 0.2);
-  border-top-color: var(--primary-color);
-  border-radius: 50%;
-  animation: spinner 1s linear infinite;
-}
-
-@keyframes spinner {
-  to { transform: rotate(360deg); }
 }

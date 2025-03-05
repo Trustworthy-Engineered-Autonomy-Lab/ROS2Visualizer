@@ -1,7 +1,6 @@
 import os
 import logging
 import tempfile
-import traceback
 from flask import Flask, render_template, request, jsonify
 from utils.data_processor import process_csv_data
 
