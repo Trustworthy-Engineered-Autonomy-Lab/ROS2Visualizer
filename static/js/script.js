@@ -1237,3 +1237,346 @@ function refreshTrajectories(processedData) {
   // Reset view
   resetView();
 }
+
+// SERVER DATA BROWSING FUNCTIONS
+
+// Open the server data browser
+function openServerDataBrowser() {
+  // Reset selected files
+  serverData.selectedFiles = [];
+  
+  // Show loading indicator
+  document.getElementById('server-data-loading').classList.remove('d-none');
+  document.getElementById('server-data-error').classList.add('d-none');
+  
+  // Clear existing content
+  document.getElementById('folderTabs').innerHTML = '';
+  document.getElementById('folderTabContent').innerHTML = '';
+  
+  // Disable load button
+  document.getElementById('load-selected-server-files').disabled = true;
+  
+  // Show modal
+  serverDataModal.show();
+  
+  // Fetch data from server
+  fetch('/browse_data')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error fetching server data');
+      }
+      return response.json();
+    })
+    .then(data => {
+      // Store server data
+      serverData.currentFolder = data.current_folder;
+      serverData.folders = data.folders;
+      serverData.files = data.files;
+      
+      // Render folder tabs
+      renderFolderTabs();
+      
+      // Render file list
+      renderFileList();
+      
+      // Hide loading indicator
+      document.getElementById('server-data-loading').classList.add('d-none');
+    })
+    .catch(error => {
+      console.error('Error loading server data:', error);
+      document.getElementById('server-data-loading').classList.add('d-none');
+      document.getElementById('server-data-error').classList.remove('d-none');
+      document.getElementById('server-data-error').textContent = 'Error loading server data: ' + error.message;
+    });
+}
+
+// Render folder tabs
+function renderFolderTabs() {
+  const tabsContainer = document.getElementById('folderTabs');
+  tabsContainer.innerHTML = '';
+  
+  serverData.folders.forEach((folder, index) => {
+    const isActive = folder === serverData.currentFolder;
+    
+    const tabItem = document.createElement('li');
+    tabItem.className = 'nav-item';
+    tabItem.innerHTML = `
+      <button class="nav-link ${isActive ? 'active' : ''}" 
+              id="tab-${folder}" 
+              data-bs-toggle="tab" 
+              data-bs-target="#pane-${folder}" 
+              type="button" 
+              role="tab" 
+              aria-controls="pane-${folder}" 
+              aria-selected="${isActive ? 'true' : 'false'}">
+        ${folder.replace('_', ' ')}
+      </button>
+    `;
+    
+    // Add event listener
+    tabItem.querySelector('button').addEventListener('click', () => {
+      changeFolder(folder);
+    });
+    
+    tabsContainer.appendChild(tabItem);
+  });
+}
+
+// Change folder
+function changeFolder(folder) {
+  if (folder === serverData.currentFolder) {
+    return;
+  }
+  
+  // Show loading indicator
+  document.getElementById('server-data-loading').classList.remove('d-none');
+  document.getElementById('server-data-error').classList.add('d-none');
+  
+  // Fetch data for the new folder
+  fetch(`/browse_data?folder=${folder}`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error fetching folder data');
+      }
+      return response.json();
+    })
+    .then(data => {
+      // Update server data
+      serverData.currentFolder = data.current_folder;
+      serverData.files = data.files;
+      
+      // Render file list
+      renderFileList();
+      
+      // Hide loading indicator
+      document.getElementById('server-data-loading').classList.add('d-none');
+    })
+    .catch(error => {
+      console.error('Error changing folder:', error);
+      document.getElementById('server-data-loading').classList.add('d-none');
+      document.getElementById('server-data-error').classList.remove('d-none');
+      document.getElementById('server-data-error').textContent = 'Error loading folder data: ' + error.message;
+    });
+}
+
+// Render file list
+function renderFileList() {
+  const tabContent = document.getElementById('folderTabContent');
+  tabContent.innerHTML = '';
+  
+  // Create tab pane for each folder
+  serverData.folders.forEach(folder => {
+    const isActive = folder === serverData.currentFolder;
+    
+    const pane = document.createElement('div');
+    pane.className = `tab-pane fade ${isActive ? 'show active' : ''}`;
+    pane.id = `pane-${folder}`;
+    pane.setAttribute('role', 'tabpanel');
+    pane.setAttribute('aria-labelledby', `tab-${folder}`);
+    
+    // Only populate the active pane
+    if (isActive) {
+      // Create table for files
+      if (serverData.files.length > 0) {
+        const table = document.createElement('table');
+        table.className = 'table table-hover';
+        
+        // Create table header
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
+          <tr>
+            <th>Select</th>
+            <th>Name</th>
+            <th>Size</th>
+            <th>Actions</th>
+          </tr>
+        `;
+        table.appendChild(thead);
+        
+        // Create table body
+        const tbody = document.createElement('tbody');
+        
+        // Add files
+        serverData.files.forEach(file => {
+          const tr = document.createElement('tr');
+          
+          // Check if file is already selected
+          const isSelected = serverData.selectedFiles.some(sf => sf.path === file.path);
+          
+          tr.innerHTML = `
+            <td>
+              <div class="form-check">
+                <input class="form-check-input file-checkbox" type="checkbox" value="${file.path}" id="check-${file.path}" ${isSelected ? 'checked' : ''}>
+              </div>
+            </td>
+            <td>${file.name}</td>
+            <td>${file.size_formatted}</td>
+            <td>
+              <button class="btn btn-sm btn-primary view-file-btn" data-path="${file.path}">
+                <i class="fas fa-eye"></i> Quick View
+              </button>
+            </td>
+          `;
+          
+          // Add event listener for checkbox
+          tr.querySelector('.file-checkbox').addEventListener('change', (e) => {
+            toggleFileSelection(file, e.target.checked);
+          });
+          
+          // Add event listener for view button
+          tr.querySelector('.view-file-btn').addEventListener('click', () => {
+            viewServerFile(file.path);
+          });
+          
+          tbody.appendChild(tr);
+        });
+        
+        table.appendChild(tbody);
+        pane.appendChild(table);
+      } else {
+        // Show no files message
+        const noFiles = document.createElement('div');
+        noFiles.className = 'alert alert-info';
+        noFiles.textContent = 'No files found in this folder.';
+        pane.appendChild(noFiles);
+      }
+    }
+    
+    tabContent.appendChild(pane);
+  });
+}
+
+// Toggle file selection
+function toggleFileSelection(file, isSelected) {
+  if (isSelected) {
+    // Add file to selected files
+    serverData.selectedFiles.push(file);
+  } else {
+    // Remove file from selected files
+    serverData.selectedFiles = serverData.selectedFiles.filter(f => f.path !== file.path);
+  }
+  
+  // Update load button state
+  document.getElementById('load-selected-server-files').disabled = serverData.selectedFiles.length === 0;
+}
+
+// View server file data
+function viewServerFile(filePath) {
+  // Show loading in the modal
+  serverDataModal.hide();
+  uploadModal.show();
+  
+  const progressBar = document.getElementById('upload-progress');
+  const statusText = document.getElementById('upload-status');
+  
+  progressBar.style.width = '0%';
+  statusText.textContent = `Loading file preview...`;
+  
+  // Fetch file from server
+  fetch(`/get_server_file?path=${filePath}`)
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(err => { throw new Error(err.error || 'Server error') });
+      }
+      return response.json();
+    })
+    .then(data => {
+      progressBar.style.width = '100%';
+      statusText.textContent = `File preview loaded successfully! Found ${data.data.length} data points.`;
+      
+      // Hide modal after a brief delay
+      setTimeout(() => {
+        uploadModal.hide();
+        serverDataModal.show();
+      }, 2000);
+    })
+    .catch(error => {
+      console.error("Error previewing file:", error);
+      progressBar.style.width = '100%';
+      statusText.textContent = `Error loading file preview: ${error.message}`;
+      
+      // Show error message
+      setTimeout(() => {
+        uploadModal.hide();
+        serverDataModal.show();
+        showMessage(`Error previewing file: ${error.message}`, 'danger');
+      }, 2000);
+    });
+}
+
+// Load selected server files
+function loadSelectedServerFiles() {
+  if (serverData.selectedFiles.length === 0) {
+    showMessage('No files selected', 'warning');
+    return;
+  }
+  
+  // Close the modal
+  serverDataModal.hide();
+  
+  // Show upload modal for progress indication
+  uploadModal.show();
+  const progressBar = document.getElementById('upload-progress');
+  const statusText = document.getElementById('upload-status');
+  
+  // Reset any existing trajectories
+  clearTrajectories();
+  
+  // Process each selected file
+  let processedCount = 0;
+  const colors = [0x0088ff, 0xff8800, 0x88ff00, 0xff0088, 0x00ff88, 0x8800ff];
+  
+  // Make a copy of selected files to avoid issues if the modal is reopened
+  const filesToProcess = [...serverData.selectedFiles];
+  
+  filesToProcess.forEach((file, index) => {
+    statusText.textContent = `Processing file: ${file.name}`;
+    progressBar.style.width = `${(index / filesToProcess.length) * 100}%`;
+    
+    // Fetch and process the file from server
+    fetch(`/get_server_file?path=${file.path}`)
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => { throw new Error(err.error || 'Server error') });
+        }
+        return response.json();
+      })
+      .then(data => {
+        processedCount++;
+        progressBar.style.width = `${(processedCount / filesToProcess.length) * 100}%`;
+        
+        // Check if we have data points
+        if (!data.data || data.data.length === 0) {
+          throw new Error('No valid data points found in file');
+        }
+        
+        // Log metadata
+        console.log(`File ${file.name} metadata:`, data.metadata);
+        
+        // Add trajectory to scene
+        addTrajectory(data.data, file.name, colors[index % colors.length]);
+        
+        // Update status
+        statusText.textContent = `Processed ${processedCount} of ${filesToProcess.length} files`;
+        statusText.textContent += ` (${data.metadata.points_count} points from ${data.metadata.original_count} total)`;
+        
+        // If all files are processed, close modal and update UI
+        if (processedCount === filesToProcess.length) {
+          setTimeout(() => {
+            uploadModal.hide();
+            updateTrajectoryList();
+            updateTimeSlider();
+            showMessage(`Successfully loaded ${filesToProcess.length} trajectories`, "success");
+          }, 500);
+        }
+      })
+      .catch(error => {
+        console.error("Error processing file:", error);
+        statusText.textContent = `Error processing ${file.name}: ${error.message}`;
+        processedCount++;
+        
+        // Update progress even if there's an error
+        progressBar.style.width = `${(processedCount / filesToProcess.length) * 100}%`;
+      });
+  });
+}
