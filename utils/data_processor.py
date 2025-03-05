@@ -13,7 +13,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is_large_file=False, sample_rate=1):
+def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is_large_file=False):
     """
     Process CSV content into a format suitable for visualization.
     Optimized for gigabytes of data with memory-efficient processing.
@@ -23,7 +23,6 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
         file_encoding (str): Encoding of the file, used when use_file_path=True
         use_file_path (bool): If True, csv_content is treated as a file path
         is_large_file (bool): If True, forces chunked processing approach
-        sample_rate (int): If > 1, only processes every Nth row (e.g. 50 = 1/50 of data points)
     
     Returns:
         dict: Processed data ready for visualization
@@ -256,15 +255,8 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
         altitude_scale = 1.8
         
         # Extract trajectory data
-        # For efficiency, we'll sample data points based on the provided sample_rate or fallback to auto-sampling
-        if sample_rate > 1:
-            # Use the specified sample rate (e.g., 50 = take every 50th datapoint)
-            sampling_factor = sample_rate
-            logging.info(f"Using specified sampling rate of 1/{sample_rate} datapoints")
-        else:
-            # Auto-sampling for large datasets (max 1000 points)
-            sampling_factor = max(1, len(df) // 1000)
-            
+        # For efficiency, we'll sample data points for large datasets
+        sampling_factor = max(1, len(df) // 1000)  # Sample at most 1000 points
         metadata['sampling_factor'] = sampling_factor
         
         trajectory_points = []

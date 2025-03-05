@@ -3,10 +3,12 @@ import logging
 import tempfile
 import time
 import uuid
+import json
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask import Flask, render_template, request, jsonify, session, Response, stream_with_context
+from flask import Flask, render_template, request, jsonify, session, Response, stream_with_context, redirect, url_for
 from utils.data_processor import process_csv_data
 from utils.data_cleaner import analyze_csv_file, apply_cleaning_operations
+from utils.cloud_storage import get_cloud_service, save_oauth_credentials
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -189,17 +191,6 @@ def clean_data():
         config = request.json
         if not config:
             return jsonify({"error": "No cleaning configuration provided"}), 400
-            
-        # Ensure sample_rate is properly handled (default to 1 if not provided)
-        if 'sample_rate' not in config:
-            config['sample_rate'] = 1
-        else:
-            # Ensure sample_rate is an integer and at least 1
-            try:
-                config['sample_rate'] = max(1, int(config['sample_rate']))
-            except (ValueError, TypeError):
-                config['sample_rate'] = 1
-                logging.warning("Invalid sample_rate value, defaulting to 1")
         
         # Get files info from session
         analysis_results = session['analysis_results']
@@ -228,30 +219,13 @@ def clean_data():
                         file_info['temp_filepath'] = temp_filepath
                         file_info['encoding'] = encoding
                         
-                        # Get sample rate from the config (default to 50 if not provided)
-                        sample_rate = int(config.get('sample_rate', 50))
-                        logging.info(f"Using sample rate of 1/{sample_rate} datapoints for cleaning")
-                        
-                        # Apply cleaning operations with temp file info and sample rate
+                        # Apply cleaning operations with temp file info
                         cleaned_data = apply_cleaning_operations(file_info, config, use_temp_file=True)
-                        
-                        # Pass the sample rate to the data processor after cleaning
-                        if 'sample_rate' not in config:
-                            config['sample_rate'] = sample_rate
                     else:
                         # For smaller files, read the whole content and process normally
                         with open(temp_filepath, 'r', encoding=encoding) as f:
                             file_content = f.read()
                             file_info['content'] = file_content
-                            
-                            # Get sample rate from the config (default to 50 if not provided)
-                            sample_rate = int(config.get('sample_rate', 50))
-                            logging.info(f"Using sample rate of 1/{sample_rate} datapoints for cleaning")
-                            
-                            # Pass the sample rate to the config
-                            if 'sample_rate' not in config:
-                                config['sample_rate'] = sample_rate
-                                
                             cleaned_data = apply_cleaning_operations(file_info, config)
                 else:
                     # If we don't have a temp file, try to use content from file_info
@@ -340,21 +314,16 @@ def process_csv():
                     return jsonify({"error": "Could not determine file encoding. File may be corrupted or in an unsupported format."}), 400
                 
                 # Process based on file size
-                # Get sample rate from request (default to 50 if not provided)
-                sample_rate = int(request.form.get('sample_rate', 50))
-                logging.info(f"Using sample rate of 1/{sample_rate} datapoints")
-                
                 if is_large_file:
                     # For large files, use a chunked processing approach via the data processor
                     logging.info(f"Processing large file with chunked approach and {successful_encoding} encoding")
                     processed_data = process_csv_data(temp_filepath, file_encoding=successful_encoding, 
-                                                     use_file_path=True, is_large_file=True,
-                                                     sample_rate=sample_rate)
+                                                     use_file_path=True, is_large_file=True)
                 else:
                     # For smaller files, read the content and process normally
                     with open(temp_filepath, 'r', encoding=successful_encoding) as f:
                         file_content = f.read()
-                    processed_data = process_csv_data(file_content, sample_rate=sample_rate)
+                    processed_data = process_csv_data(file_content)
                 
                 # Clean up temporary file
                 try:
@@ -412,6 +381,245 @@ def process_csv():
             "error": f"Server error: {str(e)}",
             "timestamp": time.time()
         }), 500
+
+# Cloud storage integration routes
+@app.route('/cloud/auth', methods=['GET', 'POST'])
+def cloud_auth():
+    """Initiate authentication with cloud storage providers."""
+    if request.method == 'POST':
+        try:
+            provider = request.json.get('provider')
+            
+            if not provider:
+                return jsonify({"error": "Cloud provider not specified"}), 400
+            
+            # Get cloud service instance
+            cloud_service = get_cloud_service(provider)
+            
+            # Start authentication flow
+            auth_result = cloud_service.authenticate()
+            
+            return jsonify(auth_result)
+            
+        except Exception as e:
+            logging.error(f"Error initiating cloud auth: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            return jsonify({"error": f"Error initiating cloud auth: {str(e)}"}), 500
+    else:
+        # Render cloud auth page for GET requests
+        return render_template('cloud_auth.html')
+
+
+@app.route('/cloud/auth/callback', methods=['POST'])
+def cloud_auth_callback():
+    """Handle OAuth callback from cloud providers."""
+    try:
+        provider = request.json.get('provider')
+        auth_code = request.json.get('auth_code')
+        
+        if not provider or not auth_code:
+            return jsonify({"error": "Missing provider or auth code"}), 400
+        
+        # Get cloud service instance
+        cloud_service = get_cloud_service(provider)
+        
+        # Exchange auth code for tokens
+        auth_result = cloud_service.exchange_auth_code(auth_code)
+        
+        # Store auth state in session
+        session['cloud_auth'] = {
+            'provider': provider,
+            'authenticated': auth_result.get('authenticated', False)
+        }
+        
+        return jsonify(auth_result)
+        
+    except Exception as e:
+        logging.error(f"Error in OAuth callback: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({"error": f"Error in OAuth callback: {str(e)}"}), 500
+
+
+@app.route('/cloud/list_files', methods=['POST'])
+def cloud_list_files():
+    """List files from cloud storage."""
+    try:
+        provider = request.json.get('provider')
+        folder_id = request.json.get('folder_id')
+        file_types = request.json.get('file_types', ['csv', 'txt'])
+        
+        if not provider:
+            return jsonify({"error": "Cloud provider not specified"}), 400
+        
+        # Get cloud service instance
+        cloud_service = get_cloud_service(provider)
+        
+        # Try to authenticate if not already
+        if not cloud_service.authenticated:
+            auth_result = cloud_service.authenticate()
+            if not auth_result.get('authenticated', False) and auth_result.get('requires_auth', False):
+                return jsonify(auth_result), 401
+        
+        # List files
+        files = cloud_service.list_files(folder_id, file_types)
+        
+        return jsonify({"files": files})
+        
+    except Exception as e:
+        logging.error(f"Error listing cloud files: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({"error": f"Error listing cloud files: {str(e)}"}), 500
+
+
+@app.route('/cloud/download_file', methods=['POST'])
+def cloud_download_file():
+    """Download a file from cloud storage and process it."""
+    try:
+        provider = request.json.get('provider')
+        file_id = request.json.get('file_id')
+        
+        if not provider or not file_id:
+            return jsonify({"error": "Missing provider or file_id"}), 400
+        
+        # Get cloud service instance
+        cloud_service = get_cloud_service(provider)
+        
+        # Try to authenticate if not already
+        if not cloud_service.authenticated:
+            auth_result = cloud_service.authenticate()
+            if not auth_result.get('authenticated', False) and auth_result.get('requires_auth', False):
+                return jsonify(auth_result), 401
+        
+        # Download the file
+        temp_filepath, filename = cloud_service.download_file(file_id)
+        
+        logging.info(f"Downloaded file from {provider}: {filename} to {temp_filepath}")
+        
+        # Check file size to determine processing approach
+        file_size = os.path.getsize(temp_filepath)
+        is_large_file = file_size > 50 * 1024 * 1024  # Consider files > 50MB as large
+        
+        # Determine file encoding with multi-fallback strategy
+        encoding = 'utf-8'
+        encodings_to_try = ['utf-8', 'latin-1', 'utf-16', 'cp1252', 'iso-8859-1']
+        
+        for enc in encodings_to_try:
+            try:
+                with open(temp_filepath, 'r', encoding=enc) as f:
+                    # Just read first line to test encoding
+                    f.readline()
+                encoding = enc
+                logging.info(f"Successfully detected {encoding} encoding for file {filename}")
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        # Create a file info dictionary
+        file_info = {
+            "filename": filename,
+            "temp_filepath": temp_filepath,
+            "file_size": file_size,
+            "file_size_mb": file_size/(1024*1024),
+            "encoding": encoding,
+            "is_large_file": is_large_file,
+            "cloud_provider": provider,
+            "cloud_file_id": file_id,
+            "timestamp": time.time()
+        }
+        
+        # For large files, use a sample-based approach for initial stats
+        if is_large_file:
+            logging.info(f"Processing large cloud file with chunked approach")
+            
+            # Read just the first part of the file for quick analysis
+            try:
+                with open(temp_filepath, 'r', encoding=encoding) as f:
+                    # Read just first ~1MB for quick analysis to avoid timeouts
+                    sample_content = f.read(1024 * 1024)
+                    sample_stats = analyze_csv_file(sample_content, filename, is_sample=True)
+                    
+                    # Merge sample stats with file info
+                    file_info.update(sample_stats)
+                    file_info['analyzed_with_sample'] = True
+            except Exception as e:
+                logging.error(f"Error reading sample from large cloud file: {str(e)}")
+                file_info['error'] = f"Error reading sample: {str(e)}"
+        else:
+            # For smaller files, process the whole file
+            try:
+                with open(temp_filepath, 'r', encoding=encoding) as f:
+                    file_content = f.read()
+                    stats = analyze_csv_file(file_content, filename)
+                    file_info.update(stats)
+            except Exception as e:
+                logging.error(f"Error analyzing cloud file content: {str(e)}")
+                file_info['error'] = f"Error analyzing content: {str(e)}"
+        
+        # Store file info in session
+        if 'analysis_results' not in session:
+            session['analysis_results'] = []
+        if 'temp_files' not in session:
+            session['temp_files'] = {}
+        
+        session['analysis_results'].append(file_info)
+        session['temp_files'][filename] = {
+            "path": temp_filepath,
+            "encoding": encoding,
+            "is_large_file": is_large_file,
+            "from_cloud": True,
+            "cloud_provider": provider,
+            "cloud_file_id": file_id
+        }
+        
+        return jsonify({"file": file_info})
+        
+    except Exception as e:
+        logging.error(f"Error downloading cloud file: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({"error": f"Error downloading cloud file: {str(e)}"}), 500
+
+
+@app.route('/cloud/save_credentials', methods=['POST'])
+def cloud_save_credentials():
+    """Save OAuth credentials for cloud storage providers."""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No credentials provided"}), 400
+        
+        provider = data.get('provider')
+        client_id = data.get('client_id')
+        client_secret = data.get('client_secret')
+        redirect_uri = data.get('redirect_uri')
+        tenant_id = data.get('tenant_id')
+        
+        if not provider or not client_id or not client_secret:
+            return jsonify({"error": "Missing required credential fields"}), 400
+        
+        # Save credentials
+        success = save_oauth_credentials(
+            provider=provider,
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=redirect_uri,
+            tenant_id=tenant_id
+        )
+        
+        if success:
+            return jsonify({"success": True, "message": f"{provider} credentials saved successfully"})
+        else:
+            return jsonify({"error": f"Failed to save {provider} credentials"}), 500
+        
+    except Exception as e:
+        logging.error(f"Error saving cloud credentials: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({"error": f"Error saving cloud credentials: {str(e)}"}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -353,26 +353,6 @@
                             </p>
                             
                             <form id="cleaning-config-form">
-                                <!-- Data Sampling Controls -->
-                                <div class="card mb-4">
-                                    <div class="card-header">
-                                        <h5 class="mb-0">Data Sampling</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <label for="sample-rate" class="form-label">Sample Rate <span class="text-muted">(lower values = more detailed visualization, higher values = better performance)</span></label>
-                                            <div class="d-flex align-items-center">
-                                                <input type="range" class="form-range flex-grow-1 me-2" id="sample-rate-slider" min="1" max="100" step="1" value="50">
-                                                <div class="input-group" style="width: 120px;">
-                                                    <input type="number" class="form-control" id="sample-rate" name="sample_rate" min="1" max="1000" value="50">
-                                                    <span class="input-group-text">points</span>
-                                                </div>
-                                            </div>
-                                            <div class="form-text" id="sampling-description">Using every 50th data point (2.00% of data)</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
                                 <div class="accordion" id="cleaningAccordion">
                                     <!-- 2.1 File Size Filtering -->
                                     <div class="accordion-item">
@@ -602,36 +582,6 @@
                                                 <div class="mb-3">
                                                     <label for="start-number" class="form-label">Starting Sequence Number</label>
                                                     <input type="number" class="form-control" id="start-number" name="file_resequencing.start_number" value="1" min="0">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- 2.9 Data Sampling Rate -->
-                                    <div class="accordion-item">
-                                        <h2 class="accordion-header">
-                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#samplingCollapse">
-                                                <div class="form-check form-switch mb-0 me-2">
-                                                    <input class="form-check-input" type="checkbox" id="enable-data-sampling" name="data_sampling.enabled" checked>
-                                                </div>
-                                                Data Sampling Rate
-                                            </button>
-                                        </h2>
-                                        <div id="samplingCollapse" class="accordion-collapse collapse" data-bs-parent="#cleaningAccordion">
-                                            <div class="accordion-body">
-                                                <p class="text-muted mb-3">
-                                                    Configure sampling rate to reduce data density for faster processing and visualization.
-                                                    A higher value means more aggressive sampling (e.g., 50 = keep every 50th point).
-                                                </p>
-                                                <div class="mb-3">
-                                                    <label for="sample-rate" class="form-label">Sample Rate</label>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <input type="range" class="form-range flex-grow-1" id="sample-rate-slider" min="1" max="100" step="1" value="50">
-                                                        <input type="number" class="form-control" style="width: 80px;" id="sample-rate" name="data_sampling.sample_rate" value="50" min="1" max="1000">
-                                                    </div>
-                                                    <div class="form-text">
-                                                        <span id="sampling-description">Using every 50th data point (2% of data)</span>
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

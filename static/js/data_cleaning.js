@@ -43,45 +43,6 @@ document.addEventListener('DOMContentLoaded', function() {
      * Initialize event listeners for interactive elements
      */
     function initEventListeners() {
-        // Data sampling rate controls
-        const sampleRateSlider = document.getElementById('sample-rate-slider');
-        const sampleRateInput = document.getElementById('sample-rate');
-        const samplingDescription = document.getElementById('sampling-description');
-        
-        if (sampleRateSlider && sampleRateInput) {
-            // Update number input when slider changes
-            sampleRateSlider.addEventListener('input', (e) => {
-                const value = parseInt(e.target.value);
-                sampleRateInput.value = value;
-                updateSamplingDescription(value);
-            });
-            
-            // Update slider when number input changes
-            sampleRateInput.addEventListener('input', (e) => {
-                let value = parseInt(e.target.value);
-                // Constrain value to min/max
-                if (value < 1) value = 1;
-                if (value > 1000) value = 1000;
-                
-                // Update slider if within its range
-                if (value <= 100) {
-                    sampleRateSlider.value = value;
-                }
-                updateSamplingDescription(value);
-            });
-            
-            // Initialize description
-            updateSamplingDescription(parseInt(sampleRateInput.value));
-        }
-        
-        // Function to update the sampling description text
-        function updateSamplingDescription(sampleRate) {
-            if (samplingDescription) {
-                const percentage = (100 / sampleRate).toFixed(2);
-                samplingDescription.textContent = `Using every ${sampleRate}th data point (${percentage}% of data)`;
-            }
-        }
-        
         // Workflow step navigation
         workflowSteps.forEach(step => {
             step.addEventListener('click', (e) => {
