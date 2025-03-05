@@ -136,11 +136,8 @@
                     <a href="/" class="btn btn-outline-light btn-sm me-2">
                         <i class="fas fa-chart-line me-1"></i> Visualizer
                     </a>
-                    <a href="#" class="btn btn-primary btn-sm me-2" disabled>
+                    <a href="#" class="btn btn-primary btn-sm" disabled>
                         <i class="fas fa-broom me-1"></i> Data Cleaning
-                    </a>
-                    <a href="/cloud/auth" class="btn btn-outline-info btn-sm">
-                        <i class="fas fa-cloud me-1"></i> Cloud Import
                     </a>
                 </div>
             </div>
@@ -205,62 +202,26 @@
                                 Upload one or more CSV files containing flight trajectory data. The files will be analyzed and prepared for cleaning operations.
                             </p>
                             
-                            <form id="upload-form" class="mb-4" enctype="multipart/form-data" action="/analyze_csv">
+                            <form id="upload-form" class="mb-4">
                                 <div class="mb-3">
                                     <label for="file-input" class="form-label">Select CSV Files</label>
-                                    <input class="form-control" type="file" id="file-input" name="files[]" accept=".csv,.txt" multiple>
-                                    <div id="upload-file-info" class="form-text mt-2 text-muted">No files selected</div>
+                                    <input class="form-control" type="file" id="file-input" accept=".csv,.txt" multiple>
                                 </div>
                                 
                                 <div class="d-flex justify-content-between">
                                     <button type="button" class="btn btn-secondary" disabled>
                                         <i class="fas fa-arrow-left me-1"></i> Back
                                     </button>
-                                    <button type="submit" class="btn btn-primary" id="upload-button" disabled>
+                                    <button type="submit" class="btn btn-primary">
                                         <i class="fas fa-upload me-1"></i> Upload Files
                                     </button>
                                 </div>
-                                
-                                <!-- Hidden input to track if file selection was made -->
-                                <input type="hidden" id="file-selected-flag" value="false">
                             </form>
-                            
-                            <!-- Professional Upload Progress UI -->
-                            <div id="upload-progress-container" class="mt-4 mb-4 d-none">
-                                <div class="card bg-dark border-primary">
-                                    <div class="card-header bg-primary bg-opacity-75 text-white d-flex align-items-center">
-                                        <i class="fas fa-cloud-upload-alt me-2"></i> 
-                                        <span>Upload Progress</span>
-                                        <div class="ms-auto">
-                                            <span class="badge bg-dark border border-info">TEA Labs</span>
-                                        </div>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="progress mb-2" style="height: 25px;">
-                                            <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                                                 role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                                        </div>
-                                        <p id="upload-progress-text" class="mb-1 text-center">Ready to upload files</p>
-                                        <div id="upload-stats" class="d-flex justify-content-between small text-muted">
-                                            <span>Speed: -- KB/s</span>
-                                            <span>ETA: --</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Error container for upload errors -->
-                            <div id="error-container" class="alert alert-danger d-none" role="alert">
-                                <i class="fas fa-exclamation-circle me-2"></i>
-                                <span id="error-message">An error occurred</span>
-                            </div>
                             
                             <div class="alert alert-info d-flex align-items-center" role="alert">
                                 <i class="fas fa-info-circle me-2"></i>
                                 <div>
                                     Supported formats: CSV files with comma-separated values. Files should contain flight trajectory data with position columns.
-                                    <br>
-                                    <strong>Note:</strong> Large files (>500MB) will be processed in chunks with progress tracking.
                                 </div>
                             </div>
                         </div>
@@ -862,60 +823,5 @@
     
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/data_cleaning.js') }}"></script>
-    
-    <!-- Upload Progress Tracker with ETA -->
-    <script src="{{ url_for('static', filename='js/upload_progress.js') }}"></script>
-    
-    <!-- Direct script to ensure file upload button activation -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Get file input and upload button elements directly
-            const fileInput = document.getElementById('file-input');
-            const uploadButton = document.getElementById('upload-button');
-            const fileInfoText = document.getElementById('upload-file-info');
-            
-            if (fileInput && uploadButton) {
-                console.log("File input and upload button found");
-                
-                // Set up change event handler for file input
-                fileInput.addEventListener('change', function() {
-                    console.log("File input changed, files:", this.files.length);
-                    
-                    // Enable/disable button based on file selection
-                    uploadButton.disabled = this.files.length === 0;
-                    console.log("Button disabled state:", uploadButton.disabled);
-                    
-                    // Update file info text
-                    if (fileInfoText) {
-                        if (this.files.length > 0) {
-                            let totalSize = 0;
-                            for (let i = 0; i < this.files.length; i++) {
-                                totalSize += this.files[i].size;
-                            }
-                            const formattedSize = formatFileSize(totalSize);
-                            
-                            fileInfoText.textContent = `${this.files.length} file(s) selected (${formattedSize}). Click 'Upload Files' to begin processing.`;
-                            fileInfoText.classList.remove('text-muted');
-                            fileInfoText.classList.add('text-success');
-                        } else {
-                            fileInfoText.textContent = 'No files selected';
-                            fileInfoText.classList.remove('text-success');
-                            fileInfoText.classList.add('text-muted');
-                        }
-                    }
-                });
-                
-                // Format file size helper function
-                function formatFileSize(bytes) {
-                    if (bytes === 0) return '0 B';
-                    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-                    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-                    return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + units[i];
-                }
-            } else {
-                console.error("File input or upload button not found");
-            }
-        });
-    </script>
 </body>
 </html>
