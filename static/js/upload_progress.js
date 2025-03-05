@@ -69,6 +69,13 @@ class UploadProgressTracker {
         const files = this.fileInput.files;
         this.resetState();
         
+        if (files.length === 0) {
+            if (this.progressContainer) {
+                this.progressContainer.classList.add('d-none');
+            }
+            return;
+        }
+        
         // Calculate total file size
         for (let i = 0; i < files.length; i++) {
             this.totalBytes += files[i].size;
@@ -77,6 +84,20 @@ class UploadProgressTracker {
         // Update UI
         if (this.progressContainer) {
             this.progressContainer.classList.remove('d-none');
+        }
+        
+        // Enable upload button if it exists
+        const uploadButton = document.getElementById('upload-button');
+        if (uploadButton) {
+            uploadButton.disabled = false;
+        }
+        
+        // Show file info
+        const fileInfoText = document.getElementById('upload-file-info');
+        if (fileInfoText) {
+            fileInfoText.textContent = `${files.length} file(s) selected. Total size: ${this.formatSize(this.totalBytes)}. Click 'Upload Files' to begin processing.`;
+            fileInfoText.classList.remove('text-muted');
+            fileInfoText.classList.add('text-success');
         }
         
         // Show initial stats

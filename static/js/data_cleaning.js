@@ -69,6 +69,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        // Enable upload button when files are selected
+        fileInput.addEventListener('change', () => {
+            const uploadButton = document.getElementById('upload-button');
+            uploadButton.disabled = fileInput.files.length === 0;
+            
+            // Update file info text
+            const fileInfoText = document.getElementById('upload-file-info');
+            if (fileInput.files.length > 0) {
+                fileInfoText.textContent = `${fileInput.files.length} file(s) selected. Click 'Upload Files' to begin processing.`;
+                fileInfoText.classList.remove('text-muted');
+                fileInfoText.classList.add('text-success');
+            } else {
+                fileInfoText.textContent = 'No files selected';
+                fileInfoText.classList.remove('text-success');
+                fileInfoText.classList.add('text-muted');
+            }
+        });
+        
         // Navigation buttons
         analyzeBackBtn.addEventListener('click', () => navigateToStep('upload'));
         analyzeNextBtn.addEventListener('click', () => navigateToStep('configure'));
