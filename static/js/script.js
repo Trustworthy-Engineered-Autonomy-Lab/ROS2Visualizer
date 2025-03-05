@@ -1378,18 +1378,52 @@ function updateHousePosition() {
 
 // Show message to user
 function showMessage(message, type = "info") {
-  // Create a temporary message at the top of visualization container
+  // Create a temporary message at the top of visualization container with accessibility support
   const msgElement = document.createElement('div');
+  
+  // Apply proper styling and ARIA attributes
   msgElement.className = `alert alert-${type} position-absolute top-0 start-50 translate-middle-x mt-3`;
   msgElement.style.zIndex = 1000;
-  msgElement.textContent = message;
+  msgElement.setAttribute('role', 'alert');
+  msgElement.setAttribute('aria-live', type === 'danger' ? 'assertive' : 'polite');
   
-  document.getElementById('visualization-container').appendChild(msgElement);
+  // Add appropriate icon based on message type for visual users
+  let iconClass = '';
+  switch(type) {
+    case 'success': iconClass = 'fas fa-check-circle'; break;
+    case 'danger': iconClass = 'fas fa-exclamation-circle'; break;
+    case 'warning': iconClass = 'fas fa-exclamation-triangle'; break;
+    default: iconClass = 'fas fa-info-circle';
+  }
   
-  // Remove after 3 seconds
-  setTimeout(() => {
-    msgElement.remove();
-  }, 3000);
+  // Create icon span that will be hidden from screen readers
+  const iconSpan = document.createElement('span');
+  iconSpan.className = `${iconClass} me-2`;
+  iconSpan.setAttribute('aria-hidden', 'true');
+  
+  // Add content
+  msgElement.appendChild(iconSpan);
+  msgElement.appendChild(document.createTextNode(message));
+  
+  // Add to container
+  const container = document.getElementById('visualization-container');
+  if (container) {
+    container.appendChild(msgElement);
+    
+    // Remove after 5 seconds with fade effect for non-critical messages
+    // Keep error messages longer (7 seconds)
+    const timeout = type === 'danger' ? 7000 : 5000;
+    
+    // Start fade out effect before removal
+    setTimeout(() => {
+      msgElement.style.transition = 'opacity 0.5s';
+      msgElement.style.opacity = '0';
+    }, timeout - 500);
+    
+    setTimeout(() => {
+      msgElement.remove();
+    }, timeout);
+  }
 }
 
 /**
