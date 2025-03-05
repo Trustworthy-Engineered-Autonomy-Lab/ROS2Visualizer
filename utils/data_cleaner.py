@@ -11,28 +11,11 @@ import math
 import statistics
 from datetime import datetime
 
-# Install pandas and numpy if not already installed
-try:
-    import pandas as pd
-    import numpy as np
-except ImportError:
-    logging.error("Required packages not found. Please install pandas and numpy.")
-    # Handle import errors gracefully
-    import sys
-    if 'pandas' not in sys.modules:
-        # Create mock pandas module
-        class MockPd:
-            def __getattr__(self, name):
-                raise ImportError(f"pandas module is not available: {name}")
-        pd = MockPd()
-    if 'numpy' not in sys.modules:
-        # Create mock numpy module
-        class MockNp:
-            def __getattr__(self, name):
-                raise ImportError(f"numpy module is not available: {name}")
-        np = MockNp()
+# Install pandas and numpy - these are necessary for processing CSV files
+import pandas as pd
+import numpy as np
 
-def analyze_csv_file(file_content, filename):
+def analyze_csv_file(file_content, filename, is_sample=False):
     """
     Analyze a CSV file and return basic statistics.
     Optimized for very large files (GBs of data) with chunked processing.
@@ -40,6 +23,7 @@ def analyze_csv_file(file_content, filename):
     Args:
         file_content (str): CSV file content as string
         filename (str): Name of the file
+        is_sample (bool): If True, indicates this is just a sample of a large file
         
     Returns:
         dict: Statistics about the file
@@ -287,13 +271,14 @@ def analyze_csv_file(file_content, filename):
             'timestamp': datetime.now().isoformat()
         }
 
-def apply_cleaning_operations(file_info, config):
+def apply_cleaning_operations(file_info, config, use_temp_file=False):
     """
     Apply configured cleaning operations to a file.
     
     Args:
-        file_info (dict): File information including content
+        file_info (dict): File information including content or temp_filepath
         config (dict): Cleaning configuration
+        use_temp_file (bool): If True, read from temp_filepath instead of content
         
     Returns:
         dict: Results of cleaning operations

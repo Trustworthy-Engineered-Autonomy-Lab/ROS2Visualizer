@@ -9,25 +9,9 @@ import json
 import math
 import logging
 from datetime import datetime
-try:
-    import pandas as pd
-    import numpy as np
-except ImportError:
-    logging.error("Required packages not found. Please install pandas and numpy.")
-    # Handle import errors gracefully
-    import sys
-    if 'pandas' not in sys.modules:
-        # Create mock pandas module
-        class MockPd:
-            def __getattr__(self, name):
-                raise ImportError(f"pandas module is not available: {name}")
-        pd = MockPd()
-    if 'numpy' not in sys.modules:
-        # Create mock numpy module
-        class MockNp:
-            def __getattr__(self, name):
-                raise ImportError(f"numpy module is not available: {name}")
-        np = MockNp()
+# These are necessary imports for processing CSV data
+import pandas as pd
+import numpy as np
 
 def process_csv_data(csv_content):
     """
