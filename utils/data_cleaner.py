@@ -279,7 +279,9 @@ def apply_cleaning_operations(file_info, config, use_temp_file=False):
     
     Args:
         file_info (dict): File information including content or temp_filepath
-        config (dict): Cleaning configuration
+        config (dict): Cleaning configuration with options including:
+            - sample_rate (int): Data sampling rate (e.g., 50 = take every 50th point)
+            - various cleaning options (remove_outliers, etc.)
         use_temp_file (bool): If True, read from temp_filepath instead of content
         
     Returns:
@@ -698,13 +700,17 @@ def apply_cleaning_operations(file_info, config, use_temp_file=False):
             cleaned_content = output.getvalue()
             cleaned_file_size = len(cleaned_content)
             
+            # Extract sample rate from config (default to 50 if not provided)
+            sample_rate = int(config.get('sample_rate', 50))
+            
             result['cleaned_stats'] = {
                 'row_count': rows_after,
                 'row_reduction': file_info.get('row_count', 0) - rows_after,
                 'row_reduction_percentage': ((file_info.get('row_count', 0) - rows_after) / file_info.get('row_count', 1)) * 100 if file_info.get('row_count', 0) > 0 else 0,
                 'file_size_mb': cleaned_file_size / (1024 * 1024),
                 'file_size_reduction_mb': file_info.get('file_size_mb', 0) - (cleaned_file_size / (1024 * 1024)),
-                'file_size_reduction_percentage': ((file_info.get('file_size_bytes', 0) - cleaned_file_size) / file_info.get('file_size_bytes', 1)) * 100 if file_info.get('file_size_bytes', 0) > 0 else 0
+                'file_size_reduction_percentage': ((file_info.get('file_size_bytes', 0) - cleaned_file_size) / file_info.get('file_size_bytes', 1)) * 100 if file_info.get('file_size_bytes', 0) > 0 else 0,
+                'sample_rate': sample_rate  # Include the sample rate in the results
             }
             
             # Include sample of cleaned data
