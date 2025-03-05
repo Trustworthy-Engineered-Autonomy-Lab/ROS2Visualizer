@@ -234,10 +234,14 @@ document.addEventListener('DOMContentLoaded', function() {
           folderContent += `
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="toggle-multi-select">
+              <input class="form-check-input" type="checkbox" id="toggle-multi-select"
+                aria-describedby="toggle-multi-select-description">
               <label class="form-check-label" for="toggle-multi-select">
                 Multi-select mode ${serverBrowserState.multiSelectMode ? '(on)' : '(off)'}
               </label>
+              <div id="toggle-multi-select-description" class="form-text visually-hidden">
+                Enable to select multiple files at once
+              </div>
             </div>
             <button id="process-selected-files" class="btn btn-success btn-sm" 
               ${serverBrowserState.selectedFiles.length === 0 ? 'disabled' : ''} 
@@ -256,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Add selection column if multi-select is enabled
             if (serverBrowserState.multiSelectMode) {
-              folderContent += '<th><input type="checkbox" id="select-all-files" class="form-check-input"></th>';
+              folderContent += '<th><div class="form-check"><input type="checkbox" id="select-all-files" class="form-check-input" aria-label="Select all files"><label class="visually-hidden" for="select-all-files">Select all files</label></div></th>';
             }
             
             folderContent += '<th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody>';
@@ -493,8 +497,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Generate breadcrumb
         folderContent += `<nav aria-label="breadcrumb" class="mb-3">
           <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="#" data-folder="sample_data">Root</a></li>
-            <li class="breadcrumb-item active">${serverBrowserState.currentFolder}</li>
+            <li class="breadcrumb-item"><a href="#" data-folder="sample_data" aria-label="Navigate to root folder">Root</a></li>
+            <li class="breadcrumb-item active" aria-current="page">${serverBrowserState.currentFolder}</li>
           </ol>
         </nav>`;
         
@@ -503,8 +507,8 @@ document.addEventListener('DOMContentLoaded', function() {
           folderContent += '<div class="mb-3"><h6>Folders</h6><div class="d-flex flex-wrap gap-2">';
           for (const folder of serverBrowserState.folders) {
             folderContent += `
-              <button class="btn btn-outline-secondary btn-sm" data-folder="${folder}">
-                <i class="fas fa-folder me-1"></i>${folder}
+              <button class="btn btn-outline-secondary btn-sm" data-folder="${folder}" aria-label="Open folder ${folder}">
+                <i class="fas fa-folder me-1" aria-hidden="true"></i>${folder}
               </button>`;
           }
           folderContent += '</div></div>';
@@ -540,7 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
           
           // Add selection column if multi-select is enabled
           if (serverBrowserState.multiSelectMode) {
-            folderContent += '<th><input type="checkbox" id="select-all-files" class="form-check-input"></th>';
+            folderContent += '<th><div class="form-check"><input type="checkbox" id="select-all-files" class="form-check-input" aria-label="Select all files"><label class="visually-hidden" for="select-all-files">Select all files</label></div></th>';
           }
           
           folderContent += '<th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody>';
