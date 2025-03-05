@@ -9,18 +9,24 @@ import os
 import json
 import tempfile
 import logging
-from typing import Dict, List, Optional, Tuple, Any
-
-import requests
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
-import msal
+from typing import Dict, List, Optional, Tuple, Any, Union
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Handle import errors gracefully for cloud services
+try:
+    import requests
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import Flow
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseDownload
+    import msal
+    CLOUD_IMPORTS_SUCCESSFUL = True
+except ImportError:
+    CLOUD_IMPORTS_SUCCESSFUL = False
+    logger.warning("Cloud storage imports failed. Some cloud services may be unavailable.")
 
 # Constants
 GOOGLE_DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
@@ -36,11 +42,27 @@ class CloudStorageService:
     def __init__(self):
         self.authenticated = False
         
-    def authenticate(self) -> bool:
-        """Authenticate with the cloud service."""
+    def authenticate(self) -> Dict[str, Any]:
+        """Authenticate with the cloud service.
+        
+        Returns:
+            Dict containing authentication results
+        """
         raise NotImplementedError("Subclasses must implement authenticate()")
         
-    def list_files(self, folder_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def exchange_auth_code(self, auth_code: str) -> Dict[str, Any]:
+        """Exchange authorization code for access token.
+        
+        Args:
+            auth_code: The authorization code from OAuth flow
+            
+        Returns:
+            Dict with authentication result
+        """
+        raise NotImplementedError("Subclasses must implement exchange_auth_code()")
+        
+    def list_files(self, folder_id: Optional[str] = None, 
+                  file_types: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """List files in the user's cloud storage, optionally within a specific folder."""
         raise NotImplementedError("Subclasses must implement list_files()")
     
@@ -64,11 +86,11 @@ class GoogleDriveService(CloudStorageService):
         # Create credentials directory if it doesn't exist
         os.makedirs('client_secrets', exist_ok=True)
     
-    def authenticate(self) -> bool:
+    def authenticate(self) -> Dict[str, Any]:
         """Authenticate with Google Drive.
         
         Returns:
-            bool: True if authentication is successful, False otherwise.
+            Dict containing authentication results with keys like 'authenticated', 'auth_url', etc.
         """
         try:
             # Check if we already have valid credentials
