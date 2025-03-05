@@ -89,11 +89,17 @@ function initScene() {
   scene.add(directionalLight);
   
   // Add 3D house model at the specified coordinates from config
-  houseModel = addHouseModel(
-    houseConfig.position.x, 
-    houseConfig.position.y, 
-    houseConfig.position.z
-  );
+  try {
+    console.log("Creating house at:", houseConfig.position);
+    houseModel = addHouseModel(
+      houseConfig.position.x, 
+      houseConfig.position.y, 
+      houseConfig.position.z
+    );
+    console.log("House model created:", houseModel);
+  } catch (error) {
+    console.error("Error creating house model:", error);
+  }
   
   // Add text labels for axes
   addAxisLabels();
@@ -251,7 +257,9 @@ function addHouseModel(x, y, z) {
   }
   
   // Set the house position to the specified coordinates
-  // Note that y coordinate is slightly adjusted to place at ground level
+  // In Three.js, Y is up, whereas in our flight data, Z is up and Y is North
+  // So we need to swap Y and Z coordinates
+  console.log(`Positioning house at coordinates: X=${x}, Y=${y}, Z=${z}`);
   house.position.set(x, z, y);
   
   // Add the house to the scene
@@ -1037,17 +1045,26 @@ function onWindowResize() {
 
 // Function to toggle house visibility
 function toggleHouseVisibility(event) {
-  if (!houseModel) return;
+  if (!houseModel) {
+    console.error("House model not found!");
+    showMessage("Error: House model not found", "danger");
+    return;
+  }
   
   houseConfig.visible = event.target.checked;
   houseModel.visible = houseConfig.visible;
   
+  console.log(`House visibility set to: ${houseConfig.visible}`);
   showMessage(`House ${houseConfig.visible ? 'shown' : 'hidden'}`, "info");
 }
 
 // Function to update house position
 function updateHousePosition() {
-  if (!houseModel) return;
+  if (!houseModel) {
+    console.error("House model not found!");
+    showMessage("Error: House model not found", "danger");
+    return;
+  }
   
   // Get values from input fields
   const x = parseFloat(document.getElementById('house-x').value);
@@ -1060,9 +1077,15 @@ function updateHousePosition() {
     return;
   }
   
-  // Update house position
+  // Update house position - remember in THREE.js Y is up, so we swap Y and Z
+  console.log(`Updating house position to: X=${x}, Y=${y}, Z=${z}`);
   houseConfig.position = { x, y, z };
-  houseModel.position.set(x, z, y); // Note the swapped y and z for THREE.js coordinates
+  
+  // In Three.js, we need to set (x, z, y) to match our coordinate system
+  houseModel.position.set(x, z, y); 
+  
+  // Log confirmation
+  console.log("New house position set:", houseModel.position);
   
   showMessage(`House position updated to (${x}, ${y}, ${z})`, "success");
 }
