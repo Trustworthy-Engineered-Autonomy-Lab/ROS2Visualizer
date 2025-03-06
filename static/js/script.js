@@ -745,18 +745,72 @@ function addTrajectory(data, name, color) {
     point.position_n || 0                      // Z axis (North)
   ));
   
-  // Create line geometry
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  // Check if any points in this trajectory are marked as "under attack"
+  const hasAttackPoints = data.some(point => point.under_attack === true);
   
-  // Create line material
-  const material = new THREE.LineBasicMaterial({ 
-    color: color,
-    linewidth: 2
-  });
-  
-  // Create the line
-  const trajectory = new THREE.Line(geometry, material);
-  scene.add(trajectory);
+  // If we have attack points, create separate line segments for normal and attacked sections
+  if (hasAttackPoints) {
+    // Create segments based on attack status (group consecutive points with same status)
+    const segments = [];
+    let currentSegment = { points: [], isAttack: data[0].under_attack === true };
+    
+    // Group points into segments based on attack status
+    data.forEach((point, index) => {
+      const isAttack = point.under_attack === true;
+      const position = new THREE.Vector3(
+        point.position_e || 0,
+        (-point.position_d || 0) * altitudeScaleFactor,
+        point.position_n || 0
+      );
+      
+      // If attack status changed, start a new segment
+      if (isAttack !== currentSegment.isAttack && index > 0) {
+        segments.push(currentSegment);
+        currentSegment = { points: [position], isAttack };
+      } else {
+        currentSegment.points.push(position);
+      }
+    });
+    
+    // Add the last segment
+    segments.push(currentSegment);
+    
+    // Create a group to hold all trajectory segments
+    const trajectoryGroup = new THREE.Group();
+    
+    // Create lines for each segment with appropriate color
+    segments.forEach(segment => {
+      if (segment.points.length < 2) return; // Need at least 2 points for a line
+      
+      const geometry = new THREE.BufferGeometry().setFromPoints(segment.points);
+      const material = new THREE.LineBasicMaterial({ 
+        color: segment.isAttack ? 0xFF0000 : color, // Red for attack segments
+        linewidth: segment.isAttack ? 3 : 2,        // Thicker for attack segments
+      });
+      
+      const line = new THREE.Line(geometry, material);
+      trajectoryGroup.add(line);
+    });
+    
+    // Store reference to trajectory group for later manipulation
+    const trajectory = trajectoryGroup;
+    
+    // Add the trajectory group to the scene
+    scene.add(trajectory);
+  } else {
+    // No attack points - create a simple line as before
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    
+    // Create line material
+    const material = new THREE.LineBasicMaterial({ 
+      color: color,
+      linewidth: 2
+    });
+    
+    // Create the line
+    const trajectory = new THREE.Line(geometry, material);
+    scene.add(trajectory);
+  }
   
   // Create aircraft model
   const aircraft = createAircraftModel(color);
@@ -1067,6 +1121,12 @@ function updateDataDisplay() {
     document.getElementById('data-vel').textContent = '--';
     document.getElementById('data-hdg').textContent = '--';
     document.getElementById('time-display').textContent = '00:00.000';
+    
+    // Hide attack indicator if visible
+    const attackIndicator = document.getElementById('attack-indicator');
+    if (attackIndicator) {
+      attackIndicator.style.display = 'none';
+    }
     return;
   }
   
@@ -1079,6 +1139,19 @@ function updateDataDisplay() {
   document.getElementById('data-alt').textContent = formatValue(-data.position_d, 'm');
   document.getElementById('data-vel').textContent = formatValue(data.velocity, 'm/s');
   document.getElementById('data-hdg').textContent = formatValue(data.psi * (180/Math.PI), '°');
+  
+  // Update attack status indicator if it exists in the DOM
+  const attackIndicator = document.getElementById('attack-indicator');
+  if (attackIndicator) {
+    if (data.under_attack === true) {
+      attackIndicator.style.display = 'block';
+      attackIndicator.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i> UNDER ATTACK';
+      attackIndicator.setAttribute('aria-hidden', 'false');
+    } else {
+      attackIndicator.style.display = 'none';
+      attackIndicator.setAttribute('aria-hidden', 'true');
+    }
+  }
   
   // Update time display
   updateTimeDisplay(data.time);
