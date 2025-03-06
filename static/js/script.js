@@ -1186,36 +1186,187 @@ function updateCharts() {
   const altitudeScaleFactor = 1.8;
   
   // Prepare data for altitude chart with enhanced altitude scaling
-  const altitudeTraces = trajectories.filter(t => t.visible).map(traj => {
-    const times = traj.data.map(d => d.time);
-    // Apply the same scaling factor to chart data for consistency
-    const altitudes = traj.data.map(d => -d.position_d * altitudeScaleFactor); // Scale altitude for better visualization
+  const altitudeTraces = [];
+  
+  // Process each visible trajectory
+  trajectories.filter(t => t.visible).forEach(traj => {
+    // Check if this trajectory has attack points
+    const hasAttackPoints = traj.data.some(d => d.under_attack === true);
     
-    return {
-      x: times,
-      y: altitudes,
-      mode: 'lines',
-      name: traj.name,
-      line: {
-        color: '#' + traj.color.toString(16).padStart(6, '0')
+    if (hasAttackPoints) {
+      // Process normal and attack segments separately
+      let normalTimes = [];
+      let normalAltitudes = [];
+      let attackTimes = [];
+      let attackAltitudes = [];
+      
+      // Collect points by attack status
+      traj.data.forEach(d => {
+        const isAttack = d.under_attack === true;
+        const time = d.time;
+        const altitude = -d.position_d * altitudeScaleFactor;
+        
+        if (isAttack) {
+          attackTimes.push(time);
+          attackAltitudes.push(altitude);
+          
+          // Add null point to break line if this is the first attack point after normal points
+          if (normalTimes.length > 0 && 
+              (normalTimes.length === 0 || normalTimes[normalTimes.length-1] !== null)) {
+            normalTimes.push(time);
+            normalAltitudes.push(altitude);
+            normalTimes.push(null);
+            normalAltitudes.push(null);
+          }
+        } else {
+          normalTimes.push(time);
+          normalAltitudes.push(altitude);
+          
+          // Add null point to break line if this is the first normal point after attack points
+          if (attackTimes.length > 0 && 
+              (attackTimes.length === 0 || attackTimes[attackTimes.length-1] !== null)) {
+            attackTimes.push(time);
+            attackAltitudes.push(altitude);
+            attackTimes.push(null);
+            attackAltitudes.push(null);
+          }
+        }
+      });
+      
+      // Create normal segments trace
+      if (normalTimes.length > 0) {
+        altitudeTraces.push({
+          x: normalTimes,
+          y: normalAltitudes,
+          mode: 'lines',
+          name: `${traj.name} (Normal)`,
+          line: {
+            color: '#' + traj.color.toString(16).padStart(6, '0')
+          }
+        });
       }
-    };
+      
+      // Create attack segments trace
+      if (attackTimes.length > 0) {
+        altitudeTraces.push({
+          x: attackTimes,
+          y: attackAltitudes,
+          mode: 'lines',
+          name: `${traj.name} (Attack)`,
+          line: {
+            color: '#FF0000',
+            width: 3,
+            dash: 'solid'
+          }
+        });
+      }
+    } else {
+      // No attack points - create a single trace
+      const times = traj.data.map(d => d.time);
+      const altitudes = traj.data.map(d => -d.position_d * altitudeScaleFactor);
+      
+      altitudeTraces.push({
+        x: times,
+        y: altitudes,
+        mode: 'lines',
+        name: traj.name,
+        line: {
+          color: '#' + traj.color.toString(16).padStart(6, '0')
+        }
+      });
+    }
   });
   
   // Prepare data for velocity chart
-  const velocityTraces = trajectories.filter(t => t.visible).map(traj => {
-    const times = traj.data.map(d => d.time);
-    const velocities = traj.data.map(d => d.velocity || 0);
+  const velocityTraces = [];
+  
+  // Process each visible trajectory
+  trajectories.filter(t => t.visible).forEach(traj => {
+    // Check if this trajectory has attack points
+    const hasAttackPoints = traj.data.some(d => d.under_attack === true);
     
-    return {
-      x: times,
-      y: velocities,
-      mode: 'lines',
-      name: traj.name,
-      line: {
-        color: '#' + traj.color.toString(16).padStart(6, '0')
+    if (hasAttackPoints) {
+      // Process normal and attack segments separately
+      let normalTimes = [];
+      let normalVelocities = [];
+      let attackTimes = [];
+      let attackVelocities = [];
+      
+      // Collect points by attack status
+      traj.data.forEach(d => {
+        const isAttack = d.under_attack === true;
+        const time = d.time;
+        const velocity = d.velocity || 0;
+        
+        if (isAttack) {
+          attackTimes.push(time);
+          attackVelocities.push(velocity);
+          
+          // Add null point to break line if this is the first attack point after normal points
+          if (normalTimes.length > 0 && 
+              (normalTimes.length === 0 || normalTimes[normalTimes.length-1] !== null)) {
+            normalTimes.push(time);
+            normalVelocities.push(velocity);
+            normalTimes.push(null);
+            normalVelocities.push(null);
+          }
+        } else {
+          normalTimes.push(time);
+          normalVelocities.push(velocity);
+          
+          // Add null point to break line if this is the first normal point after attack points
+          if (attackTimes.length > 0 && 
+              (attackTimes.length === 0 || attackTimes[attackTimes.length-1] !== null)) {
+            attackTimes.push(time);
+            attackVelocities.push(velocity);
+            attackTimes.push(null);
+            attackVelocities.push(null);
+          }
+        }
+      });
+      
+      // Create normal segments trace
+      if (normalTimes.length > 0) {
+        velocityTraces.push({
+          x: normalTimes,
+          y: normalVelocities,
+          mode: 'lines',
+          name: `${traj.name} (Normal)`,
+          line: {
+            color: '#' + traj.color.toString(16).padStart(6, '0')
+          }
+        });
       }
-    };
+      
+      // Create attack segments trace
+      if (attackTimes.length > 0) {
+        velocityTraces.push({
+          x: attackTimes,
+          y: attackVelocities,
+          mode: 'lines',
+          name: `${traj.name} (Attack)`,
+          line: {
+            color: '#FF0000',
+            width: 3,
+            dash: 'solid'
+          }
+        });
+      }
+    } else {
+      // No attack points - create a single trace
+      const times = traj.data.map(d => d.time);
+      const velocities = traj.data.map(d => d.velocity || 0);
+      
+      velocityTraces.push({
+        x: times,
+        y: velocities,
+        mode: 'lines',
+        name: traj.name,
+        line: {
+          color: '#' + traj.color.toString(16).padStart(6, '0')
+        }
+      });
+    }
   });
   
   // Update charts

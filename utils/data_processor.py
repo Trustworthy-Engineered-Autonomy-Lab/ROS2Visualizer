@@ -352,16 +352,23 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
         # and specific metadata format
         
         # Convert numpy values to native Python types to ensure JSON serialization works
+        result_metadata = {
+            'points_count': len(trajectory_points),
+            'original_count': int(metadata['total_points']),
+            'altitude_range': [float(metadata['altitude_range'][0]), float(metadata['altitude_range'][1])],
+            'distance': float(metadata['distance']),
+            'duration': float(metadata['duration']),
+            'sampling_factor': int(metadata['sampling_factor'])
+        }
+        
+        # Include attack points metadata if available
+        if 'attack_points' in metadata:
+            result_metadata['attack_points'] = int(metadata['attack_points'])
+            result_metadata['attack_percentage'] = round((float(metadata['attack_points']) / len(trajectory_points)) * 100, 2)
+        
         result = {
             'data': trajectory_points,
-            'metadata': {
-                'points_count': len(trajectory_points),
-                'original_count': int(metadata['total_points']),
-                'altitude_range': [float(metadata['altitude_range'][0]), float(metadata['altitude_range'][1])],
-                'distance': float(metadata['distance']),
-                'duration': float(metadata['duration']),
-                'sampling_factor': int(metadata['sampling_factor'])
-            }
+            'metadata': result_metadata
         }
         
         return result
