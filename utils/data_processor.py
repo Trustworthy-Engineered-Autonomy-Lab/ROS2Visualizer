@@ -298,11 +298,16 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
             # Create point data in the flat format expected by the frontend
             # The visualization expects position_n, position_e, position_d directly
             point_data = {
-                'position_n': float(row['position_n']),
-                'position_e': float(row['position_e']),
-                'position_d': float(row['position_d']),
                 'time': float(row['normalized_time'])
             }
+            
+            # Add position coordinates with NaN handling
+            for pos_col in ['position_n', 'position_e', 'position_d']:
+                value = row[pos_col]
+                if pd.isna(value) or (isinstance(value, str) and value.lower() == 'nan'):
+                    point_data[pos_col] = 0.0  # Use 0.0 for NaN positions as they must be valid numbers
+                else:
+                    point_data[pos_col] = float(value)
             
             # Add under_attack flag if available (for attack visualization)
             if 'under_attack' in df.columns:
@@ -324,12 +329,28 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
             # Add orientation angles if available
             if orientation:
                 for angle, value in orientation.items():
-                    point_data[angle] = value
+                    # Check if the value is NaN and convert to 0.0 for JSON compatibility
+                    if pd.isna(value) or (isinstance(value, str) and value.lower() == 'nan'):
+                        point_data[angle] = 0.0
+                    else:
+                        try:
+                            point_data[angle] = float(value)
+                        except (ValueError, TypeError):
+                            # If conversion fails, use 0.0
+                            point_data[angle] = 0.0
             
             # Add velocity components if available
             if velocity:
                 for vel, value in velocity.items():
-                    point_data[vel] = value
+                    # Check if the value is NaN and convert to 0.0 for JSON compatibility
+                    if pd.isna(value) or (isinstance(value, str) and value.lower() == 'nan'):
+                        point_data[vel] = 0.0
+                    else:
+                        try:
+                            point_data[vel] = float(value)
+                        except (ValueError, TypeError):
+                            # If conversion fails, use 0.0
+                            point_data[vel] = 0.0
             
             # Add additional data columns if available
             for col in df.columns:
@@ -337,10 +358,18 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
                               'sec', 'nanosec', 'time', 'normalized_time', 
                               'phi', 'theta', 'psi', 'u', 'v', 'w']:
                     try:
-                        value = float(row[col])
-                        point_data[col] = value
-                    except (ValueError, TypeError):
-                        # Skip non-numeric values
+                        value = row[col]
+                        # Check if the value is NaN and convert to 0.0 for JSON compatibility
+                        if pd.isna(value) or (isinstance(value, str) and value.lower() == 'nan'):
+                            point_data[col] = 0.0
+                        else:
+                            try:
+                                point_data[col] = float(value)
+                            except (ValueError, TypeError):
+                                # If conversion fails, skip this column
+                                pass
+                    except (ValueError, TypeError, KeyError):
+                        # Skip columns with issues
                         pass
             
             trajectory_points.append(point_data)
