@@ -1,0 +1,83 @@
+How the "under_attack" Label Works
+Based on the code we've modified, here's how the attack system works:
+
+1. Attack Scheduling
+In the PathFollowerBase constructor, the system calls schedule_attacks() which:
+
+Schedules 5 random attacks between 40-90 seconds after startup
+Uses a random number generator to determine the exact timing of each attack
+Creates timers that will trigger the attacks at those random intervals
+cpp
+CopyInsert
+void PathFollowerBase::schedule_attacks()
+{
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<int> dist(40, 90); // Random attack window between 40-90 seconds
+
+  if (attack_timers_.empty()) { // Ensure we schedule attacks only once
+    for (int i = 0; i < 5; ++i) {
+      int attack_delay = dist(gen); // Random delay for attack
+      attack_timers_.emplace_back(
+        this->create_wall_timer(std::chrono::seconds(attack_delay), [this, attack_delay, i]() {
+          RCLCPP_DEBUG(this->get_logger(), "Attack %d triggered after %d seconds", i + 1,
+                       attack_delay);
+          trigger_attack();
+          attack_timers_[i]->cancel(); // Cancel the timer after the attack is triggered
+        }));
+    }
+  }
+}
+2. Attack Activation
+When an attack is triggered:
+
+The attack_active_ flag is set to true
+A debug message is logged
+A timer is set to end the attack after 2 seconds
+cpp
+CopyInsert
+void PathFollowerBase::trigger_attack()
+{
+  attack_active_ = true;
+  RCLCPP_WARN(this->get_logger(), "Attack triggered!");
+
+  attack_reset_timer_ = this->create_wall_timer(std::chrono::milliseconds(2000), [this]() {
+    attack_active_ = false;
+    RCLCPP_INFO(this->get_logger(), "Attack ended");
+    attack_reset_timer_->cancel();
+  });
+}
+3. Attack Effect
+When the system is under attack (when attack_active_ is true):
+
+The vehicle's reported position is perturbed by adding a value based on accumulated normalized position history
+The perturbation is proportional to 10% (0.1) of the accumulated normalized positions
+This creates a subtle position error that could affect navigation
+The modified state message has its under_attack field set to true
+cpp
+CopyInsert
+if (attack_active_) {
+  input_.pn = pn + (accumulated_ned_[0] * 0.1);
+  input_.pe = pe + (accumulated_ned_[1] * 0.1);
+  input_.h = h + (accumulated_ned_[2] * 0.1);
+    
+  // Update position in the modified state message
+  state_msg->position[0] = input_.pn;
+  state_msg->position[1] = input_.pe;
+  state_msg->position[2] = -input_.h;
+}
+4. Attack Labels in Data
+In our modified code:
+
+We set the under_attack field in the State message to reflect the current attack state
+This field is true (1) during the 2-second attack windows and false (0) otherwise
+This label appears in your CSV data as the last column
+This provides a binary classification label for each data point
+5. Position Perturbation Method
+The system uses a rolling buffer of normalized positions to create perturbations:
+
+It maintains a history of 5 recent normalized position vectors
+For each position update, it adds a new entry and removes the oldest
+This creates a "trailing effect" where the perturbation is influenced by recent movement
+The normalized positions ensure the attack effect is proportionate to the vehicle's movement scale
+This attack simulation is designed to test the robustness of path following algorithms to subtle position perturbations, which could represent GPS spoofing or other sensor tampering in a real-world scenario.

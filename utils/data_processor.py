@@ -304,6 +304,23 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
                 'time': float(row['normalized_time'])
             }
             
+            # Add under_attack flag if available (for attack visualization)
+            if 'under_attack' in df.columns:
+                try:
+                    # Convert to boolean and add to point data
+                    attack_value = bool(int(row['under_attack']))
+                    point_data['under_attack'] = attack_value
+                    
+                    # Add to metadata for statistics
+                    if attack_value:
+                        if 'attack_points' not in metadata:
+                            metadata['attack_points'] = 1
+                        else:
+                            metadata['attack_points'] += 1
+                except (ValueError, TypeError) as e:
+                    logging.warning(f"Could not convert under_attack value to boolean: {str(e)}")
+                    pass
+            
             # Add orientation angles if available
             if orientation:
                 for angle, value in orientation.items():
@@ -585,7 +602,19 @@ def detect_position_columns(df):
     
     # For data with timestamp columns, try specific indices that are common for position
     if has_ros_structure and len(df.columns) >= 6:
-        # Try with fixed indices that are common in ros_msgs
+        # Check for ROS2 standard message format with position_0, position_1, position_2
+        position_cols = []
+        position_pattern = ['position_0', 'position_1', 'position_2']
+        
+        if all(col in df.columns for col in position_pattern):
+            logging.info(f"Detected position columns from ROS2 message structure: {{'{position_pattern[0]}': 'position_n', '{position_pattern[1]}': 'position_e', '{position_pattern[2]}': 'position_d'}}")
+            return {
+                position_pattern[0]: 'position_n',
+                position_pattern[1]: 'position_e',
+                position_pattern[2]: 'position_d'
+            }
+        
+        # Try with fixed indices that are common in ros_msgs if the explicit pattern isn't found
         if len(df.columns) >= 6:
             # Use columns 3, 4, 5 which are often position data in ROS messages
             cols = [df.columns[3], df.columns[4], df.columns[5]]
