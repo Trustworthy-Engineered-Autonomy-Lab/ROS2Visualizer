@@ -298,59 +298,21 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
             # Create point data in the flat format expected by the frontend
             # The visualization expects position_n, position_e, position_d directly
             point_data = {
+                'position_n': float(row['position_n']),
+                'position_e': float(row['position_e']),
+                'position_d': float(row['position_d']),
                 'time': float(row['normalized_time'])
             }
-            
-            # Add position coordinates with NaN handling
-            for pos_col in ['position_n', 'position_e', 'position_d']:
-                value = row[pos_col]
-                if pd.isna(value) or (isinstance(value, str) and value.lower() == 'nan'):
-                    point_data[pos_col] = 0.0  # Use 0.0 for NaN positions as they must be valid numbers
-                else:
-                    point_data[pos_col] = float(value)
-            
-            # Add under_attack flag if available (for attack visualization)
-            if 'under_attack' in df.columns:
-                try:
-                    # Convert to boolean and add to point data
-                    attack_value = bool(int(row['under_attack']))
-                    point_data['under_attack'] = attack_value
-                    
-                    # Add to metadata for statistics
-                    if attack_value:
-                        if 'attack_points' not in metadata:
-                            metadata['attack_points'] = 1
-                        else:
-                            metadata['attack_points'] += 1
-                except (ValueError, TypeError) as e:
-                    logging.warning(f"Could not convert under_attack value to boolean: {str(e)}")
-                    pass
             
             # Add orientation angles if available
             if orientation:
                 for angle, value in orientation.items():
-                    # Check if the value is NaN and convert to 0.0 for JSON compatibility
-                    if pd.isna(value) or (isinstance(value, str) and value.lower() == 'nan'):
-                        point_data[angle] = 0.0
-                    else:
-                        try:
-                            point_data[angle] = float(value)
-                        except (ValueError, TypeError):
-                            # If conversion fails, use 0.0
-                            point_data[angle] = 0.0
+                    point_data[angle] = value
             
             # Add velocity components if available
             if velocity:
                 for vel, value in velocity.items():
-                    # Check if the value is NaN and convert to 0.0 for JSON compatibility
-                    if pd.isna(value) or (isinstance(value, str) and value.lower() == 'nan'):
-                        point_data[vel] = 0.0
-                    else:
-                        try:
-                            point_data[vel] = float(value)
-                        except (ValueError, TypeError):
-                            # If conversion fails, use 0.0
-                            point_data[vel] = 0.0
+                    point_data[vel] = value
             
             # Add additional data columns if available
             for col in df.columns:
@@ -358,18 +320,10 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
                               'sec', 'nanosec', 'time', 'normalized_time', 
                               'phi', 'theta', 'psi', 'u', 'v', 'w']:
                     try:
-                        value = row[col]
-                        # Check if the value is NaN and convert to 0.0 for JSON compatibility
-                        if pd.isna(value) or (isinstance(value, str) and value.lower() == 'nan'):
-                            point_data[col] = 0.0
-                        else:
-                            try:
-                                point_data[col] = float(value)
-                            except (ValueError, TypeError):
-                                # If conversion fails, skip this column
-                                pass
-                    except (ValueError, TypeError, KeyError):
-                        # Skip columns with issues
+                        value = float(row[col])
+                        point_data[col] = value
+                    except (ValueError, TypeError):
+                        # Skip non-numeric values
                         pass
             
             trajectory_points.append(point_data)
@@ -381,23 +335,16 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
         # and specific metadata format
         
         # Convert numpy values to native Python types to ensure JSON serialization works
-        result_metadata = {
-            'points_count': len(trajectory_points),
-            'original_count': int(metadata['total_points']),
-            'altitude_range': [float(metadata['altitude_range'][0]), float(metadata['altitude_range'][1])],
-            'distance': float(metadata['distance']),
-            'duration': float(metadata['duration']),
-            'sampling_factor': int(metadata['sampling_factor'])
-        }
-        
-        # Include attack points metadata if available
-        if 'attack_points' in metadata:
-            result_metadata['attack_points'] = int(metadata['attack_points'])
-            result_metadata['attack_percentage'] = round((float(metadata['attack_points']) / len(trajectory_points)) * 100, 2)
-        
         result = {
             'data': trajectory_points,
-            'metadata': result_metadata
+            'metadata': {
+                'points_count': len(trajectory_points),
+                'original_count': int(metadata['total_points']),
+                'altitude_range': [float(metadata['altitude_range'][0]), float(metadata['altitude_range'][1])],
+                'distance': float(metadata['distance']),
+                'duration': float(metadata['duration']),
+                'sampling_factor': int(metadata['sampling_factor'])
+            }
         }
         
         return result
@@ -638,19 +585,7 @@ def detect_position_columns(df):
     
     # For data with timestamp columns, try specific indices that are common for position
     if has_ros_structure and len(df.columns) >= 6:
-        # Check for ROS2 standard message format with position_0, position_1, position_2
-        position_cols = []
-        position_pattern = ['position_0', 'position_1', 'position_2']
-        
-        if all(col in df.columns for col in position_pattern):
-            logging.info(f"Detected position columns from ROS2 message structure: {{'{position_pattern[0]}': 'position_n', '{position_pattern[1]}': 'position_e', '{position_pattern[2]}': 'position_d'}}")
-            return {
-                position_pattern[0]: 'position_n',
-                position_pattern[1]: 'position_e',
-                position_pattern[2]: 'position_d'
-            }
-        
-        # Try with fixed indices that are common in ros_msgs if the explicit pattern isn't found
+        # Try with fixed indices that are common in ros_msgs
         if len(df.columns) >= 6:
             # Use columns 3, 4, 5 which are often position data in ROS messages
             cols = [df.columns[3], df.columns[4], df.columns[5]]

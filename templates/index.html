@@ -182,14 +182,6 @@
           <!-- Current Data Display -->
           <div class="data-display mb-4">
             <h5 class="border-bottom pb-2"><i class="fas fa-table me-2"></i>Current Data</h5>
-            
-            <!-- Attack indicator -->
-            <div id="attack-indicator" class="alert alert-danger mb-2 py-1 text-center" 
-                 style="display: none; font-weight: bold;" 
-                 role="alert" aria-hidden="true">
-              <i class="fas fa-exclamation-triangle me-1"></i> UNDER ATTACK
-            </div>
-            
             <table class="table table-sm table-dark" id="data-table">
               <tbody>
                 <tr><td>North:</td><td id="data-n" class="text-end">--</td></tr>
@@ -263,7 +255,7 @@
   </div>
   
   <!-- File upload modal -->
-  <div class="modal" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-modal="false" role="dialog">
+  <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-modal="true" role="dialog">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">

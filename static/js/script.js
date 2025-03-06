@@ -745,72 +745,18 @@ function addTrajectory(data, name, color) {
     point.position_n || 0                      // Z axis (North)
   ));
   
-  // Check if any points in this trajectory are marked as "under attack"
-  const hasAttackPoints = data.some(point => point.under_attack === true);
+  // Create line geometry
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
   
-  // If we have attack points, create separate line segments for normal and attacked sections
-  if (hasAttackPoints) {
-    // Create segments based on attack status (group consecutive points with same status)
-    const segments = [];
-    let currentSegment = { points: [], isAttack: data[0].under_attack === true };
-    
-    // Group points into segments based on attack status
-    data.forEach((point, index) => {
-      const isAttack = point.under_attack === true;
-      const position = new THREE.Vector3(
-        point.position_e || 0,
-        (-point.position_d || 0) * altitudeScaleFactor,
-        point.position_n || 0
-      );
-      
-      // If attack status changed, start a new segment
-      if (isAttack !== currentSegment.isAttack && index > 0) {
-        segments.push(currentSegment);
-        currentSegment = { points: [position], isAttack };
-      } else {
-        currentSegment.points.push(position);
-      }
-    });
-    
-    // Add the last segment
-    segments.push(currentSegment);
-    
-    // Create a group to hold all trajectory segments
-    const trajectoryGroup = new THREE.Group();
-    
-    // Create lines for each segment with appropriate color
-    segments.forEach(segment => {
-      if (segment.points.length < 2) return; // Need at least 2 points for a line
-      
-      const geometry = new THREE.BufferGeometry().setFromPoints(segment.points);
-      const material = new THREE.LineBasicMaterial({ 
-        color: segment.isAttack ? 0xFF0000 : color, // Red for attack segments
-        linewidth: segment.isAttack ? 3 : 2,        // Thicker for attack segments
-      });
-      
-      const line = new THREE.Line(geometry, material);
-      trajectoryGroup.add(line);
-    });
-    
-    // Store reference to trajectory group for later manipulation
-    const trajectory = trajectoryGroup;
-    
-    // Add the trajectory group to the scene
-    scene.add(trajectory);
-  } else {
-    // No attack points - create a simple line as before
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    
-    // Create line material
-    const material = new THREE.LineBasicMaterial({ 
-      color: color,
-      linewidth: 2
-    });
-    
-    // Create the line
-    const trajectory = new THREE.Line(geometry, material);
-    scene.add(trajectory);
-  }
+  // Create line material
+  const material = new THREE.LineBasicMaterial({ 
+    color: color,
+    linewidth: 2
+  });
+  
+  // Create the line
+  const trajectory = new THREE.Line(geometry, material);
+  scene.add(trajectory);
   
   // Create aircraft model
   const aircraft = createAircraftModel(color);
@@ -1121,12 +1067,6 @@ function updateDataDisplay() {
     document.getElementById('data-vel').textContent = '--';
     document.getElementById('data-hdg').textContent = '--';
     document.getElementById('time-display').textContent = '00:00.000';
-    
-    // Hide attack indicator if visible
-    const attackIndicator = document.getElementById('attack-indicator');
-    if (attackIndicator) {
-      attackIndicator.style.display = 'none';
-    }
     return;
   }
   
@@ -1139,19 +1079,6 @@ function updateDataDisplay() {
   document.getElementById('data-alt').textContent = formatValue(-data.position_d, 'm');
   document.getElementById('data-vel').textContent = formatValue(data.velocity, 'm/s');
   document.getElementById('data-hdg').textContent = formatValue(data.psi * (180/Math.PI), '°');
-  
-  // Update attack status indicator if it exists in the DOM
-  const attackIndicator = document.getElementById('attack-indicator');
-  if (attackIndicator) {
-    if (data.under_attack === true) {
-      attackIndicator.style.display = 'block';
-      attackIndicator.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i> UNDER ATTACK';
-      attackIndicator.setAttribute('aria-hidden', 'false');
-    } else {
-      attackIndicator.style.display = 'none';
-      attackIndicator.setAttribute('aria-hidden', 'true');
-    }
-  }
   
   // Update time display
   updateTimeDisplay(data.time);
@@ -1186,187 +1113,36 @@ function updateCharts() {
   const altitudeScaleFactor = 1.8;
   
   // Prepare data for altitude chart with enhanced altitude scaling
-  const altitudeTraces = [];
-  
-  // Process each visible trajectory
-  trajectories.filter(t => t.visible).forEach(traj => {
-    // Check if this trajectory has attack points
-    const hasAttackPoints = traj.data.some(d => d.under_attack === true);
+  const altitudeTraces = trajectories.filter(t => t.visible).map(traj => {
+    const times = traj.data.map(d => d.time);
+    // Apply the same scaling factor to chart data for consistency
+    const altitudes = traj.data.map(d => -d.position_d * altitudeScaleFactor); // Scale altitude for better visualization
     
-    if (hasAttackPoints) {
-      // Process normal and attack segments separately
-      let normalTimes = [];
-      let normalAltitudes = [];
-      let attackTimes = [];
-      let attackAltitudes = [];
-      
-      // Collect points by attack status
-      traj.data.forEach(d => {
-        const isAttack = d.under_attack === true;
-        const time = d.time;
-        const altitude = -d.position_d * altitudeScaleFactor;
-        
-        if (isAttack) {
-          attackTimes.push(time);
-          attackAltitudes.push(altitude);
-          
-          // Add null point to break line if this is the first attack point after normal points
-          if (normalTimes.length > 0 && 
-              (normalTimes.length === 0 || normalTimes[normalTimes.length-1] !== null)) {
-            normalTimes.push(time);
-            normalAltitudes.push(altitude);
-            normalTimes.push(null);
-            normalAltitudes.push(null);
-          }
-        } else {
-          normalTimes.push(time);
-          normalAltitudes.push(altitude);
-          
-          // Add null point to break line if this is the first normal point after attack points
-          if (attackTimes.length > 0 && 
-              (attackTimes.length === 0 || attackTimes[attackTimes.length-1] !== null)) {
-            attackTimes.push(time);
-            attackAltitudes.push(altitude);
-            attackTimes.push(null);
-            attackAltitudes.push(null);
-          }
-        }
-      });
-      
-      // Create normal segments trace
-      if (normalTimes.length > 0) {
-        altitudeTraces.push({
-          x: normalTimes,
-          y: normalAltitudes,
-          mode: 'lines',
-          name: `${traj.name} (Normal)`,
-          line: {
-            color: '#' + traj.color.toString(16).padStart(6, '0')
-          }
-        });
+    return {
+      x: times,
+      y: altitudes,
+      mode: 'lines',
+      name: traj.name,
+      line: {
+        color: '#' + traj.color.toString(16).padStart(6, '0')
       }
-      
-      // Create attack segments trace
-      if (attackTimes.length > 0) {
-        altitudeTraces.push({
-          x: attackTimes,
-          y: attackAltitudes,
-          mode: 'lines',
-          name: `${traj.name} (Attack)`,
-          line: {
-            color: '#FF0000',
-            width: 3,
-            dash: 'solid'
-          }
-        });
-      }
-    } else {
-      // No attack points - create a single trace
-      const times = traj.data.map(d => d.time);
-      const altitudes = traj.data.map(d => -d.position_d * altitudeScaleFactor);
-      
-      altitudeTraces.push({
-        x: times,
-        y: altitudes,
-        mode: 'lines',
-        name: traj.name,
-        line: {
-          color: '#' + traj.color.toString(16).padStart(6, '0')
-        }
-      });
-    }
+    };
   });
   
   // Prepare data for velocity chart
-  const velocityTraces = [];
-  
-  // Process each visible trajectory
-  trajectories.filter(t => t.visible).forEach(traj => {
-    // Check if this trajectory has attack points
-    const hasAttackPoints = traj.data.some(d => d.under_attack === true);
+  const velocityTraces = trajectories.filter(t => t.visible).map(traj => {
+    const times = traj.data.map(d => d.time);
+    const velocities = traj.data.map(d => d.velocity || 0);
     
-    if (hasAttackPoints) {
-      // Process normal and attack segments separately
-      let normalTimes = [];
-      let normalVelocities = [];
-      let attackTimes = [];
-      let attackVelocities = [];
-      
-      // Collect points by attack status
-      traj.data.forEach(d => {
-        const isAttack = d.under_attack === true;
-        const time = d.time;
-        const velocity = d.velocity || 0;
-        
-        if (isAttack) {
-          attackTimes.push(time);
-          attackVelocities.push(velocity);
-          
-          // Add null point to break line if this is the first attack point after normal points
-          if (normalTimes.length > 0 && 
-              (normalTimes.length === 0 || normalTimes[normalTimes.length-1] !== null)) {
-            normalTimes.push(time);
-            normalVelocities.push(velocity);
-            normalTimes.push(null);
-            normalVelocities.push(null);
-          }
-        } else {
-          normalTimes.push(time);
-          normalVelocities.push(velocity);
-          
-          // Add null point to break line if this is the first normal point after attack points
-          if (attackTimes.length > 0 && 
-              (attackTimes.length === 0 || attackTimes[attackTimes.length-1] !== null)) {
-            attackTimes.push(time);
-            attackVelocities.push(velocity);
-            attackTimes.push(null);
-            attackVelocities.push(null);
-          }
-        }
-      });
-      
-      // Create normal segments trace
-      if (normalTimes.length > 0) {
-        velocityTraces.push({
-          x: normalTimes,
-          y: normalVelocities,
-          mode: 'lines',
-          name: `${traj.name} (Normal)`,
-          line: {
-            color: '#' + traj.color.toString(16).padStart(6, '0')
-          }
-        });
+    return {
+      x: times,
+      y: velocities,
+      mode: 'lines',
+      name: traj.name,
+      line: {
+        color: '#' + traj.color.toString(16).padStart(6, '0')
       }
-      
-      // Create attack segments trace
-      if (attackTimes.length > 0) {
-        velocityTraces.push({
-          x: attackTimes,
-          y: attackVelocities,
-          mode: 'lines',
-          name: `${traj.name} (Attack)`,
-          line: {
-            color: '#FF0000',
-            width: 3,
-            dash: 'solid'
-          }
-        });
-      }
-    } else {
-      // No attack points - create a single trace
-      const times = traj.data.map(d => d.time);
-      const velocities = traj.data.map(d => d.velocity || 0);
-      
-      velocityTraces.push({
-        x: times,
-        y: velocities,
-        mode: 'lines',
-        name: traj.name,
-        line: {
-          color: '#' + traj.color.toString(16).padStart(6, '0')
-        }
-      });
-    }
+    };
   });
   
   // Update charts
