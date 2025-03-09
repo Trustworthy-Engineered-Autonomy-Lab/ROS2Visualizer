@@ -7,9 +7,9 @@ flight trajectory visualization platform for ROS2 Humble data, enabling advanced
 # Flight Trajectory Visualization Platform by TEA Labs
 
 
-[![Watch the video](https://img.youtube.com/vi/QPEhDHTueNw/hqdefault.jpg)](https://youtu.be/QPEhDHTueNw)
+[![Watch the video](https://github.com/user-attachments/assets/7dc4623c-0d6b-49de-ab33-1947d3bdcb9d)](https://youtu.be/QPEhDHTueNw)
 
-<img width="600" alt="sample_image" src="https://github.com/user-attachments/assets/7dc4623c-0d6b-49de-ab33-1947d3bdcb9d" />
+
 
 3D flight trajectory visualization platform for ROS2 Humble data, enabling advanced exploration and analysis of UAV flight paths. 
 
