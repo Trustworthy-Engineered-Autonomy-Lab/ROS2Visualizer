@@ -1,5 +1,8 @@
 # Flight Trajectory Visualization Platform by TEA Labs
 
+<img width="600" alt="sample_image" src="https://github.com/user-attachments/assets/7dc4623c-0d6b-49de-ab33-1947d3bdcb9d" />
+
+
 A cutting-edge 3D flight trajectory visualization platform for ROS2 Humble data, enabling advanced exploration and analysis of UAV flight paths. Developed by Trustworthy Engineered Autonomy (TEA) Labs.
 
 ![Flight Trajectory Visualization](https://placeholder-for-screenshot.png)
@@ -16,7 +19,7 @@ A cutting-edge 3D flight trajectory visualization platform for ROS2 Humble data,
 - **Comprehensive data cleaning workflow** - Tools for analyzing, cleaning, and preprocessing flight trajectory data
 - **Intelligent column mapping** - Automatic detection of position and trajectory data in various formats
 
-Screenshot 2025-03-09 at 12 32 06 AM](https://github.com/user-attachments/assets/800092b1-27b4-4ea8-8031-4320219f8a2b
+
 
 
 port 3000 ece-ivan-lg02.ad.ufl.edu
