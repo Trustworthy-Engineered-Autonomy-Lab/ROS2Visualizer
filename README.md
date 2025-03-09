@@ -1,18 +1,20 @@
-# Flight Trajectory Visualization Platform
+# Flight Trajectory Visualization Platform by TEA Labs
 
-A cutting-edge 3D flight trajectory visualization platform for ROS2 Humble data, enabling advanced exploration and analysis of UAV flight paths.
+A cutting-edge 3D flight trajectory visualization platform for ROS2 Humble data, enabling advanced exploration and analysis of UAV flight paths. Developed by Trustworthy Engineered Autonomy (TEA) Labs.
 
 ![Flight Trajectory Visualization](https://placeholder-for-screenshot.png)
 
 ## Features
 
-- **Three.js-powered 3D rendering engine** - Smooth and interactive 3D visualization
-- **ROS2 Humble data integration** - Seamless compatibility with ROS2 Humble data formats
-- **Advanced cloud storage integration** - Import data directly from Google Drive and Microsoft OneDrive
-- **Dynamic aircraft model visualization** - Realistic aircraft models that follow flight paths
-- **Flexible view modes and camera settings** - Multiple perspectives for comprehensive analysis
-- **Memory-efficient large dataset handling** - Optimized for gigabyte-scale flight data files
-- **Enhanced UI with interactive modal systems** - User-friendly interface for data exploration
+- **Three.js-powered 3D rendering engine** - Smooth and interactive 3D visualization with dynamic camera controls
+- **ROS2 Humble data integration** - Seamless compatibility with ROS2 Humble message formats and timestamp structures
+- **Advanced cloud storage integration** - Import data directly from Google Drive and Microsoft OneDrive with OAuth authentication
+- **Dynamic aircraft model visualization** - Realistic aircraft models that follow flight paths with orientation data
+- **Flexible view modes and camera settings** - Multiple perspectives (top-down, side, trailing, free) for comprehensive analysis
+- **Memory-efficient large dataset handling** - Chunked processing optimized for gigabyte-scale flight data files
+- **Enhanced UI with interactive modal systems** - User-friendly interface with accessible dialogs for data exploration
+- **Comprehensive data cleaning workflow** - Tools for analyzing, cleaning, and preprocessing flight trajectory data
+- **Intelligent column mapping** - Automatic detection of position and trajectory data in various formats
 
 ## Live Demo
 
@@ -87,57 +89,92 @@ The application will be available at `http://localhost:5000`
 
 ## Usage Guide
 
-### Uploading Flight Data
+### Data Import Options
 
+#### Uploading Local Files
 1. Click the "Upload Files" button in the main interface
 2. Select CSV files containing flight trajectory data
 3. The system will automatically process and visualize the data
 
-### Using Cloud Storage
+#### Using Server Data Browser
+1. Click "Browse Server Data" button
+2. Navigate through available folders (sample_data, flight_trajectories)
+3. Select files to process and click "Load Selected Files"
+4. Files will be processed and visualized automatically
 
+#### Using Cloud Storage
 1. Click "Import from Cloud" button
 2. Select your cloud provider (Google Drive or Microsoft OneDrive)
-3. Authenticate with your account
+3. Authenticate with your account (OAuth flow)
 4. Browse and select files to import
 5. The system will download, process, and visualize the data
 
-### Visualizing Flight Paths
+### Visualization Controls
 
+#### Camera Controls
 - **Rotate View**: Click and drag with the mouse
 - **Zoom**: Use the mouse wheel or pinch gesture
 - **Pan**: Hold Shift and drag with the mouse
-- **Toggle Aircraft Models**: Use the "Show Aircraft" checkbox
-- **Change View Mode**: Select from the "View Mode" dropdown (Top-down, Side, Free, Follow)
-- **Time Control**: Use the time slider to navigate through the flight path
+
+#### View Modes
+- **Top-down**: Bird's eye view (useful for flight path patterns)
+- **Side**: East-Altitude view (useful for altitude changes)
+- **Trailing**: View from behind aircraft (dynamic following)
+- **Free**: Unrestricted manual camera control
+
+#### Playback Controls
+- **Play/Pause**: Start or pause the trajectory animation
+- **Time Slider**: Navigate to specific points in the flight path
+- **Playback Speed**: Adjust animation speed (0.5x to 10x)
+- **Reset View**: Return camera to default position
+
+#### Visual Elements
+- **Toggle Aircraft Models**: Show/hide 3D aircraft models
+- **Toggle House**: Show/hide reference building (positioned at X=-1010, Y=0, Z=10)
+- **Toggle Fullscreen**: Expand visualization to full browser window
 
 ### Data Analysis Tools
-
-- **Charts Panel**: View altitude, speed, and other metrics
+- **Trajectory List**: Enable/disable visibility of multiple trajectories
+- **Charts Panel**: View altitude, speed, and other metrics over time
 - **Data Inspector**: Click on any point in the trajectory to see detailed data
-- **Playback Controls**: Play, pause, and adjust playback speed of the flight animation
+- **Time Display**: Shows current animation time and selected point details
+- **Export**: Export processed and visualized data for further analysis
 
 ## Data Formats
 
-The application accepts CSV files with flight trajectory data. The minimum required columns are:
+The application accepts CSV files with flight trajectory data in multiple formats:
 
-- Latitude (decimal degrees)
-- Longitude (decimal degrees)
-- Altitude (meters)
-- Timestamp (ISO format or epoch time)
+### Standard Format
+The application recognizes standard position columns:
 
-Additional columns that will be recognized:
-- Heading/Yaw (degrees)
-- Pitch (degrees)
-- Roll (degrees)
-- Speed (m/s)
+- position_n/latitude (North position in meters or decimal degrees)
+- position_e/longitude (East position in meters or decimal degrees)
+- position_d/altitude (Down position in meters - negative is up)
+- time/timestamp (Epoch time or ISO format)
+
+### ROS2 Humble Format
+The application automatically detects ROS2 Humble message structures:
+
+- Timestamp columns (sec, nanosec or epoch)
+- Position data (often in columns 3, 4, 5)
+- Orientation quaternions or Euler angles
+- Velocity data
+
+### Additional Supported Fields
+The platform will automatically detect and visualize:
+
+- Orientation (phi/roll, theta/pitch, psi/yaw in radians or degrees)
+- Velocity components (u, v, w in m/s)
 - Battery level (%)
+- Other numeric telemetry data
 
-Example format:
+Example ROS2 trajectory format:
 ```
-timestamp,latitude,longitude,altitude,heading,pitch,roll,speed
-2023-01-01T12:00:00Z,37.7749,-122.4194,100.5,45.0,2.1,0.5,15.2
-2023-01-01T12:00:01Z,37.7750,-122.4193,101.2,45.2,2.0,0.6,15.3
+1741145235,488322172,,0.021680186,-0.36555812,-0.08883252,0.22961263358592987,...
+1741145235,491141538,,0.021720823,-0.36564198,-0.088240564,0.2397002726793289,...
 ```
+
+The platform's intelligent column mapping will automatically detect position data in various formats.
 
 ## Cloud Storage Integration
 
@@ -159,15 +196,33 @@ timestamp,latitude,longitude,altitude,heading,pitch,roll,speed
 
 ## Data Cleaning Features
 
-The platform includes tools for cleaning and preprocessing large flight data files:
+The platform includes a comprehensive workflow for cleaning and preprocessing large flight data files:
 
+### Workflow Steps
+1. **Upload**: Select and upload flight data files
+2. **Analyze**: Automatically analyze file content and structure
+3. **Configure**: Set up cleaning operations for each file
+4. **Preview**: Review the effects of cleaning operations
+5. **Process**: Apply selected operations to all files
+6. **Visualize**: View the cleaned data in the 3D viewer
+
+### Cleaning Operations
 - **Column mapping**: Automatically detect and map columns with different names
 - **Outlier detection**: Identify and filter statistical outliers in position data
 - **Smoothing**: Apply noise reduction algorithms to flight paths
 - **Downsampling**: Reduce data density for better performance with very large files
 - **Gap filling**: Interpolate missing data points in trajectories
+- **Noise filtering**: Remove sensor noise from position and orientation data
+- **Timestamp normalization**: Standardize various time formats
 
-Access these features from the "Data Cleaning" tab in the interface.
+### Processing Metrics
+The platform provides detailed metrics on:
+- Data reduction percentage
+- Outliers detected and removed
+- Processing time
+- Memory usage optimization
+
+Access these features from the "Data Cleaning" tab in the interface or directly at the "/clean" endpoint.
 
 ## Customization
 
@@ -217,12 +272,33 @@ We welcome contributions to improve the Flight Trajectory Visualization Platform
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## Technical Implementation Details
+
+### Backend Architecture
+- **Flask**: Powers the web application with RESTful endpoints
+- **Pandas/NumPy**: Used for efficient data processing and analysis
+- **Chunked Processing**: Memory-efficient handling of large datasets with streaming approach
+- **Dynamic Column Detection**: Intelligent mapping of various data formats to standardized structure
+
+### Frontend Architecture
+- **Three.js**: Core 3D rendering engine for trajectory visualization
+- **Chart.js**: Real-time data visualization in charts and graphs
+- **Accessible Modal System**: Enhanced UI with keyboard navigation and screen reader support
+- **Responsive Design**: Adapts to different screen sizes and device capabilities
+
+### Performance Optimizations
+- **Trajectory Sampling**: Automatic downsampling for gigabyte-scale files
+- **Efficient Data Structures**: Optimized for both rendering and analysis
+- **Lazy Loading**: Only processes what's needed when it's needed
+- **Progressive Enhancement**: Core functionality works without cloud integration
+
 ## Acknowledgments
 
 - ROS2 Humble community
 - Three.js developers
+- Pandas and NumPy contributors
 - All contributors to this project
 
 ---
 
-Made with ❤️ by [Your Team Name]
+Made with ❤️ by TEA Labs (Trustworthy Engineered Autonomy)
