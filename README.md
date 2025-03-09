@@ -16,9 +16,10 @@ A cutting-edge 3D flight trajectory visualization platform for ROS2 Humble data,
 - **Comprehensive data cleaning workflow** - Tools for analyzing, cleaning, and preprocessing flight trajectory data
 - **Intelligent column mapping** - Automatic detection of position and trajectory data in various formats
 
-## Live Demo
+Screenshot 2025-03-09 at 12 32 06 AM](https://github.com/user-attachments/assets/800092b1-27b4-4ea8-8031-4320219f8a2b
 
-[Access the live demo here](https://your-deployment-url.replit.app) (Coming soon)
+
+port 3000 ece-ivan-lg02.ad.ufl.edu
 
 ## Table of Contents
 
