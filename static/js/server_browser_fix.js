@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
     filter: '',
     multiSelectMode: true, // Enable multi-select by default
     currentPage: 1,
-    pageSize: 50,
+    pageSize: 'all', // Request all files to remove pagination limit
     totalPages: 1,
     totalFiles: 0,
     searchQuery: ''
