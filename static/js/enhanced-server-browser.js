@@ -23,7 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
     sortOption: 'date-desc',
     searchQuery: '',
     batchProcessing: true, // Default to batch processing
-    selectAllActive: false
+    selectAllActive: false,
+    pageSize: 'all', // Set to 'all' to remove the 50-file limit
+    currentPage: 1
   };
   
   // DOM element references

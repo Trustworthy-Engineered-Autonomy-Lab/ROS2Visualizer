@@ -160,7 +160,14 @@ def browse_data():
         
         # Get pagination parameters
         page = int(request.args.get('page', 1))
-        page_size = int(request.args.get('page_size', 50))  # Default to 50 files per page
+        # Check if 'all' is specified for page_size, which means return all files
+        page_size_param = request.args.get('page_size', '1000')
+        if page_size_param.lower() == 'all':
+            # Set to a very large number to effectively disable pagination
+            page_size = 100000
+        else:
+            # Otherwise use the provided value or default to 1000 files
+            page_size = int(page_size_param)  # Default to 1000 files per page
         
         # Get search filter if provided
         search_query = request.args.get('search', '').lower()
