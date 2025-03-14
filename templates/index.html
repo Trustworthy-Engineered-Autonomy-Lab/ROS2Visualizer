@@ -17,6 +17,7 @@
   
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/server-browser.css') }}">
   
   <!-- Three.js for 3D visualization with fallback -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -360,8 +361,15 @@
           <div class="row">
             <div class="col-12">
               <div class="card border-dark">
-                <div class="card-header bg-dark text-white" id="available-files-header">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center" id="available-files-header">
                   <h4 class="h6 mb-0"><i class="fas fa-file-csv me-2" aria-hidden="true"></i>Available Files</h4>
+                  <div class="d-flex align-items-center">
+                    <div class="form-check me-2">
+                      <input class="form-check-input" type="checkbox" id="select-all-files" aria-label="Select all files">
+                      <label class="form-check-label text-white" for="select-all-files">Select All</label>
+                    </div>
+                    <span class="badge bg-light text-dark ms-2" id="available-files-count">0 files</span>
+                  </div>
                 </div>
                 <div class="card-body p-0">
                   <div class="tab-content" id="folderTabContent">
@@ -472,16 +480,21 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer bg-light">
+        <div class="modal-footer bg-dark text-white">
           <div class="d-flex w-100 justify-content-between align-items-center">
-            <div>
-              <span class="text-muted" id="file-count-display">0 files available</span>
+            <div class="d-flex align-items-center">
+              <span class="text-light me-3" id="file-count-display">0 files available</span>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="batch-process-toggle" checked>
+                <label class="form-check-label text-light" for="batch-process-toggle">Batch Processing</label>
+                <small class="d-block text-light opacity-75">Process all files simultaneously</small>
+              </div>
             </div>
             <div>
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">
                 <i class="fas fa-times me-1"></i>Cancel
               </button>
-              <button type="button" class="btn btn-success" id="load-selected-server-files" disabled>
+              <button type="button" class="btn btn-primary" id="load-selected-server-files" disabled>
                 <i class="fas fa-chart-line me-1"></i>Visualize Selected Files
               </button>
             </div>
@@ -496,7 +509,8 @@
   <!-- Main application script -->
   <script src="{{ url_for('static', filename='js/script.js') }}"></script>
   
-  <!-- Server Data Browser Fix script -->
+  <!-- Server Data Browser Scripts -->
   <script src="{{ url_for('static', filename='js/server_browser_fix.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/enhanced-server-browser.js') }}"></script>
 </body>
 </html>

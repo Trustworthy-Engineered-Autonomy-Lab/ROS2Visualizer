@@ -1,0 +1,177 @@
+/**
+ * Enhanced Server Data Browser Styles
+ * TEA Labs - Flight Trajectory Visualization Platform
+ */
+
+/* Modal improvements */
+#serverDataModal .modal-xl {
+  max-width: 95%;
+}
+
+#serverDataModal .modal-dialog {
+  padding: 0;
+}
+
+#serverDataModal .modal-content {
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+#serverDataModal .modal-header {
+  border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+#serverDataModal .modal-footer {
+  border-radius: 0 0 8px 8px;
+  border-top: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Card styling */
+#serverDataModal .card {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#serverDataModal .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+#serverDataModal .card-header {
+  padding: 0.75rem 1rem;
+  font-weight: bold;
+}
+
+/* File listings */
+#serverDataModal .table {
+  margin-bottom: 0;
+}
+
+#serverDataModal .table-hover tbody tr:hover {
+  background-color: rgba(13, 110, 253, 0.07);
+}
+
+#serverDataModal .table td {
+  vertical-align: middle;
+}
+
+#serverDataModal .table-primary {
+  --bs-table-bg: rgba(13, 110, 253, 0.15);
+}
+
+/* File grid view */
+#file-grid-container .card {
+  transition: all 0.2s ease;
+}
+
+#file-grid-container .card.border-primary {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(13, 110, 253, 0.2);
+}
+
+/* Form controls */
+#serverDataModal .form-check-input:checked {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+#serverDataModal .form-switch .form-check-input:focus {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+}
+
+/* Selected files panel */
+#selected-files-list .list-group-item {
+  transition: background-color 0.2s;
+}
+
+#selected-files-list .list-group-item:hover {
+  background-color: rgba(13, 110, 253, 0.07);
+}
+
+#selected-files-list .btn-sm {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.75rem;
+}
+
+/* Button styles */
+#serverDataModal .btn-outline-light {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+#serverDataModal .btn-outline-light:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Dropdowns and filters */
+#server-data-search, #server-data-sort {
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+#server-data-search:focus, #server-data-sort:focus {
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Badges */
+#serverDataModal .badge {
+  font-weight: 500;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  #serverDataModal .modal-footer {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  
+  #serverDataModal .modal-footer > div {
+    margin-bottom: 0.5rem;
+    width: 100%;
+    justify-content: center !important;
+  }
+  
+  #serverDataModal .d-flex.align-items-center {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  
+  #serverDataModal .me-3 {
+    margin-right: 0 !important;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Animation effects */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#file-list-container, #file-grid-container, #selected-files-list {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* File icons */
+.file-icon {
+  margin-right: 8px;
+  color: #6c757d;
+}
+
+.file-csv .file-icon {
+  color: #198754;
+}
+
+.file-txt .file-icon {
+  color: #0d6efd;
+}
+
+/* Loading indicator */
+#server-data-loading .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
