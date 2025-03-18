@@ -1109,14 +1109,14 @@ function updateTimeDisplay(time) {
 function updateCharts() {
   if (trajectories.length === 0) return;
   
-  // Use same altitude scale factor as in the 3D view for consistency
-  const altitudeScaleFactor = 1.8;
+  // We'll now show the real altitude values in the chart
+  // Note: 3D view still uses scaling for better visualization
   
-  // Prepare data for altitude chart with enhanced altitude scaling
+  // Prepare data for altitude chart with REAL altitude values (not scaled)
   const altitudeTraces = trajectories.filter(t => t.visible).map(traj => {
     const times = traj.data.map(d => d.time);
-    // Apply the same scaling factor to chart data for consistency
-    const altitudes = traj.data.map(d => -d.position_d * altitudeScaleFactor); // Scale altitude for better visualization
+    // Use true altitude values without scaling
+    const altitudes = traj.data.map(d => -d.position_d); // Convert from position_d (down) to altitude (up)
     
     return {
       x: times,
@@ -1147,10 +1147,10 @@ function updateCharts() {
   
   // Update charts
   Plotly.react('position-chart', altitudeTraces, {
-    title: 'Altitude Profile (Enhanced)',
+    title: 'Altitude Profile (Real Values)',
     margin: { t: 30, l: 50, r: 20, b: 40 },
     xaxis: { title: 'Time (s)' },
-    yaxis: { title: 'Altitude (m, scaled)' },
+    yaxis: { title: 'Altitude (m)' },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
     font: { color: '#fff' }
@@ -1259,10 +1259,10 @@ function clearTrajectories() {
   
   // Clear charts
   Plotly.react('position-chart', [], {
-    title: 'Altitude Profile (Enhanced)',
+    title: 'Altitude Profile (Real Values)',
     margin: { t: 30, l: 50, r: 20, b: 40 },
     xaxis: { title: 'Time (s)' },
-    yaxis: { title: 'Altitude (m, scaled)' },
+    yaxis: { title: 'Altitude (m)' },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
     font: { color: '#fff' }
