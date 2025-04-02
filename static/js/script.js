@@ -81,6 +81,7 @@ let animationState = {
 let uploadModal;
 let serverDataModal;
 let houseModel = null;
+let attackVisualizer; // Attack visualization controller
 let houseConfig = {
   visible: true,
   position: {
@@ -104,6 +105,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize empty charts
   initCharts();
   
+  // Initialize attack visualizer
+  attackVisualizer = new AttackVisualizer().init();
+  
   // Add event listeners
   document.getElementById('load-files-btn').addEventListener('click', handleFileUpload);
   document.getElementById('view-mode').addEventListener('change', handleViewModeChange);
@@ -117,6 +121,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // House controls
   document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
   document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
+  
+  // Attack visualization controls - these are now handled by the AttackVisualizer class
   
   // Server data browser
   document.getElementById('browse-server-data-btn').addEventListener('click', openServerDataBrowser);
@@ -782,8 +788,11 @@ function addTrajectory(data, name, color) {
     data[0].velocity = data[1]?.velocity || 0;
   }
   
-  // Store the trajectory data
-  trajectories.push({
+  // Check for attack data
+  const hasAttackData = data.some(point => point.is_attacked || point.attack_type);
+  
+  // Create trajectory object
+  const trajectoryObject = {
     name: name,
     data: data,
     points: points,
@@ -791,9 +800,36 @@ function addTrajectory(data, name, color) {
     color: color,
     objects: {
       trajectory: trajectory,
-      aircraft: aircraft
+      aircraft: aircraft,
+      attackMarkers: [] // Will store attack visualization markers
+    },
+    hasAttackData: hasAttackData, // Flag to indicate if trajectory has attack data
+    attackSegments: [] // Will store information about attack segments
+  };
+  
+  // Process attack segments if the trajectory has attack data
+  if (hasAttackData && attackVisualizer) {
+    // Initialize attack markers array if not exists
+    trajectoryObject.objects.attackMarkers = [];
+    
+    // Let the attack visualizer process the trajectory
+    attackVisualizer.processTrajectory(trajectoryObject, trajectories.length);
+    
+    // Add attack visualization to the trajectory line if visualization is enabled
+    if (attackVisualizer.settings.enabled) {
+      // Pass trajectory object to attack visualizer for visualization
+      attackVisualizer.visualizeAttacksOnTrajectory(trajectory, trajectoryObject, trajectories.length);
+      
+      // Add attack markers if marker visualization is enabled
+      if (attackVisualizer.settings.showAttackMarkers) {
+        const markers = attackVisualizer.addAttackMarkers(scene, trajectoryObject, trajectories.length);
+        trajectoryObject.objects.attackMarkers = markers || [];
+      }
     }
-  });
+  }
+  
+  // Store the trajectory data
+  trajectories.push(trajectoryObject);
   
   // Update charts with this trajectory's data
   updateCharts();
@@ -1145,6 +1181,32 @@ function updateCharts() {
     };
   });
   
+  // Enhance charts with attack visualization if available
+  if (attackVisualizer) {
+    // Add attack visualization to altitude chart
+    const enhancedAltitudeTraces = attackVisualizer.enhanceChartWithAttackVisualization(
+      altitudeTraces, 
+      'altitude'
+    );
+    
+    // Add attack visualization to velocity chart
+    const enhancedVelocityTraces = attackVisualizer.enhanceChartWithAttackVisualization(
+      velocityTraces, 
+      'velocity'
+    );
+    
+    // Use enhanced traces if attack visualization is enabled
+    if (attackVisualizer.settings.enabled) {
+      if (attackVisualizer.settings.highlightAttackAltitude) {
+        altitudeTraces = enhancedAltitudeTraces;
+      }
+      
+      if (attackVisualizer.settings.highlightAttackVelocity) {
+        velocityTraces = enhancedVelocityTraces;
+      }
+    }
+  }
+  
   // Update charts
   Plotly.react('position-chart', altitudeTraces, {
     title: 'Altitude Profile (Real Values)',
@@ -1165,6 +1227,11 @@ function updateCharts() {
     plot_bgcolor: 'rgba(0,0,0,0)',
     font: { color: '#fff' }
   }, {responsive: true});
+  
+  // If attack visualizer exists, update its visualization
+  if (attackVisualizer) {
+    attackVisualizer.updateVisualization();
+  }
 }
 
 // Play animation

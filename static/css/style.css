@@ -5,6 +5,74 @@ html, body {
   overflow: hidden;
 }
 
+/* Attack visualization styles */
+.attack-legend {
+  background-color: rgba(33, 37, 41, 0.75);
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.attack-legend h6 {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #fff;
+}
+
+.attack-type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.attack-type-item {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+.attack-color-sample {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  margin-right: 5px;
+}
+
+.attack-type-name {
+  font-size: 12px;
+  color: #eee;
+}
+
+.attack-settings-options {
+  transition: opacity 0.3s ease;
+}
+
+.attack-marker {
+  cursor: pointer;
+  pointer-events: all;
+}
+
+.attack-info-panel {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  width: 250px;
+  background-color: rgba(33, 37, 41, 0.9);
+  border-radius: 4px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  color: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.attack-segment-highlighted {
+  stroke-width: 4px !important;
+  stroke-dasharray: 5, 2;
+}
+
 .app-container {
   height: 100vh;
   display: flex;
