@@ -72,7 +72,6 @@ const browserSupport = {
 // Global variables
 let scene, camera, renderer, controls;
 let trajectories = [];
-let attackVisualizationEnabled = false; // Flag to enable/disable attack visualization
 let animationState = {
   playing: false,
   currentTimeIndex: 0,
@@ -90,8 +89,6 @@ let houseConfig = {
     z: 10.0
   }
 };
-// Attack visualization config  
-const ATTACK_COLOR = 0xFF0000; // Red color for attack segments
 let serverData = {
   currentFolder: 'sample_data',
   folders: [],
@@ -120,9 +117,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // House controls
   document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
   document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
-  
-  // Attack visualization toggle
-  document.getElementById('attack-toggle').addEventListener('change', toggleAttackVisualization);
   
   // Server data browser
   document.getElementById('browse-server-data-btn').addEventListener('click', openServerDataBrowser);
@@ -751,97 +745,18 @@ function addTrajectory(data, name, color) {
     point.position_n || 0                      // Z axis (North)
   ));
   
-  // Check if data has attack information
-  const hasAttackData = data.some(point => point.hasOwnProperty('is_attacked'));
+  // Create line geometry
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
   
-  // If we have attack data and visualization is enabled, create separate trajectory segments
-  let trajectory, attackedSegments;
+  // Create line material
+  const material = new THREE.LineBasicMaterial({ 
+    color: color,
+    linewidth: 2
+  });
   
-  if (hasAttackData && attackVisualizationEnabled) {
-    // Split into normal and attacked segments
-    const segments = [];
-    const attackedPoints = [];
-    
-    let currentSegment = [];
-    let isCurrentlyAttacked = false;
-    
-    // Process data points to identify attacked segments
-    for (let i = 0; i < data.length; i++) {
-      const point = data[i];
-      const isAttacked = !!point.is_attacked;
-      
-      // If attack status changed, start a new segment
-      if (isAttacked !== isCurrentlyAttacked || i === 0) {
-        if (currentSegment.length > 0) {
-          segments.push({
-            points: currentSegment,
-            attacked: isCurrentlyAttacked
-          });
-        }
-        currentSegment = [points[i]];
-        isCurrentlyAttacked = isAttacked;
-      } else {
-        currentSegment.push(points[i]);
-      }
-      
-      // Store all attacked points for visualization
-      if (isAttacked) {
-        attackedPoints.push(points[i]);
-      }
-    }
-    
-    // Add the last segment
-    if (currentSegment.length > 0) {
-      segments.push({
-        points: currentSegment,
-        attacked: isCurrentlyAttacked
-      });
-    }
-    
-    // Create a Group to hold all trajectory segments
-    trajectory = new THREE.Group();
-    
-    // Create individual line segments
-    segments.forEach(segment => {
-      const segmentGeometry = new THREE.BufferGeometry().setFromPoints(segment.points);
-      const segmentMaterial = new THREE.LineBasicMaterial({ 
-        color: segment.attacked ? ATTACK_COLOR : color,
-        linewidth: segment.attacked ? 3 : 2  // Make attacked segments thicker
-      });
-      
-      const segmentLine = new THREE.Line(segmentGeometry, segmentMaterial);
-      trajectory.add(segmentLine);
-    });
-    
-    // Add the trajectory group to the scene
-    scene.add(trajectory);
-    
-    // Create a special object for attacked points visualization (optional)
-    if (attackedPoints.length > 0) {
-      const attackedGeometry = new THREE.BufferGeometry().setFromPoints(attackedPoints);
-      const attackedMaterial = new THREE.PointsMaterial({ 
-        color: ATTACK_COLOR,
-        size: 3,
-        sizeAttenuation: false
-      });
-      
-      attackedSegments = new THREE.Points(attackedGeometry, attackedMaterial);
-      scene.add(attackedSegments);
-    }
-  } else {
-    // Standard single trajectory line rendering (when no attack data or visualization disabled)
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    
-    // Create line material
-    const material = new THREE.LineBasicMaterial({ 
-      color: color,
-      linewidth: 2
-    });
-    
-    // Create the line
-    trajectory = new THREE.Line(geometry, material);
-    scene.add(trajectory);
-  }
+  // Create the line
+  const trajectory = new THREE.Line(geometry, material);
+  scene.add(trajectory);
   
   // Create aircraft model
   const aircraft = createAircraftModel(color);
@@ -874,11 +789,9 @@ function addTrajectory(data, name, color) {
     points: points,
     visible: true,
     color: color,
-    hasAttackData: hasAttackData,
     objects: {
       trajectory: trajectory,
-      aircraft: aircraft,
-      attackedSegments: attackedSegments || null
+      aircraft: aircraft
     }
   });
   
@@ -1394,34 +1307,7 @@ function onWindowResize() {
   renderer.setSize(container.clientWidth, container.clientHeight);
 }
 
-// Toggle attack visualization
-function toggleAttackVisualization(event) {
-  // Update global state
-  attackVisualizationEnabled = event.target.checked;
-  
-  // Log state change
-  console.log(`Attack visualization ${attackVisualizationEnabled ? 'enabled' : 'disabled'}`);
-  
-  // Apply changes to existing trajectories if they have attack data
-  const hasAttackData = trajectories.some(t => t.hasAttackData);
-  
-  if (hasAttackData) {
-    // We need to rebuild all trajectories with attack data
-    const trajCopy = [...trajectories];
-    clearTrajectories();
-    
-    // Rebuild each trajectory with the new attack visualization setting
-    trajCopy.forEach(traj => {
-      addTrajectory(traj.data, traj.name, traj.color);
-    });
-    
-    showMessage(`Attack visualization ${attackVisualizationEnabled ? 'enabled' : 'disabled'}`, "info");
-  } else if (trajectories.length > 0) {
-    // If we have trajectories but no attack data, inform the user
-    showMessage("No attack data found in current trajectories", "info");
-  }
-}
-
+// Function to toggle house visibility
 function toggleHouseVisibility(event) {
   try {
     // First save the checkbox state regardless of house model availability
