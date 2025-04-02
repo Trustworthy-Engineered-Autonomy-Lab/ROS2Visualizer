@@ -89,6 +89,11 @@ let houseConfig = {
     z: 10.0
   }
 };
+// Attack visualization configuration
+let attackConfig = {
+  highlight: true,
+  color: 0xFF0000  // Red color for attack segments
+};
 let serverData = {
   currentFolder: 'sample_data',
   folders: [],
@@ -117,6 +122,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // House controls
   document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
   document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
+  
+  // Attack visualization controls
+  document.getElementById('attack-toggle').addEventListener('change', toggleAttackHighlight);
   
   // Server data browser
   document.getElementById('browse-server-data-btn').addEventListener('click', openServerDataBrowser);
@@ -762,6 +770,13 @@ function addTrajectory(data, name, color) {
   const aircraft = createAircraftModel(color);
   scene.add(aircraft);
   
+  // Create attack segments if attack data is present
+  let attackSegments = null;
+  if (attackConfig.highlight && data.some(point => point.is_attacked)) {
+    attackSegments = createAttackSegments(data, points, color);
+    scene.add(attackSegments);
+  }
+  
   // Calculate velocity if not provided
   if (!data[0].velocity) {
     for (let i = 1; i < data.length; i++) {
@@ -791,7 +806,8 @@ function addTrajectory(data, name, color) {
     color: color,
     objects: {
       trajectory: trajectory,
-      aircraft: aircraft
+      aircraft: aircraft,
+      attackSegments: attackSegments
     }
   });
   
@@ -954,6 +970,11 @@ function toggleTrajectoryVisibility(event) {
     trajectories[index].objects.trajectory.visible = visible;
     trajectories[index].objects.aircraft.visible = visible;
     
+    // Also toggle attack segments visibility if they exist
+    if (trajectories[index].objects.attackSegments) {
+      trajectories[index].objects.attackSegments.visible = visible;
+    }
+    
     // Update charts
     updateCharts();
   }
@@ -1079,6 +1100,21 @@ function updateDataDisplay() {
   document.getElementById('data-alt').textContent = formatValue(-data.position_d, 'm');
   document.getElementById('data-vel').textContent = formatValue(data.velocity, 'm/s');
   document.getElementById('data-hdg').textContent = formatValue(data.psi * (180/Math.PI), '°');
+  
+  // Update attack status
+  const attackElement = document.getElementById('data-attack');
+  if (data.is_attacked) {
+    attackElement.textContent = 'UNDER ATTACK';
+    attackElement.classList.add('text-danger', 'fw-bold');
+    
+    // Show attack type if available
+    if (data.attack_type) {
+      attackElement.textContent += ` (${data.attack_type})`;
+    }
+  } else {
+    attackElement.textContent = 'Normal';
+    attackElement.classList.remove('text-danger', 'fw-bold');
+  }
   
   // Update time display
   updateTimeDisplay(data.time);
@@ -1233,6 +1269,11 @@ function clearTrajectories() {
   trajectories.forEach(traj => {
     scene.remove(traj.objects.trajectory);
     scene.remove(traj.objects.aircraft);
+    
+    // Also remove attack segments if they exist
+    if (traj.objects.attackSegments) {
+      scene.remove(traj.objects.attackSegments);
+    }
   });
   
   // Clear array
@@ -1256,6 +1297,11 @@ function clearTrajectories() {
   document.getElementById('data-vel').textContent = '--';
   document.getElementById('data-hdg').textContent = '--';
   document.getElementById('time-display').textContent = '00:00.000';
+  
+  // Reset attack status display
+  const attackElement = document.getElementById('data-attack');
+  attackElement.textContent = '--';
+  attackElement.classList.remove('text-danger', 'fw-bold');
   
   // Clear charts
   Plotly.react('position-chart', [], {
@@ -1308,6 +1354,99 @@ function onWindowResize() {
 }
 
 // Function to toggle house visibility
+// Create attack highlight segments
+function createAttackSegments(data, points, baseColor) {
+  // Find segments where the UAV is under attack
+  const attackSegments = [];
+  let currentSegment = null;
+  
+  for (let i = 0; i < data.length; i++) {
+    if (data[i].is_attacked) {
+      // Start a new segment or continue current segment
+      if (!currentSegment) {
+        currentSegment = {
+          start: i,
+          startPoint: points[i]
+        };
+      }
+    } else if (currentSegment) {
+      // End the current segment
+      currentSegment.end = i - 1;
+      currentSegment.endPoint = points[i - 1];
+      attackSegments.push(currentSegment);
+      currentSegment = null;
+    }
+  }
+  
+  // Handle case where attack continues to the end of the trajectory
+  if (currentSegment) {
+    currentSegment.end = data.length - 1;
+    currentSegment.endPoint = points[data.length - 1];
+    attackSegments.push(currentSegment);
+  }
+  
+  // Create a group to hold all attack segments
+  const group = new THREE.Group();
+  
+  // Create thick line segments for each attack segment
+  attackSegments.forEach(segment => {
+    // Get points for this segment
+    const segmentPoints = points.slice(segment.start, segment.end + 1);
+    
+    // Create geometry for the segment
+    const geometry = new THREE.BufferGeometry().setFromPoints(segmentPoints);
+    
+    // Create material with attack color (highlighted)
+    const material = new THREE.LineBasicMaterial({
+      color: attackConfig.color,
+      linewidth: 4 // Thicker than regular line
+    });
+    
+    // Create the line
+    const line = new THREE.Line(geometry, material);
+    group.add(line);
+  });
+  
+  return group;
+}
+
+// Toggle attack highlight visibility
+function toggleAttackHighlight(event) {
+  // Update attack configuration
+  attackConfig.highlight = event.target.checked;
+  
+  // Update all trajectory attack segments
+  trajectories.forEach(trajectory => {
+    // Check if trajectory has attack data
+    const hasAttackData = trajectory.data.some(point => point.is_attacked);
+    
+    if (hasAttackData) {
+      // Remove existing attack segments if they exist
+      if (trajectory.objects.attackSegments) {
+        scene.remove(trajectory.objects.attackSegments);
+        trajectory.objects.attackSegments = null;
+      }
+      
+      // Create new attack segments if highlight is enabled
+      if (attackConfig.highlight) {
+        trajectory.objects.attackSegments = createAttackSegments(
+          trajectory.data, 
+          trajectory.points, 
+          trajectory.color
+        );
+        scene.add(trajectory.objects.attackSegments);
+      }
+    }
+  });
+  
+  // Show feedback message
+  if (attackConfig.highlight) {
+    showMessage("Attack highlighting enabled", "info");
+  } else {
+    showMessage("Attack highlighting disabled", "info");
+  }
+}
+
 function toggleHouseVisibility(event) {
   try {
     // First save the checkbox state regardless of house model availability

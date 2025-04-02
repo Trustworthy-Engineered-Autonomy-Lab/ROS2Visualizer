@@ -190,6 +190,7 @@
                 <tr><td>Altitude:</td><td id="data-alt" class="text-end">--</td></tr>
                 <tr><td>Velocity:</td><td id="data-vel" class="text-end">--</td></tr>
                 <tr><td>Heading:</td><td id="data-hdg" class="text-end">--</td></tr>
+                <tr><td>Attack Status:</td><td id="data-attack" class="text-end">--</td></tr>
               </tbody>
             </table>
           </div>
@@ -200,6 +201,12 @@
             <div class="form-check form-switch mb-2">
               <input class="form-check-input" type="checkbox" id="house-toggle" checked>
               <label class="form-check-label" for="house-toggle">Show House</label>
+            </div>
+            
+            <!-- Attack Visualization Toggle -->
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="attack-toggle" checked>
+              <label class="form-check-label" for="attack-toggle">Highlight Attacks</label>
             </div>
             <div class="mb-2">
               <label for="house-x" class="form-label small mb-0">X Position:</label>
