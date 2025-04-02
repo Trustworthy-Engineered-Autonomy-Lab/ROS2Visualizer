@@ -89,11 +89,6 @@ let houseConfig = {
     z: 10.0
   }
 };
-// Attack visualization configuration
-let attackConfig = {
-  highlight: true,
-  color: 0xFF0000  // Red color for attack segments
-};
 let serverData = {
   currentFolder: 'sample_data',
   folders: [],
@@ -122,9 +117,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // House controls
   document.getElementById('house-toggle').addEventListener('change', toggleHouseVisibility);
   document.getElementById('update-house-btn').addEventListener('click', updateHousePosition);
-  
-  // Attack visualization controls
-  document.getElementById('attack-toggle').addEventListener('change', toggleAttackHighlight);
   
   // Server data browser
   document.getElementById('browse-server-data-btn').addEventListener('click', openServerDataBrowser);
@@ -746,9 +738,6 @@ function addTrajectory(data, name, color) {
   // Enhanced altitude scaling to make flights appear at proper depths
   const altitudeScaleFactor = 1.8; // Amplify vertical movements
   
-  // Make sure the data array is sorted by time for proper trajectory visualization
-  data.sort((a, b) => (a.time || 0) - (b.time || 0));
-  
   // Extract position points for trajectory line with enhanced altitude
   const points = data.map(point => new THREE.Vector3(
     point.position_e || 0,                     // X axis (East)
@@ -772,13 +761,6 @@ function addTrajectory(data, name, color) {
   // Create aircraft model
   const aircraft = createAircraftModel(color);
   scene.add(aircraft);
-  
-  // Create attack segments if attack data is present
-  let attackSegments = null;
-  if (attackConfig.highlight && data.some(point => point.is_attacked)) {
-    attackSegments = createAttackSegments(data, points, color);
-    scene.add(attackSegments);
-  }
   
   // Calculate velocity if not provided
   if (!data[0].velocity) {
@@ -809,18 +791,12 @@ function addTrajectory(data, name, color) {
     color: color,
     objects: {
       trajectory: trajectory,
-      aircraft: aircraft,
-      attackSegments: attackSegments
+      aircraft: aircraft
     }
   });
   
   // Update charts with this trajectory's data
   updateCharts();
-  
-  // If this is the first trajectory, reset the camera to view the entire path
-  if (trajectories.length === 1) {
-    centerCameraOnTrajectories();
-  }
 }
 
 // Create aircraft model
@@ -978,11 +954,6 @@ function toggleTrajectoryVisibility(event) {
     trajectories[index].objects.trajectory.visible = visible;
     trajectories[index].objects.aircraft.visible = visible;
     
-    // Also toggle attack segments visibility if they exist
-    if (trajectories[index].objects.attackSegments) {
-      trajectories[index].objects.attackSegments.visible = visible;
-    }
-    
     // Update charts
     updateCharts();
   }
@@ -1108,21 +1079,6 @@ function updateDataDisplay() {
   document.getElementById('data-alt').textContent = formatValue(-data.position_d, 'm');
   document.getElementById('data-vel').textContent = formatValue(data.velocity, 'm/s');
   document.getElementById('data-hdg').textContent = formatValue(data.psi * (180/Math.PI), '°');
-  
-  // Update attack status
-  const attackElement = document.getElementById('data-attack');
-  if (data.is_attacked) {
-    attackElement.textContent = 'UNDER ATTACK';
-    attackElement.classList.add('text-danger', 'fw-bold');
-    
-    // Show attack type if available
-    if (data.attack_type) {
-      attackElement.textContent += ` (${data.attack_type})`;
-    }
-  } else {
-    attackElement.textContent = 'Normal';
-    attackElement.classList.remove('text-danger', 'fw-bold');
-  }
   
   // Update time display
   updateTimeDisplay(data.time);
@@ -1277,11 +1233,6 @@ function clearTrajectories() {
   trajectories.forEach(traj => {
     scene.remove(traj.objects.trajectory);
     scene.remove(traj.objects.aircraft);
-    
-    // Also remove attack segments if they exist
-    if (traj.objects.attackSegments) {
-      scene.remove(traj.objects.attackSegments);
-    }
   });
   
   // Clear array
@@ -1306,11 +1257,6 @@ function clearTrajectories() {
   document.getElementById('data-hdg').textContent = '--';
   document.getElementById('time-display').textContent = '00:00.000';
   
-  // Reset attack status display
-  const attackElement = document.getElementById('data-attack');
-  attackElement.textContent = '--';
-  attackElement.classList.remove('text-danger', 'fw-bold');
-  
   // Clear charts
   Plotly.react('position-chart', [], {
     title: 'Altitude Profile (Real Values)',
@@ -1333,84 +1279,11 @@ function clearTrajectories() {
   });
 }
 
-// Center camera on all trajectories
-function centerCameraOnTrajectories() {
-  if (trajectories.length === 0) {
-    // Default view if no trajectories
-    camera.position.set(200, 200, 200);
-    camera.lookAt(0, 0, 0);
-    controls.update();
-    return;
-  }
-  
-  // Calculate bounding box for all visible trajectories
-  const visibleTrajectories = trajectories.filter(t => t.visible);
-  
-  if (visibleTrajectories.length === 0) return;
-  
-  // Initialize min/max values
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-  
-  // Find extremes across all visible trajectories
-  visibleTrajectories.forEach(traj => {
-    traj.points.forEach(point => {
-      minX = Math.min(minX, point.x);
-      minY = Math.min(minY, point.y);
-      minZ = Math.min(minZ, point.z);
-      maxX = Math.max(maxX, point.x);
-      maxY = Math.max(maxY, point.y);
-      maxZ = Math.max(maxZ, point.z);
-    });
-  });
-  
-  // Calculate center point and size
-  const center = new THREE.Vector3(
-    (minX + maxX) / 2,
-    (minY + maxY) / 2,
-    (minZ + maxZ) / 2
-  );
-  
-  // Calculate required distance to see entire bounding box
-  const size = new THREE.Vector3(
-    Math.max(1, maxX - minX),
-    Math.max(1, maxY - minY),
-    Math.max(1, maxZ - minZ)
-  );
-  
-  // Size of the bounding box diagonal
-  const boxSize = Math.sqrt(size.x*size.x + size.y*size.y + size.z*size.z);
-  
-  // Position camera at an optimal distance
-  const fov = camera.fov * (Math.PI / 180);
-  let distance = boxSize / (2 * Math.tan(fov / 2));
-  
-  // Add margin for better visibility
-  distance *= 1.5;
-  
-  // Position camera at distance, looking at center
-  const direction = new THREE.Vector3(1, 1, 1).normalize();
-  camera.position.copy(center).add(direction.multiplyScalar(distance));
-  camera.lookAt(center);
-  
-  // Keep track of center for orbit controls
-  controls.target.copy(center);
-  controls.update();
-  
-  showMessage("Camera adjusted to view all trajectories", "info");
-}
-
 // Reset camera view
 function resetView() {
-  // Choose the best view based on available trajectories
-  if (trajectories.length > 0) {
-    centerCameraOnTrajectories();
-  } else {
-    // Default view if no trajectories
-    camera.position.set(200, 200, 200);
-    camera.lookAt(0, 0, 0);
-    controls.update();
-  }
+  camera.position.set(200, 200, 200);
+  camera.lookAt(0, 0, 0);
+  controls.update();
 }
 
 // Toggle fullscreen mode
@@ -1435,99 +1308,6 @@ function onWindowResize() {
 }
 
 // Function to toggle house visibility
-// Create attack highlight segments
-function createAttackSegments(data, points, baseColor) {
-  // Find segments where the UAV is under attack
-  const attackSegments = [];
-  let currentSegment = null;
-  
-  for (let i = 0; i < data.length; i++) {
-    if (data[i].is_attacked) {
-      // Start a new segment or continue current segment
-      if (!currentSegment) {
-        currentSegment = {
-          start: i,
-          startPoint: points[i]
-        };
-      }
-    } else if (currentSegment) {
-      // End the current segment
-      currentSegment.end = i - 1;
-      currentSegment.endPoint = points[i - 1];
-      attackSegments.push(currentSegment);
-      currentSegment = null;
-    }
-  }
-  
-  // Handle case where attack continues to the end of the trajectory
-  if (currentSegment) {
-    currentSegment.end = data.length - 1;
-    currentSegment.endPoint = points[data.length - 1];
-    attackSegments.push(currentSegment);
-  }
-  
-  // Create a group to hold all attack segments
-  const group = new THREE.Group();
-  
-  // Create thick line segments for each attack segment
-  attackSegments.forEach(segment => {
-    // Get points for this segment
-    const segmentPoints = points.slice(segment.start, segment.end + 1);
-    
-    // Create geometry for the segment
-    const geometry = new THREE.BufferGeometry().setFromPoints(segmentPoints);
-    
-    // Create material with attack color (highlighted)
-    const material = new THREE.LineBasicMaterial({
-      color: attackConfig.color,
-      linewidth: 4 // Thicker than regular line
-    });
-    
-    // Create the line
-    const line = new THREE.Line(geometry, material);
-    group.add(line);
-  });
-  
-  return group;
-}
-
-// Toggle attack highlight visibility
-function toggleAttackHighlight(event) {
-  // Update attack configuration
-  attackConfig.highlight = event.target.checked;
-  
-  // Update all trajectory attack segments
-  trajectories.forEach(trajectory => {
-    // Check if trajectory has attack data
-    const hasAttackData = trajectory.data.some(point => point.is_attacked);
-    
-    if (hasAttackData) {
-      // Remove existing attack segments if they exist
-      if (trajectory.objects.attackSegments) {
-        scene.remove(trajectory.objects.attackSegments);
-        trajectory.objects.attackSegments = null;
-      }
-      
-      // Create new attack segments if highlight is enabled
-      if (attackConfig.highlight) {
-        trajectory.objects.attackSegments = createAttackSegments(
-          trajectory.data, 
-          trajectory.points, 
-          trajectory.color
-        );
-        scene.add(trajectory.objects.attackSegments);
-      }
-    }
-  });
-  
-  // Show feedback message
-  if (attackConfig.highlight) {
-    showMessage("Attack highlighting enabled", "info");
-  } else {
-    showMessage("Attack highlighting disabled", "info");
-  }
-}
-
 function toggleHouseVisibility(event) {
   try {
     // First save the checkbox state regardless of house model availability
@@ -1722,11 +1502,11 @@ function refreshTrajectories(processedData) {
   updateTrajectoryList();
   updateTimeSlider();
   
-  // Center view on all loaded trajectories
-  centerCameraOnTrajectories();
-  
   // Show success message
   showMessage(`Successfully loaded ${trajectories.length} trajectories`, "success");
+  
+  // Reset view
+  resetView();
 }
 
 // SERVER DATA BROWSING FUNCTIONS
