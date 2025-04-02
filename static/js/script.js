@@ -746,6 +746,9 @@ function addTrajectory(data, name, color) {
   // Enhanced altitude scaling to make flights appear at proper depths
   const altitudeScaleFactor = 1.8; // Amplify vertical movements
   
+  // Make sure the data array is sorted by time for proper trajectory visualization
+  data.sort((a, b) => (a.time || 0) - (b.time || 0));
+  
   // Extract position points for trajectory line with enhanced altitude
   const points = data.map(point => new THREE.Vector3(
     point.position_e || 0,                     // X axis (East)
@@ -813,6 +816,11 @@ function addTrajectory(data, name, color) {
   
   // Update charts with this trajectory's data
   updateCharts();
+  
+  // If this is the first trajectory, reset the camera to view the entire path
+  if (trajectories.length === 1) {
+    centerCameraOnTrajectories();
+  }
 }
 
 // Create aircraft model
@@ -1325,11 +1333,84 @@ function clearTrajectories() {
   });
 }
 
+// Center camera on all trajectories
+function centerCameraOnTrajectories() {
+  if (trajectories.length === 0) {
+    // Default view if no trajectories
+    camera.position.set(200, 200, 200);
+    camera.lookAt(0, 0, 0);
+    controls.update();
+    return;
+  }
+  
+  // Calculate bounding box for all visible trajectories
+  const visibleTrajectories = trajectories.filter(t => t.visible);
+  
+  if (visibleTrajectories.length === 0) return;
+  
+  // Initialize min/max values
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  
+  // Find extremes across all visible trajectories
+  visibleTrajectories.forEach(traj => {
+    traj.points.forEach(point => {
+      minX = Math.min(minX, point.x);
+      minY = Math.min(minY, point.y);
+      minZ = Math.min(minZ, point.z);
+      maxX = Math.max(maxX, point.x);
+      maxY = Math.max(maxY, point.y);
+      maxZ = Math.max(maxZ, point.z);
+    });
+  });
+  
+  // Calculate center point and size
+  const center = new THREE.Vector3(
+    (minX + maxX) / 2,
+    (minY + maxY) / 2,
+    (minZ + maxZ) / 2
+  );
+  
+  // Calculate required distance to see entire bounding box
+  const size = new THREE.Vector3(
+    Math.max(1, maxX - minX),
+    Math.max(1, maxY - minY),
+    Math.max(1, maxZ - minZ)
+  );
+  
+  // Size of the bounding box diagonal
+  const boxSize = Math.sqrt(size.x*size.x + size.y*size.y + size.z*size.z);
+  
+  // Position camera at an optimal distance
+  const fov = camera.fov * (Math.PI / 180);
+  let distance = boxSize / (2 * Math.tan(fov / 2));
+  
+  // Add margin for better visibility
+  distance *= 1.5;
+  
+  // Position camera at distance, looking at center
+  const direction = new THREE.Vector3(1, 1, 1).normalize();
+  camera.position.copy(center).add(direction.multiplyScalar(distance));
+  camera.lookAt(center);
+  
+  // Keep track of center for orbit controls
+  controls.target.copy(center);
+  controls.update();
+  
+  showMessage("Camera adjusted to view all trajectories", "info");
+}
+
 // Reset camera view
 function resetView() {
-  camera.position.set(200, 200, 200);
-  camera.lookAt(0, 0, 0);
-  controls.update();
+  // Choose the best view based on available trajectories
+  if (trajectories.length > 0) {
+    centerCameraOnTrajectories();
+  } else {
+    // Default view if no trajectories
+    camera.position.set(200, 200, 200);
+    camera.lookAt(0, 0, 0);
+    controls.update();
+  }
 }
 
 // Toggle fullscreen mode
@@ -1641,11 +1722,11 @@ function refreshTrajectories(processedData) {
   updateTrajectoryList();
   updateTimeSlider();
   
+  // Center view on all loaded trajectories
+  centerCameraOnTrajectories();
+  
   // Show success message
   showMessage(`Successfully loaded ${trajectories.length} trajectories`, "success");
-  
-  // Reset view
-  resetView();
 }
 
 // SERVER DATA BROWSING FUNCTIONS
