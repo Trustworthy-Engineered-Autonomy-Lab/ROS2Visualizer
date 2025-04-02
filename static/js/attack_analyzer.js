@@ -355,8 +355,8 @@ class AttackVisualizer {
    */
   updateVisualization() {
     // Process all visible trajectories
-    if (window.trajectories) {
-      window.trajectories.forEach((trajectory, index) => {
+    if (trajectories) {
+      trajectories.forEach((trajectory, index) => {
         if (!trajectory.visible) return;
         
         // Skip trajectories without attack data
@@ -485,11 +485,11 @@ class AttackVisualizer {
    * @returns {Object|null} - Attack data or null if no attack
    */
   getAttackData(trajectoryIndex, pointIndex) {
-    if (!window.trajectories || !window.trajectories[trajectoryIndex]) {
+    if (!trajectories || !trajectories[trajectoryIndex]) {
       return null;
     }
     
-    const trajectory = window.trajectories[trajectoryIndex];
+    const trajectory = trajectories[trajectoryIndex];
     
     // If no attack segments defined, check individual point
     if (!trajectory.attackSegments) {
@@ -748,14 +748,14 @@ class AttackVisualizer {
     enhancedTraces.forEach((trace, traceIndex) => {
       const trajectoryName = trace.name;
       
-      // Find matching trajectory
-      const trajectoryIndex = window.trajectories.findIndex(t => 
+      // Find matching trajectory - using global trajectories array (no window prefix)
+      const trajectoryIndex = trajectories.findIndex(t => 
         t.name === trajectoryName && t.visible && t.hasAttackData
       );
       
       if (trajectoryIndex === -1) return;
       
-      const trajectory = window.trajectories[trajectoryIndex];
+      const trajectory = trajectories[trajectoryIndex];
       
       // If no attack segments or they're not loaded yet, skip
       if (!trajectory.attackSegments || trajectory.attackSegments.length === 0) {
@@ -796,10 +796,5 @@ class AttackVisualizer {
   }
 }
 
-// Initialize attack visualizer when the document is ready
-document.addEventListener('DOMContentLoaded', function() {
-  // Create and initialize attack visualizer
-  window.attackVisualizer = new AttackVisualizer().init();
-  
-  console.log('Attack Visualizer initialized');
-});
+// NOTE: Attack visualizer is now initialized directly in script.js
+// This duplicate initialization has been removed to prevent conflicts
