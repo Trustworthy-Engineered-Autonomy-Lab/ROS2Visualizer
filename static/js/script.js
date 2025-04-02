@@ -1149,7 +1149,7 @@ function updateCharts() {
   // Note: 3D view still uses scaling for better visualization
   
   // Prepare data for altitude chart with REAL altitude values (not scaled)
-  let altitudeTraces = trajectories.filter(t => t.visible).map(traj => {
+  const altitudeTraces = trajectories.filter(t => t.visible).map(traj => {
     const times = traj.data.map(d => d.time);
     // Use true altitude values without scaling
     const altitudes = traj.data.map(d => -d.position_d); // Convert from position_d (down) to altitude (up)
@@ -1166,7 +1166,7 @@ function updateCharts() {
   });
   
   // Prepare data for velocity chart
-  let velocityTraces = trajectories.filter(t => t.visible).map(traj => {
+  const velocityTraces = trajectories.filter(t => t.visible).map(traj => {
     const times = traj.data.map(d => d.time);
     const velocities = traj.data.map(d => d.velocity || 0);
     
