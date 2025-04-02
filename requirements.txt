@@ -6,3 +6,5 @@ numpy==1.26.0
 werkzeug==2.3.7
 email-validator==2.0.0
 psycopg2-binary==2.9.9
+numpy
+pandas
