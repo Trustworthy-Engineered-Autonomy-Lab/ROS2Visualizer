@@ -212,8 +212,8 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
                         'message': 'Could not find position_n, position_e, position_d columns or alternatives'
                     }
         
-        # Check if data has timestamps
-        has_timestamps = 'sec' in df.columns and 'nanosec' in df.columns
+        # Check if data has timestamps in ROS2 format
+        has_ros_timestamps = 'sec' in df.columns and 'nanosec' in df.columns
         
         # Process the data depending on available columns
         trajectory = []
@@ -228,8 +228,9 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
             'max_time': 0
         }
         
-        # Calculate time if available
-        if has_timestamps:
+        # Calculate time if ROS timestamps are available
+        if has_ros_timestamps:
+            logging.info("Found ROS2 timestamp columns (sec, nanosec). Creating time column.")
             df['time'] = df['sec'] + df['nanosec'] / 1e9
             min_time = df['time'].min()
             metadata['min_time'] = min_time
@@ -241,8 +242,30 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
             # Normalize time to start at 0
             df['normalized_time'] = df['time'] - min_time
         else:
-            # If no timestamps, use index as time
-            df['normalized_time'] = df.index / 10.0  # Assume 10Hz
+            # If no ROS timestamps, check if we have a time or timestamp column
+            time_columns = [col for col in df.columns if str(col).lower() in ['time', 'timestamp', 't']]
+            if time_columns:
+                logging.info(f"Found time column: {time_columns[0]}")
+                try:
+                    # Try to convert time column to numeric
+                    df['time'] = pd.to_numeric(df[time_columns[0]], errors='coerce')
+                    min_time = df['time'].min()
+                    metadata['min_time'] = min_time
+                    metadata['max_time'] = df['time'].max()
+                    metadata['duration'] = metadata['max_time'] - min_time
+                    if len(df) > 1:
+                        metadata['sampling_rate'] = len(df) / metadata['duration']
+                    
+                    # Normalize time to start at 0
+                    df['normalized_time'] = df['time'] - min_time
+                except Exception as e:
+                    logging.warning(f"Could not convert time column to numeric: {e}")
+                    # Fall back to index-based time
+                    df['normalized_time'] = df.index / 10.0  # Assume 10Hz
+            else:
+                # If no time columns found, use index as time
+                logging.info("No time columns found. Using index-based time (assuming 10Hz).")
+                df['normalized_time'] = df.index / 10.0  # Assume 10Hz
         
         # Calculate altitude range (negative of position_d)
         if 'position_d' in df.columns:
@@ -285,15 +308,29 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
             
             # Orientation data (if available)
             orientation = {}
-            for angle in ['phi', 'theta', 'psi']:
+            for angle in ['phi', 'theta', 'psi', 'chi', 'alpha', 'beta', 'chi_deg', 'psi_deg']:
                 if angle in df.columns:
                     orientation[angle] = float(row[angle])
             
             # Velocity data (if available)
             velocity = {}
-            for vel in ['u', 'v', 'w']:
+            for vel in ['u', 'v', 'w', 'va', 'vg', 'wn', 'we', 'p', 'q', 'r']:
                 if vel in df.columns:
                     velocity[vel] = float(row[vel])
+                    
+            # Attack information (if available)
+            attack_info = {}
+            for attack_col in ['is_attacked', 'attack_type', 'delta_position_n', 'delta_position_e', 'delta_position_d']:
+                if attack_col in df.columns:
+                    try:
+                        # Handle boolean column properly
+                        if attack_col == 'is_attacked' and str(row[attack_col]).lower() in ['true', 'false']:
+                            attack_info[attack_col] = str(row[attack_col]).lower() == 'true'
+                        else:
+                            attack_info[attack_col] = row[attack_col]
+                    except (ValueError, TypeError):
+                        # Skip non-convertible values
+                        pass
             
             # Create point data in the flat format expected by the frontend
             # The visualization expects position_n, position_e, position_d directly
@@ -313,12 +350,19 @@ def process_csv_data(csv_content, file_encoding='utf-8', use_file_path=False, is
             if velocity:
                 for vel, value in velocity.items():
                     point_data[vel] = value
+                    
+            # Add attack information if available 
+            if attack_info:
+                for attack_key, attack_value in attack_info.items():
+                    point_data[attack_key] = attack_value
             
             # Add additional data columns if available
             for col in df.columns:
                 if col not in ['position_n', 'position_e', 'position_d', 
                               'sec', 'nanosec', 'time', 'normalized_time', 
-                              'phi', 'theta', 'psi', 'u', 'v', 'w']:
+                              'phi', 'theta', 'psi', 'chi', 'alpha', 'beta', 'chi_deg', 'psi_deg',
+                              'u', 'v', 'w', 'va', 'vg', 'wn', 'we', 'p', 'q', 'r',
+                              'is_attacked', 'attack_type', 'delta_position_n', 'delta_position_e', 'delta_position_d']:
                     try:
                         value = float(row[col])
                         point_data[col] = value
@@ -366,6 +410,15 @@ def detect_position_columns(df):
     Returns:
         dict: Mapping of detected columns to standard names, or None if not found
     """
+    # Check if we already have the exact column names from user specified format
+    # This format matches the sample provided:
+    # sec,nanosec,frame_id,position_n,position_e,position_d,va,alpha,beta,phi,theta,psi,chi,u,v,w,p,q,r,vg,wn,we,chi_deg,psi_deg,initial_lat,initial_lon,initial_alt,is_attacked,delta_position_n,delta_position_e,delta_position_d,attack_type
+    
+    # If all three position columns are already present, no need to map anything
+    if all(col in df.columns for col in ['position_n', 'position_e', 'position_d']):
+        logging.info("Found exact position column names (position_n, position_e, position_d). No mapping needed.")
+        return {}  # Empty mapping as columns already have correct names
+    
     # Potential column name patterns - more comprehensive patterns for better matching
     position_patterns = {
         'position_n': ['n', 'north', 'x', 'pos_n', 'position_north', 'pos_north', 'position_x', 'pos_x', 
